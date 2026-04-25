@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
+
+const themeInitScript = `(function(){try{var k='story-theme',t=localStorage.getItem(k);if(t==='dark'||(t!=='light'&&(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches))){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +30,8 @@ function Navbar() {
           <span>📖</span>
           <span>Story Audio</span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <ThemeToggle />
           <Link href="/" className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
             Trang chủ
           </Link>
@@ -54,10 +59,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} app-bg min-h-screen antialiased`}
       >
+        <Script id="story-theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <div className="app-noise fixed inset-0 -z-10 opacity-40" />
         <div className="relative">
           <Navbar />

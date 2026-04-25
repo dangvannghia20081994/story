@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { QueueChapterTtsButton } from "./QueueChapterTtsButton";
@@ -5,6 +6,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { SidebarLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
+import { storyKey, storyReadHref } from "@/lib/storyPath";
 
 type ChapterRow = {
   id: number;
@@ -52,9 +54,9 @@ function statusLabel(status: string): string {
   return "Chờ render";
 }
 
-async function loadStory(id: string): Promise<{ story: StoryShowData; chapters: ChapterRow[] } | null> {
+async function loadStory(storyKey: string): Promise<{ story: StoryShowData; chapters: ChapterRow[] } | null> {
   try {
-    const res = await apiFetch<{ data: StoryShowData }>(`/api/stories/${id}`);
+    const res = await apiFetch<{ data: StoryShowData }>(`/api/stories/${encodeURIComponent(storyKey)}`);
     const story = res.data;
     const chapters = [...(story.chapters ?? [])].sort((a, b) => a.id - b.id);
     return { story, chapters };
@@ -63,9 +65,18 @@ async function loadStory(id: string): Promise<{ story: StoryShowData; chapters: 
   }
 }
 
-export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const loaded = await loadStory(id);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const loaded = await loadStory(slug);
+  if (!loaded) {
+    return { title: "Truyện" };
+  }
+  return { title: loaded.story.title };
+}
+
+export default async function StoryPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const loaded = await loadStory(slug);
   if (!loaded) {
     notFound();
   }
@@ -144,7 +155,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
             {chapters.length > 0 ? (
               <div className="shrink-0 md:pt-1">
                 <Link
-                  href={`/stories/${id}/read`}
+                  href={storyReadHref(s)}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:bg-indigo-500 md:w-auto"
                 >
                   <span aria-hidden>📖</span>
@@ -180,10 +191,8 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
               </h2>
               <p className="mt-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">Chưa có audio</p>
               <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
-                Dùng nút <span className="font-medium text-zinc-700 dark:text-zinc-400">Xếp hàng TTS</span> hoặc{" "}
-                <span className="font-medium text-zinc-700 dark:text-zinc-400">TTS lại</span> ở từng chương bên dưới.
-                Chương lỗi hoặc đã có audio vẫn có thể xếp hàng lại (trừ khi đang xử lý). Sau vài phút, tải lại trang để
-                nghe thử.
+                Dùng nút <span className="font-medium text-zinc-700 dark:text-zinc-400">Xếp hàng TTS</span> ở từng
+                chương chưa có audio bên dưới. Sau vài phút, tải lại trang để nghe thử.
               </p>
             </div>
           </section>
@@ -227,8 +236,14 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
                       </div>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center justify-end sm:pl-2">
-                    <QueueChapterTtsButton storyId={s.id} chapterId={chapter.id} status={chapter.status} />
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:pl-2">
+                    <Link
+                      href={storyReadHref(s, chapter.id)}
+                      className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-800 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-200"
+                    >
+                      Đọc chương
+                    </Link>
+                    <QueueChapterTtsButton storySlug={storyKey(s)} chapterId={chapter.id} status={chapter.status} />
                   </div>
                 </li>
               ))}

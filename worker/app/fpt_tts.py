@@ -51,7 +51,7 @@ def _async_poll_headers() -> dict[str, str]:
 
 
 def _response_is_ready_mp3(resp: httpx.Response) -> bool:
-    """True khi CDN đã trả nội dung giống file MP3 (tránh nhầm HTML/JSON lỗi ngắn)."""
+    """True khi CDN đã trả nội dung giống file MP3 (tránh HTML/JSON placeholder)."""
     if resp.status_code != 200:
         return False
     body = resp.content or b""
@@ -59,12 +59,14 @@ def _response_is_ready_mp3(resp: httpx.Response) -> bool:
         return False
     ct = (resp.headers.get("content-type") or "").lower()
     looks_audio_ct = "mpeg" in ct or "audio" in ct or "octet-stream" in ct
-    # ID3 tag hoặc frame sync MPEG-Audio layer 3
+    # ID3 tag hoặc frame sync MPEG-Audio layer 3 — bắt buộc có magic, không dùng heuristic chỉ theo size
     mp3_magic = body[:3] == b"ID3" or (body[0] == 0xFF and (body[1] & 0xE0) == 0xE0)
-    if mp3_magic and (looks_audio_ct or len(body) > 200):
+    if not mp3_magic:
+        return False
+    if looks_audio_ct:
         return True
-    # Fallback: body đủ lớn (hành vi cũ)
-    return len(body) > 500
+    # Một số CDN trả octet-stream không chuẩn; vẫn cần magic + body đủ dài để không nhầm vài byte ngẫu nhiên
+    return len(body) >= 128
 
 
 def _normalize_segment_for_concat(seg: AudioSegment) -> AudioSegment:
@@ -116,6 +118,90 @@ def _prefer_split_end(text: str, start: int, limit: int) -> int:
     return best if best is not None else limit
 
 
+def _split_long_text_core(t: str, max_chars: int, min_chars: int) -> list[str]:
+    """Chia t (đã strip, len(t) > max_chars) thành chunks; chưa hậu kiểm chunk cuối < min_chars."""
+    chunks: list[str] = []
+    i = 0
+    n = len(t)
+    while i < n:
+        if n - i <= max_chars:
+            tail = t[i:n]
+            if len(tail) < min_chars and chunks:
+                if len(chunks[-1]) + len(tail) <= max_chars:
+                    chunks[-1] += tail
+                else:
+                    _fix_tail_merge_overflow(chunks, tail, max_chars=max_chars, min_chars=min_chars)
+            else:
+                chunks.append(tail)
+            break
+        remainder_if_full = n - (i + max_chars)
+        if 0 < remainder_if_full < min_chars:
+            limit = min(i + max_chars, n - min_chars)
+        else:
+            limit = i + max_chars
+        end = _prefer_split_end(t, i, limit)
+        if end <= i:
+            end = min(i + max_chars, n)
+        if end - i < min_chars:
+            end = min(i + min_chars, n)
+        chunks.append(t[i:end])
+        i = end
+    return chunks
+
+
+def _fix_tail_merge_overflow(chunks: list[str], tail: str, *, max_chars: int, min_chars: int) -> None:
+    """
+    chunks[-1] + tail vượt max_chars; tail < min_chars.
+    Rút phần cuối của chunk trước ghép với tail để hai đoạn đều hợp lệ FPT.
+    """
+    if not chunks:
+        if len(tail) <= max_chars:
+            chunks.append(tail)
+            return
+        sub = _split_long_text_core(tail, max_chars, min_chars)
+        _fix_trailing_short_chunk_pair(sub, max_chars=max_chars, min_chars=min_chars)
+        chunks.extend(sub)
+        return
+    prev = chunks[-1]
+    pl, tl = len(prev), len(tail)
+    move_low = max(min_chars - tl, pl - max_chars)
+    move_high = min(pl - min_chars, max_chars - tl)
+    if move_low <= move_high:
+        move = move_low
+        chunks[-1] = prev[:-move]
+        chunks.append(prev[-move:] + tail)
+        return
+    combined = prev + tail
+    chunks.pop()
+    if len(combined) <= max_chars:
+        chunks.append(combined)
+        return
+    sub = _split_long_text_core(combined, max_chars, min_chars)
+    _fix_trailing_short_chunk_pair(sub, max_chars=max_chars, min_chars=min_chars)
+    chunks.extend(sub)
+
+
+def _fix_trailing_short_chunk_pair(chunks: list[str], *, max_chars: int, min_chars: int) -> None:
+    """Hậu kiểm: chunk cuối < min_chars — gộp hoặc tách lại cho khớp giới hạn FPT."""
+    if len(chunks) < 2 or len(chunks[-1]) >= min_chars:
+        return
+    a, b = chunks[-2], chunks[-1]
+    if len(a) + len(b) <= max_chars:
+        chunks[-2] = a + b
+        chunks.pop()
+        return
+    move_low = max(min_chars - len(b), len(a) - max_chars)
+    move_high = min(len(a) - min_chars, max_chars - len(b))
+    if move_low <= move_high:
+        m = move_low
+        chunks[-2] = a[:-m]
+        chunks[-1] = a[-m:] + b
+        return
+    chunks.pop()
+    chunks.pop()
+    chunks.extend(_split_text_into_chunks(a + b, max_chars))
+
+
 def _split_text_into_chunks(text: str, max_chars: int = FPT_MAX_BODY_CHARS) -> list[str]:
     """Chia văn bản thành các đoạn mỗi đoạn <= max_chars, ưu tiên ngắt tại đoạn/câu."""
     t = text.strip()
@@ -123,28 +209,11 @@ def _split_text_into_chunks(text: str, max_chars: int = FPT_MAX_BODY_CHARS) -> l
         return []
     if len(t) <= max_chars:
         return [t]
-    chunks: list[str] = []
-    i = 0
-    n = len(t)
-    while i < n:
-        if n - i <= max_chars:
-            tail = t[i:n]
-            if len(tail) < MIN_FPT_CHARS and chunks:
-                chunks[-1] = chunks[-1] + tail
-            else:
-                chunks.append(tail)
-            break
-        limit = i + max_chars
-        end = _prefer_split_end(t, i, limit)
-        if end <= i:
-            end = min(i + max_chars, n)
-        if end - i < MIN_FPT_CHARS:
-            end = min(i + MIN_FPT_CHARS, n)
-        chunks.append(t[i:end])
-        i = end
-    if len(chunks) >= 2 and len(chunks[-1]) < MIN_FPT_CHARS:
-        chunks[-2] = chunks[-2] + chunks[-1]
-        chunks.pop()
+    chunks = _split_long_text_core(t, max_chars, MIN_FPT_CHARS)
+    _fix_trailing_short_chunk_pair(chunks, max_chars=max_chars, min_chars=MIN_FPT_CHARS)
+    for ci, ch in enumerate(chunks):
+        if len(ch) > max_chars:
+            raise ValueError(f"Internal FPT chunk {ci} length {len(ch)} exceeds limit {max_chars}")
     return chunks
 
 
@@ -240,6 +309,10 @@ def synthesize_to_file(*, text: str, out_path: Path, job_label: str = "") -> int
                 len(chunk),
                 len(audio_bytes),
             )
+            if idx + 1 < len(chunks):
+                gap = max(0.0, float(settings.fpt_inter_chunk_delay_sec))
+                if gap > 0:
+                    time.sleep(gap)
 
     assert combined is not None
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -340,16 +413,27 @@ def _synthesize_chunk_bytes(
 
 
 def _poll_async_mp3(url: str, *, chunk_label: str) -> bytes:
-    delay = max(0.0, float(settings.fpt_async_first_poll_delay_sec))
-    if delay > 0:
+    configured = max(0.0, float(settings.fpt_async_first_poll_delay_sec))
+    floor = max(0.0, float(settings.fpt_async_first_poll_floor_sec))
+    delay = max(configured, floor) if floor > 0 else configured
+    if floor > 0 and delay > configured:
+        logger.info(
+            "%s: chờ trước GET đầu tiên: cấu hình %.1fs → dùng %.1fs (sàn FPT_ASYNC_FIRST_POLL_FLOOR_SEC=%.1fs, tránh 404 CDN)",
+            chunk_label,
+            configured,
+            delay,
+            floor,
+        )
+    elif delay > 0:
         logger.info(
             "%s: sau phản hồi convert (JSON async), chờ %.1fs rồi mới GET URL file (tránh 404 lúc file chưa ghi xong)",
             chunk_label,
             delay,
         )
-        time.sleep(delay)
     else:
-        logger.info("%s: FPT_ASYNC_FIRST_POLL_DELAY_SEC=0 — GET file async ngay", chunk_label)
+        logger.info("%s: FPT_ASYNC_FIRST_POLL_DELAY_SEC=0 và floor=0 — GET file async ngay", chunk_label)
+    if delay > 0:
+        time.sleep(delay)
 
     deadline = time.monotonic() + settings.fpt_poll_timeout_sec
     last_status: int | None = None
@@ -405,7 +489,10 @@ def _poll_async_mp3(url: str, *, chunk_label: str) -> bytes:
                 settings.fpt_poll_timeout_sec,
             )
             last_info_log = now
-        time.sleep(settings.fpt_poll_interval_sec)
+        sleep_sec = float(settings.fpt_poll_interval_sec)
+        if last_status == 404:
+            sleep_sec = max(sleep_sec, 3.0)
+        time.sleep(sleep_sec)
 
     logger.error(
         "%s: async MP3 timeout after %.0fs (polls=%d last_http=%s last_bytes=%d)",

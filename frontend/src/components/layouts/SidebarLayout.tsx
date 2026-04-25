@@ -3,9 +3,11 @@
 import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { storyDetailHref } from "@/lib/storyPath";
 
 type Story = {
   id: number;
+  slug: string | null;
   title: string;
   tts_status: string;
 };
@@ -53,7 +55,7 @@ export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
                 {relatedStories.map((story) => (
                   <li key={story.id}>
                     <Link
-                      href={`/stories/${story.id}`}
+                      href={storyDetailHref(story)}
                       className="block truncate rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-zinc-300 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
                     >
                       {story.title}

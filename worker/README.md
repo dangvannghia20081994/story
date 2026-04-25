@@ -28,8 +28,10 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 | `FPT_TTS_SPEED` | `-3` … `+3` hoặc `0` |
 | `FPT_TTS_FORMAT` | `mp3` hoặc `wav` |
 | `FPT_POLL_TIMEOUT_SEC` | Chờ file async (giây) |
-| `FPT_POLL_INTERVAL_SEC` | Khoảng cách giữa các lần poll |
-| `FPT_ASYNC_FIRST_POLL_DELAY_SEC` | Sau JSON async từ POST TTS, chờ bấy nhiêu giây rồi mới GET file mp3 (mặc định `3`) |
+| `FPT_POLL_INTERVAL_SEC` | Khoảng cách giữa các lần poll (sau **404** tối thiểu 3s một lần) |
+| `FPT_ASYNC_FIRST_POLL_DELAY_SEC` | Sau JSON async, chờ bấy nhiêu giây rồi mới GET file mp3 (mặc định `10`) |
+| `FPT_ASYNC_FIRST_POLL_FLOOR_SEC` | Sàn: thực tế chờ trước GET đầu = `max(DELAY, FLOOR)` (mặc định `2`) — nếu `.env` đặt `DELAY=0`, vẫn chờ ít nhất 2s trừ khi `FLOOR=0` |
+| `FPT_INTER_CHUNK_DELAY_SEC` | Nghỉ sau khi tải xong một chunk, trước POST chunk tiếp (mặc định `0.35`) |
 
 Sao chép `cp .env.example .env` rồi điền giá trị.
 
@@ -46,8 +48,8 @@ uvicorn app.main:app --reload --port 8080
 ## FPT.AI TTS
 
 - API: POST `FPT_TTS_URL`, header **`api_key`**, body **raw UTF-8** (3–5000 ký tự mỗi request).
-- Nội dung chương **dài hơn 5000 ký tự**: worker **chia đoạn** (ưu tiên ngắt xuống dòng / câu), gọi FPT **nhiều lần**, ghép các MP3 bằng **pydub** thành một file (log: `FPT TTS: chapter split into N requests`).
-- Phản hồi JSON: `error == 0` và trường **`async`** là URL MP3; file có thể chậm vài giây — worker **poll** URL cho tới `FPT_POLL_TIMEOUT_SEC` (mỗi đoạn một lần poll; chương rất dài có thể cần timeout lớn hơn).
+- Nội dung chương **dài hơn 5000 ký tự**: worker **chia đoạn** (ưu tiên ngắt xuống dòng / câu; không tạo request body >5000 ký tự khi gộp đuôi chương), gọi FPT **nhiều lần**, ghép các MP3 bằng **pydub** thành một file (log: `FPT TTS: text split into N API requests`).
+- Phản hồi JSON: `error == 0` và trường **`async`** là URL MP3; CDN thường trả **404** vài lần đầu cho tới khi file sẵn sàng — worker **chờ** `max(FPT_ASYNC_FIRST_POLL_DELAY_SEC, FPT_ASYNC_FIRST_POLL_FLOOR_SEC)` (mặc định 10s / 2s) rồi **poll** (sau 404 chờ ≥3s) tới `FPT_POLL_TIMEOUT_SEC`. Nếu `FPT_ASYNC_FIRST_POLL_DELAY_SEC=0`, mặc định vẫn áp **sàn** `FPT_ASYNC_FIRST_POLL_FLOOR_SEC` (2s) trước GET đầu để tránh 404 chunk 2+.
 
 ## Docker
 

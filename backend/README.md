@@ -74,10 +74,10 @@ Gửi header `Accept: application/json` khi gọi từ curl.
 | Phương thức | Đường dẫn | Mô tả |
 |-------------|-----------|--------|
 | POST | `/api/preprocess-preview` | Body `{ "text": "..." }` — xem văn bản sau áp dụng lexicon |
-| GET/POST/PATCH/DELETE | `/api/stories` … | CRUD truyện; `POST/PATCH` hỗ trợ thêm `genre?` (`tu-tien` \| `huyen-huyen` \| `kiem-hiep` \| `do-thi` \| `khac`), cùng `title`, `slug?`, `description?`, `first_chapter?` `{ title, content }` |
-| GET/POST/PATCH/DELETE | `/api/stories/{id}/chapters` … | CRUD chương |
-| POST | `/api/stories/{id}/chapters/{id}/queue-tts` | Đẩy job Redis (text đã preprocess + `voice_segments`). Có thể gọi lại cho chương **đã lỗi** hoặc **đã hoàn thành** (TTS lại / chỉnh nội dung rồi render lại); body tùy chọn `{ "regenerate": true }`. **Không** xếp hàng khi `status` đang `processing` (409). CMS: nút **TTS lại** trên danh sách chương. |
-| GET/POST/PATCH/DELETE | `/api/stories/{id}/characters` … | CRUD nhân vật / `voice_id` |
+| GET/POST/PATCH/DELETE | `/api/stories` … | CRUD truyện; `GET/PATCH/DELETE /api/stories/{story}` dùng **slug** (khuyến nghị) hoặc **id** số; `POST/PATCH` hỗ trợ thêm `genre?` (`tu-tien` \| `huyen-huyen` \| `kiem-hiep` \| `do-thi` \| `khac`), cùng `title`, `slug?`, `description?`, `first_chapter?` `{ title, content }` |
+| GET/POST/PATCH/DELETE | `/api/stories/{story}/chapters` … | CRUD chương; `{story}` = **slug** truyện (URL thân thiện) hoặc **id** số (tương thích cũ) |
+| POST | `/api/stories/{story}/chapters/{chapter}/queue-tts` | Đẩy job Redis (text đã preprocess + `voice_segments`). Có thể gọi lại cho chương **đã lỗi** hoặc **đã hoàn thành** (TTS lại / chỉnh nội dung rồi render lại); body tùy chọn `{ "regenerate": true }`. **Không** xếp hàng khi `status` đang `processing` (409). CMS: nút **TTS lại** trên danh sách chương. |
+| GET/POST/PATCH/DELETE | `/api/stories/{story}/characters` … | CRUD nhân vật / `voice_id` |
 | GET/POST/PATCH/DELETE | `/api/lexicons` … | CRUD lexicon (`type`: `pronunciation` \| `name` \| `filter`, `priority`) |
 | POST | `/api/internal/tts-complete` | Worker: Bearer `WORKER_INTERNAL_TOKEN`. **Hoàn thành (khuyến nghị):** `multipart/form-data` — `audio` (file MP3), `chapter_id`, `story_id`, `status` (`completed`\|`ready`), `duration?`. Laravel lưu `stories/{story_id}/chapters/{chapter_id}/audio.mp3` bằng `Storage::disk('public')`. **Thất bại:** JSON — `status=failed`, `chapter_id`, `story_id`, `error?`. **Tương thích:** JSON `status=completed` + `audio_path` (đường dẫn tương đối trên disk `public`) nếu file đã có sẵn trên server. Upload lớn: chỉnh `upload_max_filesize` / `post_max_size` của PHP nếu cần (mặc định image CLI có thể thấp). **`php artisan storage:link`**: cho URL `/storage/...`. |
 

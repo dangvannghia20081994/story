@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { storyDetailHref } from "@/lib/storyPath";
 
 export function CreateStoryForm() {
   const router = useRouter();
@@ -16,13 +17,13 @@ export function CreateStoryForm() {
     setErr(null);
     setBusy(true);
     try {
-      const created = await apiFetch<{ id: number }>("/api/stories", {
+      const created = await apiFetch<{ id: number; slug: string }>("/api/stories", {
         method: "POST",
         body: JSON.stringify({ title, content }),
       });
       setTitle("");
       setContent("");
-      router.push(`/stories/${created.id}`);
+      router.push(storyDetailHref(created));
       router.refresh();
     } catch (ex) {
       setErr((ex as Error).message);

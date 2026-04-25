@@ -1,7 +1,9 @@
 import { apiFetch } from "@/lib/api";
+import { storyKey } from "@/lib/storyPath";
 
 type StoryLite = {
   id: number;
+  slug: string | null;
   title: string;
 };
 
@@ -47,7 +49,9 @@ export async function loadMemberDirectory(): Promise<Member[]> {
   const nestedMembers = await Promise.all(
     stories.map(async (story) => {
       try {
-        const res = await apiFetch<MemberResponse>(`/api/stories/${story.id}/characters?per_page=50`);
+        const res = await apiFetch<MemberResponse>(
+          `/api/stories/${encodeURIComponent(storyKey(story))}/characters?per_page=50`,
+        );
         return (res.data ?? []).map((member) => ({
           ...member,
           story_title: story.title,
@@ -68,11 +72,15 @@ export async function loadMemberDirectory(): Promise<Member[]> {
   return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name, "vi"));
 }
 
-export async function loadMemberById(memberId: number, preferredStoryId?: number): Promise<Member | null> {
-  if (preferredStoryId) {
+export async function loadMemberById(
+  memberId: number,
+  preferredStoryKey?: string | number,
+): Promise<Member | null> {
+  if (preferredStoryKey != null && preferredStoryKey !== "") {
+    const key = encodeURIComponent(String(preferredStoryKey));
     try {
-      const res = await apiFetch<MemberDetailResponse>(`/api/stories/${preferredStoryId}/characters/${memberId}`);
-      const story = await apiFetch<{ data: { id: number; title: string } }>(`/api/stories/${preferredStoryId}`);
+      const res = await apiFetch<MemberDetailResponse>(`/api/stories/${key}/characters/${memberId}`);
+      const story = await apiFetch<{ data: { id: number; title: string } }>(`/api/stories/${key}`);
       return {
         ...res.data,
         story_title: story.data.title,
@@ -85,7 +93,9 @@ export async function loadMemberById(memberId: number, preferredStoryId?: number
   const stories = await loadStories(40);
   for (const story of stories) {
     try {
-      const res = await apiFetch<MemberDetailResponse>(`/api/stories/${story.id}/characters/${memberId}`);
+      const res = await apiFetch<MemberDetailResponse>(
+        `/api/stories/${encodeURIComponent(storyKey(story))}/characters/${memberId}`,
+      );
       return {
         ...res.data,
         story_title: story.title,

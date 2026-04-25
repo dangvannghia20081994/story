@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { storyDetailHref } from "@/lib/storyPath";
 
 type StoryRow = {
   id: number;
+  slug: string | null;
   title: string;
   tts_status: string;
   audio_url: string | null;
@@ -41,7 +43,10 @@ export async function StoriesList() {
       {payload.data.map((s) => (
         <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
           <div>
-            <Link href={`/stories/${s.id}`} className="font-medium text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-100">
+            <Link
+              href={storyDetailHref(s)}
+              className="font-medium text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-100"
+            >
               {s.title}
             </Link>
             <p className="text-xs text-zinc-500">TTS: {s.tts_status}</p>

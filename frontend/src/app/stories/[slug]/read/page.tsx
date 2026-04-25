@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { AudioPlayer } from "@/components/AudioPlayer";
+
+function readProgressStorageKey(storyId: string): string {
+  return `story-read:${storyId}`;
+}
 
 type Chapter = {
   id: number;
@@ -15,6 +19,31 @@ type Chapter = {
   status: string;
   duration: number;
 };
+
+function resolveInitialChapterIndex(storyId: string, list: Chapter[]): number {
+  if (list.length === 0) return 0;
+  try {
+    const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("chapter") : null;
+    if (q) {
+      const id = parseInt(q, 10);
+      if (Number.isFinite(id)) {
+        const i = list.findIndex((c) => c.id === id);
+        if (i >= 0) return i;
+      }
+    }
+    const raw = localStorage.getItem(readProgressStorageKey(storyId));
+    if (raw) {
+      const id = parseInt(raw, 10);
+      if (Number.isFinite(id)) {
+        const i = list.findIndex((c) => c.id === id);
+        if (i >= 0) return i;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return 0;
+}
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
   if (!c) return null;
@@ -31,10 +60,13 @@ type Story = {
 const shell =
   "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
 
-export default function ReadStoryPage() {
+function ReadStoryPageContent() {
   const params = useParams();
-  const rawId = params?.id;
-  const storyId = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const chapterParam = searchParams.get("chapter");
+  const rawSlug = params?.slug;
+  const storySlug = Array.isArray(rawSlug) ? (rawSlug[0] ?? "") : (rawSlug ?? "");
 
   const [story, setStory] = useState<Story | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -42,22 +74,30 @@ export default function ReadStoryPage() {
   const [loading, setLoading] = useState(true);
   const [fontSize, setFontSize] = useState(18);
   const [showToc, setShowToc] = useState(false);
+  const readScrollRef = useRef<HTMLElement | null>(null);
+  const lastSyncedRatioRef = useRef(-1);
 
   useEffect(() => {
-    if (!storyId) {
+    lastSyncedRatioRef.current = -1;
+  }, [currentChapterIndex]);
+
+  useEffect(() => {
+    if (!storySlug) {
       setLoading(false);
       return;
     }
     async function loadData() {
       try {
+        const key = encodeURIComponent(storySlug);
         const [storyRes, chaptersRes] = await Promise.all([
-          apiFetch<{ data: Story }>(`/api/stories/${storyId}`),
-          apiFetch<{ data: Chapter[] }>(`/api/stories/${storyId}/chapters`),
+          apiFetch<{ data: Story }>(`/api/stories/${key}`),
+          apiFetch<{ data: Chapter[] }>(`/api/stories/${key}/chapters`),
         ]);
         setStory(storyRes.data);
         const list = chaptersRes.data ?? [];
+        const initialIdx = resolveInitialChapterIndex(storySlug, list);
         setChapters(list);
-        setCurrentChapterIndex(0);
+        setCurrentChapterIndex(initialIdx);
       } catch (e) {
         console.error("Failed to load:", e);
       } finally {
@@ -65,7 +105,7 @@ export default function ReadStoryPage() {
       }
     }
     loadData();
-  }, [storyId]);
+  }, [storySlug]);
 
   useEffect(() => {
     if (!showToc) return;
@@ -76,15 +116,86 @@ export default function ReadStoryPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showToc]);
 
+  /** Đồng bộ index khi đổi query (back/forward, link có ?chapter=). */
+  useEffect(() => {
+    if (!storySlug || chapters.length === 0 || loading) return;
+    if (chapterParam == null || chapterParam === "") return;
+    const id = parseInt(chapterParam, 10);
+    if (!Number.isFinite(id)) return;
+    const idx = chapters.findIndex((c) => c.id === id);
+    if (idx < 0) return;
+    setCurrentChapterIndex((prev) => (prev === idx ? prev : idx));
+  }, [chapterParam, chapters, loading, storySlug]);
+
+  /** Lưu localStorage + cập nhật URL khi đang đọc chương nào. */
+  useEffect(() => {
+    if (!storySlug || chapters.length === 0 || loading) return;
+    const ch = chapters[currentChapterIndex];
+    if (!ch) return;
+    try {
+      localStorage.setItem(readProgressStorageKey(storySlug), String(ch.id));
+    } catch {
+      /* ignore */
+    }
+    const qs = `?chapter=${ch.id}`;
+    const pathSlug = encodeURIComponent(storySlug);
+    if (typeof window !== "undefined" && window.location.search !== qs) {
+      router.replace(`/stories/${pathSlug}/read${qs}`, { scroll: false });
+    }
+  }, [storySlug, chapters, currentChapterIndex, loading, router]);
+
   const currentChapter = chapters[currentChapterIndex];
 
   useEffect(() => {
     if (!story) return;
-    document.title = story.title;
-  }, [story]);
+    if (chapters.length === 0) {
+      document.title = story.title;
+      return;
+    }
+    const n = currentChapterIndex + 1;
+    document.title = `${story.title} · Chương ${n}/${chapters.length}`;
+  }, [story, chapters.length, currentChapterIndex]);
   const hasPrev = currentChapterIndex > 0;
   const hasNext = currentChapterIndex < chapters.length - 1;
   const audioUrl = chapterAudioUrl(currentChapter);
+
+  const scrollReadToAudioRatio = useCallback((ratio: number) => {
+    const el = readScrollRef.current;
+    if (!el) return;
+    const r = Math.min(1, Math.max(0, ratio));
+    const rect = el.getBoundingClientRect();
+    const anchorTop = window.scrollY + rect.top;
+    const contentHeight = el.offsetHeight;
+    const viewport = window.innerHeight;
+    const headerReserve = 88;
+    const scrollMin = Math.max(0, anchorTop - headerReserve);
+    const scrollMax = Math.max(scrollMin + 1, anchorTop + contentHeight - viewport + 24);
+    const target = scrollMin + r * (scrollMax - scrollMin);
+    window.scrollTo({ top: target, behavior: "auto" });
+  }, []);
+
+  /** Cuộn trang theo tiến độ audio (ước lượng tuyến tính theo thời lượng file). */
+  const onPlaybackProgress = useCallback(
+    (current: number, dur: number, playing: boolean) => {
+      if (!playing || dur <= 0) return;
+      const ratio = Math.min(1, Math.max(0, current / dur));
+      if (lastSyncedRatioRef.current >= 0 && Math.abs(ratio - lastSyncedRatioRef.current) < 0.018) {
+        return;
+      }
+      lastSyncedRatioRef.current = ratio;
+      scrollReadToAudioRatio(ratio);
+    },
+    [scrollReadToAudioRatio],
+  );
+
+  const onSeekComplete = useCallback(
+    (current: number, dur: number) => {
+      if (dur <= 0) return;
+      lastSyncedRatioRef.current = -1;
+      scrollReadToAudioRatio(current / dur);
+    },
+    [scrollReadToAudioRatio],
+  );
 
   const goToPrev = useCallback(() => {
     if (hasPrev) {
@@ -119,11 +230,11 @@ export default function ReadStoryPage() {
     );
   }
 
-  if (!storyId) {
+  if (!storySlug) {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-4">
         <div className={`${shell} max-w-md p-8 text-center`}>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Thiếu mã truyện trong đường dẫn.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Thiếu slug truyện trong đường dẫn.</p>
           <Link
             href="/stories"
             className="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
@@ -141,7 +252,7 @@ export default function ReadStoryPage() {
         <div className={`${shell} max-w-md p-8 text-center`}>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Không tìm thấy truyện hoặc chưa có chương.</p>
           <Link
-            href={`/stories/${storyId}`}
+            href={`/stories/${encodeURIComponent(storySlug)}`}
             className="mt-4 inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             ← Về trang truyện
@@ -157,13 +268,19 @@ export default function ReadStoryPage() {
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <Link
-              href={`/stories/${storyId}`}
+              href={`/stories/${encodeURIComponent(storySlug)}`}
               className="shrink-0 rounded-full border border-zinc-200/90 bg-white/80 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-indigo-800 dark:hover:text-indigo-300 sm:text-sm"
             >
               ← Truyện
             </Link>
             <div className="hidden h-4 w-px bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
-            <p className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-500 sm:text-sm">{story.title}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">{story.title}</p>
+              <p className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Chương {currentChapterIndex + 1}/{chapters.length}
+                {currentChapter ? ` · ${currentChapter.title}` : ""}
+              </p>
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -240,8 +357,8 @@ export default function ReadStoryPage() {
         </>
       ) : null}
 
-      <main className="flex-1 px-4 py-6 md:px-8 md:py-10">
-        <article className={`${shell} mx-auto max-w-3xl px-6 py-8 md:px-10 md:py-10`}>
+      <main className="relative z-0 flex-1 px-4 py-6 md:px-8 md:py-10">
+        <article ref={readScrollRef} className={`relative z-0 ${shell} mx-auto max-w-3xl px-6 py-8 md:px-10 md:py-10`}>
           <div className="mb-2 text-center">
             <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/50 dark:text-indigo-200">
               Chương {currentChapterIndex + 1} / {chapters.length}
@@ -272,32 +389,34 @@ export default function ReadStoryPage() {
         </article>
       </main>
 
-      <div className="sticky bottom-0 z-20 mt-auto border-t border-white/70 bg-white/90 shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.12)] backdrop-blur-lg dark:border-zinc-800/80 dark:bg-zinc-950/90">
-        <div className="mx-auto max-w-3xl space-y-0 px-4 py-3 md:px-6">
+      <div className="sticky bottom-0 z-[40] mt-auto border-t border-indigo-200/35 bg-gradient-to-t from-white/97 via-indigo-50/40 to-violet-50/35 shadow-[0_-10px_44px_-10px_rgba(79,70,229,0.18)] backdrop-blur-xl dark:border-indigo-900/40 dark:from-zinc-950/97 dark:via-indigo-950/25 dark:to-violet-950/20">
+        <div className="relative isolate mx-auto max-w-3xl space-y-0 px-3 pb-3 pt-2 md:px-6 md:pb-4">
           {audioUrl ? (
-            <div className="border-b border-zinc-200/80 pb-3 dark:border-zinc-800/80">
-              <AudioPlayer
-                unstyled
-                src={audioUrl}
-                title={`${story.title} — ${currentChapter.title}`}
-                initialChapterId={currentChapter.id}
-                chapters={chapters.map((c) => ({
-                  id: c.id,
-                  title: c.title,
-                  audio_url: chapterAudioUrl(c),
-                }))}
-                onChapterChange={(id) => {
-                  const idx = chapters.findIndex((c) => c.id === id);
-                  if (idx >= 0) setCurrentChapterIndex(idx);
-                }}
-              />
-            </div>
+            <AudioPlayer
+              layout="read"
+              src={audioUrl}
+              storyTitle={story.title}
+              title={currentChapter.title}
+              initialChapterId={currentChapter.id}
+              chapters={chapters.map((c) => ({
+                id: c.id,
+                title: c.title,
+                audio_url: chapterAudioUrl(c),
+              }))}
+              onChapterChange={(id) => {
+                const idx = chapters.findIndex((c) => c.id === id);
+                if (idx >= 0) setCurrentChapterIndex(idx);
+              }}
+              onPlaybackProgress={onPlaybackProgress}
+              onSeekComplete={onSeekComplete}
+              durationHintSec={currentChapter.duration > 0 ? currentChapter.duration : null}
+            />
           ) : (
             <p className="border-b border-dashed border-zinc-200/90 pb-3 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
               Chương này chưa có audio — render TTS từ trang truyện.
             </p>
           )}
-          <div className="flex items-center justify-between gap-3 pt-3">
+          <div className="flex items-center justify-between gap-3 border-t border-white/60 pt-3 dark:border-zinc-800/80">
             <button
               type="button"
               onClick={goToPrev}
@@ -329,5 +448,26 @@ export default function ReadStoryPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ReadStoryPageFallback() {
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4">
+      <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
+        <div className="h-2 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
+        <div className="h-2 w-full animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
+        <div className="h-2 w-5/6 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
+        <p className="pt-2 text-center text-sm text-zinc-500 dark:text-zinc-400">Đang tải…</p>
+      </div>
+    </div>
+  );
+}
+
+export default function ReadStoryPage() {
+  return (
+    <Suspense fallback={<ReadStoryPageFallback />}>
+      <ReadStoryPageContent />
+    </Suspense>
   );
 }

@@ -7,11 +7,9 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
 }
 
 body {
@@ -42,4 +40,8 @@ body {
     radial-gradient(circle at 80% 40%, rgba(255, 255, 255, 0.16) 0.5px, transparent 0.5px);
   background-size: 24px 24px, 30px 30px;
   pointer-events: none;
+}
+
+.dark .app-noise {
+  opacity: 0.12;
 }

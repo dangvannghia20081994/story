@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { StoryFormModal } from "@/components/StoryFormModal";
+import { storyDetailHref } from "@/lib/storyPath";
 
 export function CreateStoryButton() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -18,8 +19,8 @@ export function CreateStoryButton() {
       <StoryFormModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSuccess={({ id }) => {
-          window.location.href = `/stories/${id}`;
+        onSuccess={(story) => {
+          window.location.href = storyDetailHref(story);
         }}
       />
     </>

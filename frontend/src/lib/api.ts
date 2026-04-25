@@ -1,20 +1,35 @@
-function resolveBase(): string {
-  const server = process.env.API_URL?.replace(/\/$/, "");
-  const pub = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (typeof window === "undefined") {
-    return server ?? pub ?? "";
-  }
-  return pub ?? "";
+function stripTrailingSlash(s: string | undefined): string {
+  return s?.replace(/\/$/, "") ?? "";
 }
 
-const base = resolveBase();
+/** Base URL tuyệt đối cho fetch (Node bắt buộc). Trình duyệt có thể dùng '' + đường dẫn tương đối (rewrite /api trong next.config). */
+function resolveBase(): string {
+  const server = stripTrailingSlash(process.env.API_URL);
+  const pub = stripTrailingSlash(process.env.NEXT_PUBLIC_API_URL);
 
-export async function apiFetch<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
-  const res = await fetch(`${base}${path}`, {
+  if (typeof window !== "undefined") {
+    return pub;
+  }
+
+  if (server !== "") return server;
+  if (pub !== "") return pub;
+
+  if (process.env.NODE_ENV !== "production") {
+    return "http://127.0.0.1:8000";
+  }
+
+  throw new Error(
+    "Thiếu API_URL hoặc NEXT_PUBLIC_API_URL — SSR không gọi được Laravel (xem frontend/README.md).",
+  );
+}
+
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const base = resolveBase();
+  const url = base !== "" ? `${base}${path.startsWith("/") ? path : `/${path}`}` : path;
+
+  const res = await fetch(url, {
     ...init,
+    cache: "no-store",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",

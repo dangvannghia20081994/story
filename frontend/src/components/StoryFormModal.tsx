@@ -7,7 +7,7 @@ import { createStory, CreateStoryData } from "@/lib/api";
 interface StoryFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (story: { id: number; title: string }) => void;
+  onSuccess?: (story: { id: number; slug: string; title: string }) => void;
 }
 
 const GENRES = [
@@ -77,7 +77,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
       }
 
       const story = await createStory(data);
-      onSuccess?.({ id: story.id, title: story.title });
+      onSuccess?.({ id: story.id, slug: story.slug, title: story.title });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");

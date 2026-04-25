@@ -23,6 +23,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Route::bind('story', function (string $value) {
+            $bySlug = Story::query()->where('slug', $value)->first();
+            if ($bySlug !== null) {
+                return $bySlug;
+            }
+            if ($value !== '' && ctype_digit($value)) {
+                return Story::query()->whereKey((int) $value)->firstOrFail();
+            }
+
+            abort(404);
+        });
+
         Route::bind('chapter', function (string $value, $route) {
             $story = $route->parameter('story');
             if ($story instanceof Story) {

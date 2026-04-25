@@ -9,27 +9,19 @@ import {
 import { useRouter } from "expo-router";
 
 import { Text, View } from "@/components/Themed";
-import { apiFetch } from "@/lib/api";
-
-type StoryRow = {
-  id: number;
-  title: string;
-  tts_status: string;
-  audio_url: string | null;
-};
-
-type Paginated = { data: StoryRow[] };
+import { apiFetch, type PaginatedStories, type Story } from "@/lib/api";
+import { genreLabel } from "@/lib/genreLabels";
 
 export default function StoriesScreen() {
   const router = useRouter();
-  const [items, setItems] = useState<StoryRow[]>([]);
+  const [items, setItems] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
-    const json = await apiFetch<Paginated>("/api/stories");
+    const json = await apiFetch<PaginatedStories>("/api/stories");
     setItems(json.data);
   }, []);
 
@@ -86,18 +78,22 @@ export default function StoriesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={<Text style={styles.muted}>Chưa có truyện.</Text>}
         contentContainerStyle={items.length === 0 ? styles.centered : undefined}
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-            onPress={() => router.push(`/story/${item.id}`)}
-          >
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.muted}>TTS: {item.tts_status}</Text>
-            {item.audio_url ? (
-              <Text style={styles.linkHint}>Có audio — mở chi tiết để nghe</Text>
-            ) : null}
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const g = genreLabel(item.genre);
+          const count = item.chapters_count;
+          return (
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => router.push(`/story/${encodeURIComponent(item.slug)}`)}
+            >
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.muted}>
+                {[g, typeof count === "number" ? `${count} chương` : null].filter(Boolean).join(" · ") ||
+                  "—"}
+              </Text>
+            </Pressable>
+          );
+        }}
       />
     </View>
   );
@@ -115,6 +111,5 @@ const styles = StyleSheet.create({
   rowPressed: { opacity: 0.7 },
   title: { fontSize: 17, fontWeight: "600" },
   muted: { marginTop: 4, fontSize: 13, opacity: 0.65 },
-  linkHint: { marginTop: 6, fontSize: 12, color: "#2563eb" },
   error: { color: "#b91c1c", padding: 16, fontSize: 14 },
 });

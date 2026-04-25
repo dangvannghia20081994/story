@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { FullWidthLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
+import { storyDetailHref } from "@/lib/storyPath";
 
 type Story = {
   id: number;
+  slug: string;
   title: string;
   description: string | null;
   genre: string | null;
@@ -75,7 +77,7 @@ export default async function RankingsPage() {
                       <td className="px-4 py-3 font-semibold text-zinc-700 dark:text-zinc-200">#{index + 1}</td>
                       <td className="px-4 py-3">
                         <Link
-                          href={`/stories/${story.id}`}
+                          href={storyDetailHref(story)}
                           className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
                         >
                           {story.title}

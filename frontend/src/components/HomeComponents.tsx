@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { storyDetailHref } from "@/lib/storyPath";
 
 type Story = {
   id: number;
+  slug: string | null;
   title: string;
   description: string | null;
   tts_status: string;
@@ -101,7 +103,7 @@ export function FeaturedStories() {
       {stories.map((story) => (
         <Link
           key={story.id}
-          href={`/stories/${story.id}`}
+          href={storyDetailHref(story)}
           className="group block rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-indigo-600"
         >
           <div className="mb-3 flex h-24 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50">

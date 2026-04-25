@@ -38,7 +38,7 @@ Bạn chịu trách nhiệm **`worker/`**: FastAPI (`/health`), consumer Redis (
 | `REDIS_URL`, `QUEUE_NAME` | Hàng đợi job |
 | `BACKEND_URL`, `WORKER_TOKEN` | Callback Laravel |
 | `TTS_PROVIDER` | `ffmpeg` \| `fpt` |
-| `FPT_API_KEY`, `FPT_TTS_URL`, `FPT_TTS_VOICE`, `FPT_TTS_SPEED`, `FPT_TTS_FORMAT`, `FPT_POLL_*`, `FPT_ASYNC_FIRST_POLL_DELAY_SEC` | Khi `TTS_PROVIDER=fpt` — delay (mặc định 3s) sau JSON async rồi mới GET file mp3 |
+| `FPT_API_KEY`, `FPT_TTS_URL`, `FPT_TTS_VOICE`, `FPT_TTS_SPEED`, `FPT_TTS_FORMAT`, `FPT_POLL_*`, `FPT_ASYNC_FIRST_POLL_DELAY_SEC`, `FPT_ASYNC_FIRST_POLL_FLOOR_SEC`, `FPT_INTER_CHUNK_DELAY_SEC` | Khi `TTS_PROVIDER=fpt` — sau POST trả JSON async, chờ `max(DELAY, FLOOR)` rồi mới GET MP3 (mặc định DELAY 10s, floor 2s); nghỉ ngắn giữa các chunk trước POST tiếp |
 
 Chi tiết: `worker/README.md` và `worker/.env.example`.
 
@@ -51,4 +51,4 @@ Xem `worker/README.md`: venv, `pip install`, `uvicorn`, Docker; mục **«Các l
 - Queue list Redis phải khớp Laravel: **`story:tts:queue`** (và `REDIS_PREFIX` rỗng ở backend nếu dùng mặc định).
 - Job **thiếu `chapter_id`** sẽ bị bỏ qua (log lỗi).
 - `TTS_PROVIDER=fpt` mà không có `FPT_API_KEY` → báo failed + log cấu hình.
-- FPT TTS giới hạn **5000 ký tự/request**: `app/fpt_tts.py` **tự chia** văn bản dài (ưu tiên ngắt đoạn/câu), gọi API từng đoạn rồi **ghép MP3** (pydub). Chương rất dài = nhiều request tuần tự; có thể cần tăng `FPT_POLL_TIMEOUT_SEC` nếu API chậm.
+- FPT TTS giới hạn **5000 ký tự/request**: `app/fpt_tts.py` **tự chia** văn bản dài (ưu tiên ngắt đoạn/câu; **chừa đoạn cuối ≥3 ký tự** thay vì gộp đuôi ngắn vào chunk đã đủ 5000 — tránh lỗi API / thiếu MP3), gọi API từng đoạn rồi **ghép MP3** (pydub). Poll async URL chỉ coi là MP3 khi có **magic byte** (ID3/sync frame). Chương rất dài = nhiều request tuần tự; có thể cần tăng `FPT_POLL_TIMEOUT_SEC` nếu API chậm.

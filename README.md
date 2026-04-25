@@ -15,6 +15,8 @@ docker compose up --build
 
 `docker-compose.yml` ghi đè **`DB_HOST` / `REDIS_HOST`** (+ token) cho backend; worker đọc **`worker/.env`** qua `env_file` và vài biến mạng nội bộ trong compose. Chi tiết: `worker/README.md`.
 
+**Hướng dẫn theo môi trường:** [Windows — không Docker](GUIDE_WINDOW.md) · [VPS có Docker](GUIDE_VPS_HAS_DOCKER.md) · [VPS không Docker](GUIDE_VPS_NO_DOCKER.md)
+
 | Dịch vụ   | URL / cổng |
 |-----------|------------|
 | API       | http://localhost:8000 |

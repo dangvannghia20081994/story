@@ -20,10 +20,16 @@ interface AudioPlayerProps {
   onChapterChange?: (chapterId: number) => void;
   /** Gộp vào card cha: bỏ viền/hộp mặc định */
   unstyled?: boolean;
-  /** Trang chi tiết: giao diện player nổi bật */
-  layout?: "default" | "detail";
+  /** Trang chi tiết / trang đọc: giao diện player nổi bật (`read` = dock dưới, gọn hơn) */
+  layout?: "default" | "detail" | "read";
   /** Chương khớp với `src` ban đầu (SSR) — highlight đúng pill */
   initialChapterId?: number | null;
+  /** Gọi khi đang phát (đã throttle) — ví dụ đồng bộ scroll nội dung */
+  onPlaybackProgress?: (currentTime: number, duration: number, playing: boolean) => void;
+  /** Sau khi seek xong (thả chuột / phím) — ví dụ cuộn bài đọn theo vị trí */
+  onSeekComplete?: (currentTime: number, duration: number) => void;
+  /** Giây từ backend khi `audio.duration` chưa sẵn sàng (trang đọc). */
+  durationHintSec?: number | null;
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
@@ -45,10 +51,17 @@ export function AudioPlayer({
   unstyled,
   layout = "default",
   initialChapterId = null,
+  onPlaybackProgress,
+  onSeekComplete,
+  durationHintSec = null,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const speedMenuRef = useRef<HTMLDivElement>(null);
   const sleepMenuRef = useRef<HTMLDivElement>(null);
+  const [activeSrc, setActiveSrc] = useState(src);
+  const onPlaybackProgressRef = useRef(onPlaybackProgress);
+  const onSeekCompleteRef = useRef(onSeekComplete);
+  const progressEmitAtRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -64,6 +77,18 @@ export function AudioPlayer({
   useEffect(() => {
     setCurrentChapterId(initialChapterId);
   }, [initialChapterId]);
+
+  useEffect(() => {
+    onPlaybackProgressRef.current = onPlaybackProgress;
+  }, [onPlaybackProgress]);
+
+  useEffect(() => {
+    onSeekCompleteRef.current = onSeekComplete;
+  }, [onSeekComplete]);
+
+  useEffect(() => {
+    setActiveSrc(src);
+  }, [src]);
 
   const syncDurationFromAudio = useCallback(() => {
     const el = audioRef.current;
@@ -81,6 +106,7 @@ export function AudioPlayer({
 
     setCurrentTime(0);
     setDuration(0);
+    setIsPlaying(false);
 
     syncDurationFromAudio();
 
@@ -97,7 +123,7 @@ export function AudioPlayer({
       el.removeEventListener("durationchange", onDur);
       el.removeEventListener("loadeddata", onLoadedData);
     };
-  }, [src, syncDurationFromAudio]);
+  }, [activeSrc, syncDurationFromAudio]);
 
   useEffect(() => {
     if (sleepTimer <= 0) {
@@ -138,32 +164,129 @@ export function AudioPlayer({
   }, [showSpeedMenu, showSleepMenu]);
 
   const togglePlay = useCallback(() => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        void audioRef.current.play();
-      }
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) {
+      void el.play();
+    } else {
+      el.pause();
     }
-  }, [isPlaying]);
+  }, []);
 
+  const hintD = normalizeMediaDuration(durationHintSec ?? 0);
+
+  const emitSeekComplete = useCallback(() => {
+    const el = audioRef.current;
+    const cb = onSeekCompleteRef.current;
+    if (!el || !cb) return;
+    const fromEl = normalizeMediaDuration(el.duration);
+    const fromState = normalizeMediaDuration(duration);
+    const d = fromEl > 0 ? fromEl : fromState > 0 ? fromState : hintD;
+    if (d <= 0) return;
+    cb(el.currentTime, d);
+  }, [duration, hintD]);
+
+  /** Trong lúc `seeking`, một số trình duyệt vẫn bắn `timeupdate` với `currentTime` tạm (vd. 0) — không cập nhật UI. */
   const handleTimeUpdate = useCallback(() => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.seeking) return;
+    const ct = el.currentTime;
+    setCurrentTime(ct);
+    const cb = onPlaybackProgressRef.current;
+    if (!cb) return;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - progressEmitAtRef.current < 220) return;
+    progressEmitAtRef.current = now;
+    const d = normalizeMediaDuration(el.duration);
+    cb(ct, d, !el.paused);
   }, []);
 
   const handleLoadedMetadata = useCallback(() => {
     syncDurationFromAudio();
   }, [syncDurationFromAudio]);
 
-  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
+  const handleSeeked = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    setCurrentTime(el.currentTime);
   }, []);
+
+  /** Seek theo vị trí click/kéo trên track (range ẩn hay trình duyệt hay bỏ qua click vào track). */
+  const seekFromClientX = useCallback((clientX: number, track: HTMLElement) => {
+    const el = audioRef.current;
+    if (!el) return;
+    const fromEl = normalizeMediaDuration(el.duration);
+    const fromState = normalizeMediaDuration(duration);
+    const d = fromEl > 0 ? fromEl : fromState > 0 ? fromState : hintD;
+    if (d <= 0) return;
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const time = ratio * d;
+    el.currentTime = time;
+    setCurrentTime(time);
+  }, [duration, hintD]);
+
+  const onSeekTrackPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      seekFromClientX(e.clientX, e.currentTarget);
+    },
+    [seekFromClientX],
+  );
+
+  const onSeekTrackPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+      seekFromClientX(e.clientX, e.currentTarget);
+    },
+    [seekFromClientX],
+  );
+
+  const onSeekTrackPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+      emitSeekComplete();
+    },
+    [emitSeekComplete],
+  );
+
+  const onSeekTrackKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const el = audioRef.current;
+      if (!el) return;
+      const fromEl = normalizeMediaDuration(el.duration);
+      const fromState = normalizeMediaDuration(duration);
+      const d = fromEl > 0 ? fromEl : fromState > 0 ? fromState : hintD;
+      if (d <= 0) return;
+      const step = e.shiftKey ? 30 : 5;
+      let next = el.currentTime;
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+        e.preventDefault();
+        next = Math.max(0, next - step);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+        e.preventDefault();
+        next = Math.min(d, next + step);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        next = 0;
+      } else if (e.key === "End") {
+        e.preventDefault();
+        next = d;
+      } else {
+        return;
+      }
+      el.currentTime = next;
+      setCurrentTime(next);
+      emitSeekComplete();
+    },
+    [duration, emitSeekComplete, hintD],
+  );
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = parseFloat(e.target.value);
@@ -183,13 +306,16 @@ export function AudioPlayer({
 
   const handleChapterSelect = useCallback(
     (chapter: AudioChapterItem) => {
-      if (chapter.audio_url && audioRef.current) {
-        audioRef.current.src = chapter.audio_url;
-        void audioRef.current.play();
-        setCurrentChapterId(chapter.id);
-        onChapterChange?.(chapter.id);
-        setShowChapterList(false);
+      if (!chapter.audio_url) {
+        return;
       }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setActiveSrc(chapter.audio_url);
+      setCurrentChapterId(chapter.id);
+      onChapterChange?.(chapter.id);
+      setShowChapterList(false);
     },
     [onChapterChange],
   );
@@ -216,22 +342,29 @@ export function AudioPlayer({
     safeDuration > 0 ? safeDuration : Math.max(1, Number.isFinite(currentTime) ? currentTime : 0);
   const pct = safeDuration > 0 ? Math.min(100, (currentTime / safeDuration) * 100) : 0;
 
+  const premiumShell =
+    "relative overflow-hidden border border-indigo-200/40 bg-gradient-to-b from-indigo-50/90 via-white to-violet-50/50 shadow-[0_20px_50px_-20px_rgba(99,102,241,0.35)] dark:border-indigo-900/40 dark:from-indigo-950/40 dark:via-zinc-950 dark:to-violet-950/20";
   const shellClass =
     layout === "detail"
-      ? "relative overflow-hidden rounded-2xl border border-indigo-200/40 bg-gradient-to-b from-indigo-50/90 via-white to-violet-50/50 shadow-[0_20px_50px_-20px_rgba(99,102,241,0.35)] dark:border-indigo-900/40 dark:from-indigo-950/40 dark:via-zinc-950 dark:to-violet-950/20"
-      : unstyled
-        ? "p-0"
-        : "rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900";
+      ? `${premiumShell} rounded-2xl`
+      : layout === "read"
+        ? `${premiumShell} rounded-t-3xl rounded-b-none border-b-0`
+        : unstyled
+          ? "p-0"
+          : "rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900";
+
+  const readCompact = layout === "read";
+  const showPremiumLayout = layout === "detail" || layout === "read";
 
   return (
     <div className={shellClass}>
-      {layout === "detail" ? (
+      {showPremiumLayout ? (
         <div
           className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-400/20 blur-3xl dark:bg-violet-600/15"
           aria-hidden
         />
       ) : null}
-      {layout === "detail" ? (
+      {showPremiumLayout ? (
         <div
           className="pointer-events-none absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-indigo-400/15 blur-3xl dark:bg-indigo-500/10"
           aria-hidden
@@ -240,24 +373,25 @@ export function AudioPlayer({
 
       <audio
         ref={audioRef}
-        src={src}
+        src={activeSrc}
         preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={handleTimeUpdate}
+        onSeeked={handleSeeked}
         onLoadedMetadata={handleLoadedMetadata}
         onDurationChange={syncDurationFromAudio}
       />
 
-      {layout === "detail" ? (
-        <div className="relative">
+      {showPremiumLayout ? (
+        <div className="relative z-10">
           <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500" aria-hidden />
-          <div className="p-5 md:p-7">
-          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+          <div className={readCompact ? "p-3 sm:p-4 md:p-5" : "p-5 md:p-7"}>
+          <div className={`flex flex-wrap items-start justify-between gap-3 ${readCompact ? "mb-3" : "mb-5"}`}>
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-600/90 dark:text-indigo-400">
-                  Nghe audio
+                  {readCompact ? "Đang nghe" : "Nghe audio"}
                 </p>
                 {isPlaying ? (
                   <span className="flex h-4 items-end gap-0.5" aria-hidden>
@@ -278,7 +412,11 @@ export function AudioPlayer({
                 <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{storyTitle}</p>
               ) : null}
               {title ? (
-                <h3 className="text-balance text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-xl">
+                <h3
+                  className={`text-balance font-bold tracking-tight text-zinc-900 dark:text-zinc-50 ${
+                    readCompact ? "text-base md:text-lg" : "text-lg md:text-xl"
+                  }`}
+                >
                   {title}
                 </h3>
               ) : null}
@@ -290,12 +428,12 @@ export function AudioPlayer({
             ) : null}
           </div>
 
-          {chapters.length > 0 ? (
+          {chapters.length > 0 && !readCompact ? (
             <div className="mb-5">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
                 Chọn chương
               </p>
-              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin [scrollbar-width:thin]">
+              <div className="-mx-1 flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin [scrollbar-width:thin] sm:gap-2">
                 {chapters.map((chapter, i) => {
                   const active = chapter.id === currentChapterId;
                   const disabled = !chapter.audio_url;
@@ -314,7 +452,7 @@ export function AudioPlayer({
                       }`}
                     >
                       <span className="block tabular-nums opacity-80">{i + 1}</span>
-                      <span className="mt-0.5 line-clamp-2 max-w-[10rem]">{chapter.title}</span>
+                      <span className="mt-0.5 line-clamp-2 max-w-[10rem] font-medium">{chapter.title}</span>
                     </button>
                   );
                 })}
@@ -322,21 +460,24 @@ export function AudioPlayer({
             </div>
           ) : null}
 
-          <div className="mb-4">
-            <div className="relative h-2.5 overflow-hidden rounded-full bg-zinc-200/90 dark:bg-zinc-800/90">
+          <div className={readCompact ? "mb-3" : "mb-4"}>
+            <div
+              role="slider"
+              tabIndex={0}
+              aria-valuemin={0}
+              aria-valuemax={Math.max(0, Math.floor(seekMax))}
+              aria-valuenow={Math.min(Math.floor(currentTime), Math.floor(seekMax))}
+              aria-label="Tiến độ phát"
+              className="relative h-2.5 cursor-pointer overflow-hidden rounded-full bg-zinc-200/90 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-zinc-800/90 dark:ring-offset-zinc-900"
+              onPointerDown={onSeekTrackPointerDown}
+              onPointerMove={onSeekTrackPointerMove}
+              onPointerUp={onSeekTrackPointerUp}
+              onPointerCancel={onSeekTrackPointerUp}
+              onKeyDown={onSeekTrackKeyDown}
+            >
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 transition-[width] duration-150 ease-out"
+                className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 transition-[width] duration-150 ease-out"
                 style={{ width: `${pct}%` }}
-              />
-              <input
-                type="range"
-                min={0}
-                max={seekMax}
-                step={0.1}
-                value={Math.min(currentTime, seekMax)}
-                onChange={handleSeek}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                aria-label="Tiến độ phát"
               />
             </div>
             <div className="mt-2 flex justify-between font-mono text-[11px] tabular-nums text-zinc-500 dark:text-zinc-500">
@@ -345,20 +486,22 @@ export function AudioPlayer({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
             <button
               type="button"
               onClick={togglePlay}
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 ring-4 ring-white/70 transition hover:scale-[1.02] hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] dark:ring-zinc-900/80"
+              className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 ring-4 ring-white/70 transition hover:scale-[1.02] hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] dark:ring-zinc-900/80 ${
+                readCompact ? "h-11 w-11" : "h-14 w-14"
+              }`}
               aria-label={isPlaying ? "Tạm dừng" : "Phát"}
             >
               {isPlaying ? (
-                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <svg className={readCompact ? "h-5 w-5" : "h-6 w-6"} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <rect x="6" y="4" width="4" height="16" rx="1" />
                   <rect x="14" y="4" width="4" height="16" rx="1" />
                 </svg>
               ) : (
-                <svg className="ml-1 h-7 w-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <svg className={readCompact ? "ml-0.5 h-6 w-6" : "ml-1 h-7 w-7"} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path d="M8 5v14l11-7z" />
                 </svg>
               )}
@@ -470,15 +613,25 @@ export function AudioPlayer({
 
           <div className="mb-3 flex items-center gap-2">
             <span className="text-xs text-zinc-500">{formatTime(currentTime)}</span>
-            <input
-              type="range"
-              min={0}
-              max={seekMax}
-              step={0.1}
-              value={Math.min(currentTime, seekMax)}
-              onChange={handleSeek}
-              className="h-1 flex-1 cursor-pointer accent-zinc-600"
-            />
+            <div
+              role="slider"
+              tabIndex={0}
+              aria-valuemin={0}
+              aria-valuemax={Math.max(0, Math.floor(seekMax))}
+              aria-valuenow={Math.min(Math.floor(currentTime), Math.floor(seekMax))}
+              aria-label="Tiến độ phát"
+              className="relative h-2 min-w-0 flex-1 cursor-pointer overflow-hidden rounded-full bg-zinc-200 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-zinc-500 dark:bg-zinc-700 dark:ring-offset-zinc-900"
+              onPointerDown={onSeekTrackPointerDown}
+              onPointerMove={onSeekTrackPointerMove}
+              onPointerUp={onSeekTrackPointerUp}
+              onPointerCancel={onSeekTrackPointerUp}
+              onKeyDown={onSeekTrackKeyDown}
+            >
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0 bg-zinc-600 dark:bg-zinc-400"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
             <span className="text-xs text-zinc-500">{formatTime(safeDuration)}</span>
           </div>
 

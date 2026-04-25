@@ -49,10 +49,20 @@ class Settings(BaseSettings):
     )
     fpt_poll_timeout_sec: float = 120.0
     fpt_poll_interval_sec: float = 2.0
-    # Sau khi POST TTS trả JSON (có link async), chờ bấy nhiêu giây rồi mới GET file — file thường chưa có vài giây đầu.
+    # Sau khi POST TTS trả JSON (có link async), chờ bấy nhiêu giây rồi mới GET file — CDN FPT thường chưa sẵn MP3 ngay.
     fpt_async_first_poll_delay_sec: float = Field(
-        default=3.0,
+        default=10.0,
         validation_alias=AliasChoices("FPT_ASYNC_FIRST_POLL_DELAY_SEC"),
+    )
+    # Sàn thời gian chờ trước GET đầu: max(DELAY_SEC, FLOOR_SEC). CDN FPT thường 404 nếu GET quá sớm (đặc biệt chunk 2+).
+    fpt_async_first_poll_floor_sec: float = Field(
+        default=2.0,
+        validation_alias=AliasChoices("FPT_ASYNC_FIRST_POLL_FLOOR_SEC"),
+    )
+    # Nghỉ sau khi tải xong một chunk trước khi POST chunk tiếp (giảm tải / race phía FPT).
+    fpt_inter_chunk_delay_sec: float = Field(
+        default=0.35,
+        validation_alias=AliasChoices("FPT_INTER_CHUNK_DELAY_SEC"),
     )
 
 

@@ -51,6 +51,13 @@ class Story extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Story $story): void {
+            if ($story->exists && ($story->slug === null || $story->slug === '')) {
+                $base = Str::slug($story->title) ?: 'story';
+                $story->slug = $base.'-'.$story->id;
+            }
+        });
+
         static::created(function (Story $story): void {
             if ($story->slug !== null && $story->slug !== '') {
                 return;
@@ -72,6 +79,6 @@ class Story extends Model
 
     public function getRouteKeyName(): string
     {
-        return 'id';
+        return 'slug';
     }
 }

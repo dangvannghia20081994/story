@@ -16,6 +16,7 @@
     <div class="field">
         <label for="content">{{ $isEdit ? 'Nội dung' : 'Nội dung *' }}</label>
         <textarea id="content" name="content" rows="16" required>{{ old('content', $chapter?->content ?? '') }}</textarea>
+        <p class="muted" id="content-char-count" style="margin-top: 0.35rem;" aria-live="polite"></p>
     </div>
     <div class="field">
         <label for="status">Trạng thái</label>
@@ -41,3 +42,16 @@
     @endif
     <button type="submit" class="btn btn-primary">{{ $isEdit ? 'Cập nhật' : 'Lưu' }}</button>
 </form>
+<script>
+(function () {
+    var ta = document.getElementById('content');
+    var out = document.getElementById('content-char-count');
+    if (!ta || !out) return;
+    function sync() {
+        var n = ta.value.length;
+        out.textContent = n.toLocaleString('vi-VN') + ' ký tự';
+    }
+    ta.addEventListener('input', sync);
+    sync();
+})();
+</script>
