@@ -16,6 +16,24 @@ class Story extends Model
         'khac',
     ];
 
+    /** @var array<string, string> slug DB => nhãn hiển thị (CMS, UI) */
+    public const GENRE_LABELS = [
+        'tu-tien' => 'Tu tiên',
+        'huyen-huyen' => 'Huyền huyễn',
+        'kiem-hiep' => 'Kiếm hiệp',
+        'do-thi' => 'Đô thị',
+        'khac' => 'Khác',
+    ];
+
+    public static function genreLabel(?string $slug): string
+    {
+        if ($slug === null || $slug === '') {
+            return '—';
+        }
+
+        return self::GENRE_LABELS[$slug] ?? $slug;
+    }
+
     protected $fillable = [
         'title',
         'slug',

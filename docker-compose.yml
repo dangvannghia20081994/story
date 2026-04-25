@@ -28,11 +28,12 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/var/www/html
-      - backend_public_audio:/var/www/html/storage/app/public
     # Còn lại (APP_*, DB_*, Redis, CORS, …) lấy từ backend/.env trên volume — xem backend/.env.example
     environment:
       DB_HOST: db
       REDIS_HOST: redis
+      REDIS_CLIENT: predis
+      REDIS_PREFIX: ""
       WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN:-dev-worker-token}
     depends_on:
       db:
@@ -46,18 +47,15 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    volumes:
-      - backend_public_audio:/var/www/html/storage/app/public
+    # Dùng dạng chuỗi path (tương thích mọi bản Compose). Dạng `path:` / `required:` có thể bị bỏ qua → không nạp TTS_PROVIDER từ worker/.env.
     env_file:
-      - path: ./worker/.env
-        required: false
+      - ./worker/.env
     # TTS, FPT, … lấy từ worker/.env (env_file) — xem worker/.env.example
     environment:
       REDIS_URL: redis://redis:6379/0
       QUEUE_NAME: story:tts:queue
       BACKEND_URL: http://backend:8000
       WORKER_TOKEN: ${WORKER_INTERNAL_TOKEN:-dev-worker-token}
-      STORAGE_PUBLIC_ROOT: /var/www/html/storage/app/public
     depends_on:
       - redis
       - backend
@@ -96,6 +94,5 @@ services:
 
 volumes:
   pgdata:
-  backend_public_audio:
   frontend_node_modules:
   expo_node_modules:

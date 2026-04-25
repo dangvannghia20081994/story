@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FullWidthLayout } from "@/components/layouts";
 import { StoriesList } from "../StoriesList";
+import { CreateStoryButton } from "./CreateStoryButton";
 
 export default function StoriesPage() {
   return (
@@ -18,12 +19,7 @@ export default function StoriesPage() {
               <Link href="/" className="text-sm text-zinc-600 underline-offset-4 hover:underline dark:text-zinc-400">
                 ← Trang chủ
               </Link>
-              <Link
-                href="/"
-                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-              >
-                + Tạo truyện
-              </Link>
+              <CreateStoryButton />
             </div>
           </div>
         </div>

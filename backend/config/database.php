@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Support\Str;
 use Pdo\Mysql;
 
 return [
@@ -145,11 +144,13 @@ return [
 
     'redis' => [
 
-        'client' => env('REDIS_CLIENT', 'phpredis'),
+        'client' => env('REDIS_CLIENT', 'predis'),
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            // Phải trùng key thô với worker Python (`story:tts:queue`). Nếu đặt prefix,
+            // cần cùng prefix ở worker (QUEUE_NAME) hoặc để trống cả hai.
+            'prefix' => env('REDIS_PREFIX', ''),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 

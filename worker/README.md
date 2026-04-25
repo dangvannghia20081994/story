@@ -1,6 +1,6 @@
 # Worker (Python / FastAPI)
 
-Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI**), ghi MP3 vào `storage/app/public`, callback Laravel `POST /api/internal/tts-complete`.
+Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI**), sinh MP3 tạm rồi gửi Laravel `POST /api/internal/tts-complete` (**multipart**, field `audio`) để backend lưu `storage/app/public` qua `Storage::disk('public')`.
 
 ## Yêu cầu
 
@@ -21,7 +21,6 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 | `QUEUE_NAME` | Mặc định `story:tts:queue` |
 | `BACKEND_URL` | Base URL Laravel |
 | `WORKER_TOKEN` | Trùng `WORKER_INTERNAL_TOKEN` của Laravel |
-| `STORAGE_PUBLIC_ROOT` | Đường tuyệt đối tới `storage/app/public` của backend |
 | **`TTS_PROVIDER`** | `ffmpeg` (mặc định) hoặc **`fpt`** |
 | **`FPT_API_KEY`** | Bắt buộc khi `TTS_PROVIDER=fpt` — lấy từ [console.fpt.ai](https://console.fpt.ai/) |
 | `FPT_TTS_URL` | Mặc định `https://api.fpt.ai/hmi/tts/v5` |
@@ -30,6 +29,7 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 | `FPT_TTS_FORMAT` | `mp3` hoặc `wav` |
 | `FPT_POLL_TIMEOUT_SEC` | Chờ file async (giây) |
 | `FPT_POLL_INTERVAL_SEC` | Khoảng cách giữa các lần poll |
+| `FPT_ASYNC_FIRST_POLL_DELAY_SEC` | Sau JSON async từ POST TTS, chờ bấy nhiêu giây rồi mới GET file mp3 (mặc định `3`) |
 
 Sao chép `cp .env.example .env` rồi điền giá trị.
 
@@ -45,12 +45,13 @@ uvicorn app.main:app --reload --port 8080
 
 ## FPT.AI TTS
 
-- API: POST `FPT_TTS_URL`, header **`api_key`**, body **raw UTF-8** (3–5000 ký tự).
-- Phản hồi JSON: `error == 0` và trường **`async`** là URL MP3; file có thể chậm vài giây — worker **poll** URL cho tới `FPT_POLL_TIMEOUT_SEC`.
+- API: POST `FPT_TTS_URL`, header **`api_key`**, body **raw UTF-8** (3–5000 ký tự mỗi request).
+- Nội dung chương **dài hơn 5000 ký tự**: worker **chia đoạn** (ưu tiên ngắt xuống dòng / câu), gọi FPT **nhiều lần**, ghép các MP3 bằng **pydub** thành một file (log: `FPT TTS: chapter split into N requests`).
+- Phản hồi JSON: `error == 0` và trường **`async`** là URL MP3; file có thể chậm vài giây — worker **poll** URL cho tới `FPT_POLL_TIMEOUT_SEC` (mỗi đoạn một lần poll; chương rất dài có thể cần timeout lớn hơn).
 
 ## Docker
 
-Từ gốc repo: tạo **`worker/.env`** từ `.env.example`, đặt **`TTS_PROVIDER=fpt`**, **`FPT_API_KEY=...`** (và các biến khác nếu cần). Compose đọc file đó qua **`env_file`** và ghi đè thêm **`REDIS_URL`**, **`BACKEND_URL`**, **`STORAGE_PUBLIC_ROOT`**, **`WORKER_TOKEN`** (khớp `WORKER_INTERNAL_TOKEN` ở `backend/.env` / `.env` gốc repo).
+Từ gốc repo: tạo **`worker/.env`** từ `.env.example`, đặt **`TTS_PROVIDER=fpt`**, **`FPT_API_KEY=...`** (và các biến khác nếu cần). Compose đọc file đó qua **`env_file`** và ghi đè thêm **`REDIS_URL`**, **`BACKEND_URL`**, **`WORKER_TOKEN`** (khớp `WORKER_INTERNAL_TOKEN` ở `backend/.env` / `.env` gốc repo). Service worker **không** cần volume chung với backend: file audio do Laravel ghi vào `backend/storage/app/public` trên host (bind mount `./backend` trong Docker Compose).
 
 ```bash
 docker compose up worker
@@ -60,7 +61,7 @@ Health: `GET http://localhost:8080/health`
 
 ## Các lệnh chạy trong container
 
-Chạy từ **gốc repo**. Thư mục làm việc trong image: **`/app`** (code worker, không phải thư mục `worker/` trên host — volume chỉ mount storage chung với backend).
+Chạy từ **gốc repo**. Thư mục làm việc trong image: **`/app`** (code worker đóng gói trong image; không mount `storage` của Laravel).
 
 | Mục đích | Lệnh |
 |----------|------|

@@ -1,7 +1,36 @@
 <?php
 
+use App\Http\Controllers\Cms\AuthController;
+use App\Http\Controllers\Cms\ChapterController as CmsChapterController;
+use App\Http\Controllers\Cms\CharacterController as CmsCharacterController;
+use App\Http\Controllers\Cms\DashboardController;
+use App\Http\Controllers\Cms\LexiconController as CmsLexiconController;
+use App\Http\Controllers\Cms\StoryController as CmsStoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
+});
+
+Route::get('/login', static fn () => redirect()->route('cms.login'))->name('login');
+
+Route::prefix('admin')->name('cms.')->group(function (): void {
+    Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('login', [AuthController::class, 'login']);
+
+    Route::middleware('auth')->post('logout', [AuthController::class, 'logout'])->name('logout');
+
+    Route::middleware(['auth', 'cms.admin'])->group(function (): void {
+        Route::get('/', DashboardController::class)->name('dashboard');
+
+        Route::resource('stories', CmsStoryController::class)->except(['show']);
+
+        Route::post('stories/{story}/chapters/{chapter}/queue-tts', [CmsChapterController::class, 'queueTts'])
+            ->name('stories.chapters.queue-tts');
+        Route::resource('stories.chapters', CmsChapterController::class)->except(['show']);
+
+        Route::resource('stories.characters', CmsCharacterController::class)->except(['show']);
+
+        Route::resource('lexicons', CmsLexiconController::class)->except(['show']);
+    });
 });

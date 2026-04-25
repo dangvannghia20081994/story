@@ -1,6 +1,7 @@
 import json
 import logging
 import subprocess
+import tempfile
 from pathlib import Path
 
 import httpx
@@ -11,49 +12,87 @@ from app.fpt_tts import synthesize_to_file
 logger = logging.getLogger(__name__)
 
 
-def _safe_id(value: int) -> str:
-    return str(int(value))
-
-
-def _output_relative_path(*, story_id: int, chapter_id: int | None) -> str:
-    if chapter_id is not None:
-        return f"stories/{_safe_id(story_id)}/chapters/{_safe_id(chapter_id)}/audio.mp3"
-    return f"stories/{_safe_id(story_id)}/audio.mp3"
-
-
-def render_audio_mp3(*, story_id: int, chapter_id: int | None, text: str) -> tuple[str, int]:
+def render_audio_mp3_bytes(
+    *,
+    story_id: int,
+    chapter_id: int,
+    text: str,
+) -> tuple[bytes, int]:
     """
-    Sinh file MP3 theo TTS_PROVIDER.
-    Trả về (đường dẫn tương đối trên disk public, duration giây).
+    Sinh MP3 theo TTS_PROVIDER vào file tạm; trả về (nội dung bytes, duration giây).
     """
-    rel = _output_relative_path(story_id=story_id, chapter_id=chapter_id)
-    root = Path(settings.storage_public_root)
-    out = root / rel
+    job_label = f"story_id={story_id} chapter_id={chapter_id}"
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
 
-    if settings.tts_provider == "fpt":
-        duration = synthesize_to_file(text=text, out_path=out)
-        return rel, duration
+    try:
+        if settings.tts_provider == "fpt":
+            duration = synthesize_to_file(text=text, out_path=tmp_path, job_label=job_label)
+        else:
+            _ = text
+            logger.info(
+                "%s: TTS ffmpeg placeholder (ignoring text_chars=%d)",
+                job_label,
+                len(text or ""),
+            )
+            cmd = [
+                settings.ffmpeg_path,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "anullsrc=r=44100:cl=mono",
+                "-t",
+                "3",
+                "-q:a",
+                "9",
+                "-acodec",
+                "libmp3lame",
+                str(tmp_path),
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
+            duration = 3
 
-    # ffmpeg — placeholder im (không dùng FPT)
-    _ = text
-    out.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        settings.ffmpeg_path,
-        "-y",
-        "-f",
-        "lavfi",
-        "-i",
-        "anullsrc=r=44100:cl=mono",
-        "-t",
-        "3",
-        "-q:a",
-        "9",
-        "-acodec",
-        "libmp3lame",
-        str(out),
-    ]
-    subprocess.run(cmd, check=True, capture_output=True)
-    return rel, 3
+        return tmp_path.read_bytes(), duration
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+def notify_backend_completed_upload(
+    *,
+    story_id: int,
+    chapter_id: int,
+    duration: int,
+    audio_bytes: bytes,
+) -> None:
+    url = f"{settings.backend_url.rstrip('/')}/api/internal/tts-complete"
+    headers = {
+        "Authorization": f"Bearer {settings.worker_token}",
+        "Accept": "application/json",
+    }
+    data = {
+        "story_id": str(story_id),
+        "chapter_id": str(chapter_id),
+        "status": "completed",
+        "duration": str(duration),
+    }
+    files = {"audio": ("audio.mp3", audio_bytes, "audio/mpeg")}
+    timeout = httpx.Timeout(300.0, connect=30.0)
+    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+        r = client.post(url, data=data, files=files, headers=headers)
+        logger.info(
+            "Backend tts-complete (multipart): story_id=%s chapter_id=%s http=%s audio_bytes=%d",
+            story_id,
+            chapter_id,
+            r.status_code,
+            len(audio_bytes),
+        )
+        if r.status_code >= 400:
+            logger.error(
+                "Backend tts-complete error body: %s",
+                (r.text or "")[:500],
+            )
+        r.raise_for_status()
 
 
 def notify_backend(
@@ -65,6 +104,7 @@ def notify_backend(
     error: str | None,
     duration: int | None = None,
 ) -> None:
+    """JSON callback (failed hoặc tương thích cũ)."""
     url = f"{settings.backend_url.rstrip('/')}/api/internal/tts-complete"
     payload: dict = {
         "story_id": story_id,
@@ -82,6 +122,13 @@ def notify_backend(
     }
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
         r = client.post(url, json=payload, headers=headers)
+        logger.info(
+            "Backend tts-complete (json): story_id=%s chapter_id=%s status=%s http=%s",
+            story_id,
+            chapter_id,
+            status,
+            r.status_code,
+        )
         r.raise_for_status()
 
 
@@ -110,17 +157,43 @@ def handle_job(raw: bytes) -> None:
         return
 
     try:
-        rel_path, duration = render_audio_mp3(story_id=story_id, chapter_id=cid, text=text)
-        notify_backend(
+        logger.info(
+            "TTS job start: story_id=%s chapter_id=%s text_chars=%d provider=%s",
+            story_id,
+            cid,
+            len(text),
+            settings.tts_provider,
+        )
+        audio_bytes, duration = render_audio_mp3_bytes(
             story_id=story_id,
             chapter_id=cid,
-            status="completed",
-            audio_path=rel_path,
-            error=None,
+            text=text,
+        )
+        logger.info(
+            "TTS job render ok: story_id=%s chapter_id=%s duration_s=%s mp3_bytes=%d",
+            story_id,
+            cid,
+            duration,
+            len(audio_bytes),
+        )
+        notify_backend_completed_upload(
+            story_id=story_id,
+            chapter_id=cid,
             duration=duration,
+            audio_bytes=audio_bytes,
+        )
+        logger.info(
+            "TTS job finished: story_id=%s chapter_id=%s (callback sent)",
+            story_id,
+            cid,
         )
     except Exception as exc:  # noqa: BLE001
-        logger.exception("TTS job failed")
+        logger.exception(
+            "TTS job failed: story_id=%s chapter_id=%s provider=%s",
+            story_id,
+            cid,
+            settings.tts_provider,
+        )
         try:
             notify_backend(
                 story_id=story_id,

@@ -17,11 +17,32 @@ cp .env.example .env
 php artisan key:generate
 composer install
 php artisan migrate
-php artisan storage:link
+php artisan db:seed
+php artisan storage:link --force --relative
 php artisan serve
 ```
 
 Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS_PREFIX` (đồng bộ với worker, thường rỗng), `WORKER_INTERNAL_TOKEN`, `CORS_ALLOWED_ORIGINS`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME`, `API_VERSION`, `APP_URL`, `FRONTEND_URL`.
+
+**`php artisan storage:link` lỗi hoặc symlink hỏng:** dùng **`--force --relative`** để tạo lại link tương đối (`public/storage` → `storage/app/public`), tránh link tuyệt đối kiểu `/var/www/html/...` sau khi chạy trong Docker (trên host symlink đó không tồn tại). Nếu báo *link already exists* mà `public/storage` là **thư mục** (không phải symlink), xóa thư mục đó rồi chạy lại lệnh (không commit `public/storage`). Trên Windows, symlink đôi khi cần quyền Administrator hoặc Developer Mode.
+
+## CMS (quản trị dữ liệu)
+
+Giao diện web trong Laravel (Blade + session), **không** dùng Filament. Quản lý truyện, chương (có nút **TTS** đẩy Redis giống API), nhân vật/giọng, lexicon.
+
+| URL | Mô tả |
+|-----|--------|
+| `http://localhost:8000/admin/login` | Đăng nhập CMS |
+| `http://localhost:8000/admin` | Bảng điều khiển (sau khi đăng nhập) |
+| `http://localhost:8000/login` | Chuyển hướng tới `/admin/login` (alias cho trang welcome) |
+
+**Quyền:** cột `users.is_admin` (migration `2026_04_26_120000_add_is_admin_to_users_table`). Middleware `cms.admin` chặn user thường.
+
+**Tài khoản dev sau seed:** `php artisan db:seed` tạo/cập nhật `admin@example.com` (mật khẩu `password`, `is_admin = true`) và `test@example.com` (cùng mật khẩu mặc định, không vào được CMS). **Đổi mật khẩu trước khi deploy.**
+
+Docker: `docker compose exec backend php artisan migrate` rồi `docker compose exec backend php artisan db:seed` (lần đầu hoặc sau khi xóa volume DB).
+
+Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS), `resources/views/cms/` (mỗi resource: `create` / `edit` gọi chung partial `*_form.blade.php`), `routes/web.php`, `app/Http/Middleware/EnsureCmsAdmin.php`. Nhãn thể loại truyện: `Story::GENRE_LABELS` / `Story::genreLabel()` (slug DB giữ nguyên, UI hiển thị tiếng Việt).
 
 ## Cấu hình trong code (`config/`)
 
@@ -32,7 +53,7 @@ Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS
 | `config/filesystems.php` | Disk `public` / Storage |
 | `config/cors.php` | `CORS_ALLOWED_ORIGINS`, đường `api/*` |
 | `config/services.php` | `worker.internal_token` |
-| `config/tts.php` | `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` (segment mặc định gửi worker) |
+| `config/tts.php` | `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME`, mảng `voices` (CMS chọn voice nhân vật) |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
 
 **Quy ước:** mỗi lần thêm/sửa config hoặc biến env liên quan backend → cập nhật **`backend/README.md`** và **`.cursor/agents/backend/AGENT.md`**.
@@ -55,18 +76,26 @@ Gửi header `Accept: application/json` khi gọi từ curl.
 | POST | `/api/preprocess-preview` | Body `{ "text": "..." }` — xem văn bản sau áp dụng lexicon |
 | GET/POST/PATCH/DELETE | `/api/stories` … | CRUD truyện; `POST/PATCH` hỗ trợ thêm `genre?` (`tu-tien` \| `huyen-huyen` \| `kiem-hiep` \| `do-thi` \| `khac`), cùng `title`, `slug?`, `description?`, `first_chapter?` `{ title, content }` |
 | GET/POST/PATCH/DELETE | `/api/stories/{id}/chapters` … | CRUD chương |
-| POST | `/api/stories/{id}/chapters/{id}/queue-tts` | Đẩy job Redis (text đã preprocess + `voice_segments`) |
+| POST | `/api/stories/{id}/chapters/{id}/queue-tts` | Đẩy job Redis (text đã preprocess + `voice_segments`). Có thể gọi lại cho chương **đã lỗi** hoặc **đã hoàn thành** (TTS lại / chỉnh nội dung rồi render lại); body tùy chọn `{ "regenerate": true }`. **Không** xếp hàng khi `status` đang `processing` (409). CMS: nút **TTS lại** trên danh sách chương. |
 | GET/POST/PATCH/DELETE | `/api/stories/{id}/characters` … | CRUD nhân vật / `voice_id` |
 | GET/POST/PATCH/DELETE | `/api/lexicons` … | CRUD lexicon (`type`: `pronunciation` \| `name` \| `filter`, `priority`) |
-| POST | `/api/internal/tts-complete` | Worker: Bearer `WORKER_INTERNAL_TOKEN` — body `chapter_id`, `story_id`, `status` (`completed`\|`failed`\|`ready`), `audio_path?`, `error?`, `duration?` |
+| POST | `/api/internal/tts-complete` | Worker: Bearer `WORKER_INTERNAL_TOKEN`. **Hoàn thành (khuyến nghị):** `multipart/form-data` — `audio` (file MP3), `chapter_id`, `story_id`, `status` (`completed`\|`ready`), `duration?`. Laravel lưu `stories/{story_id}/chapters/{chapter_id}/audio.mp3` bằng `Storage::disk('public')`. **Thất bại:** JSON — `status=failed`, `chapter_id`, `story_id`, `error?`. **Tương thích:** JSON `status=completed` + `audio_path` (đường dẫn tương đối trên disk `public`) nếu file đã có sẵn trên server. Upload lớn: chỉnh `upload_max_filesize` / `post_max_size` của PHP nếu cần (mặc định image CLI có thể thấp). **`php artisan storage:link`**: cho URL `/storage/...`. |
+
+**Log `tts-complete`:** Laravel ghi `storage/logs/laravel.log` (mặc định) các dòng `tts-complete incoming` (`has_file_audio`, `content_type`, `multipart_file_keys`), `tts-complete multipart: audio saved` (`stored_bytes`, `upload_reported_bytes`), hoặc nhánh JSON (`failed` / `completed using existing path`). Docker: `docker compose exec backend tail -f storage/logs/laravel.log | grep tts-complete`.
+
+**Docker — file audio ở đâu:** với `docker-compose.yml` hiện tại, `./backend` được mount vào container nên MP3 nằm trên máy bạn tại **`backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/audio.mp3`** (không dùng named volume che `storage/app/public` nữa). Nếu trước đây bạn dùng volume `backend_public_audio`, file cũ có thể còn trong volume Docker cũ: `docker volume ls` / `docker volume inspect story_backend_public_audio` (tên có tiền tố project).
 
 **Hợp đồng queue Redis** (`story:tts:queue`): JSON gồm tối thiểu `chapter_id`, `story_id`, `text` (đã preprocess), `voice_segments` (mảng `{ voice_id, text, pitch, rate }`).
+
+**Queue TTS “đã xếp hàng” nhưng worker không chạy:** Laravel mặc định từng thêm **prefix** vào mọi key Redis; worker Python lại `BRPOP` đúng tên `story:tts:queue` — nếu `.env` không có `REDIS_PREFIX=` (rỗng), job bị đẩy sang key khác. Cấu hình hiện tại: `config/database.php` mặc định prefix rỗng; Compose ghi đè `REDIS_PREFIX=""`. Sau khi sửa: `php artisan config:clear`. Kiểm tra: service **`worker`** đang chạy, `docker compose logs -f worker`, và trên Redis `LLEN story:tts:queue` (job đang chờ) / log consumer có nhận job không.
 
 ## Docker
 
 Từ gốc repo: tạo **`backend/.env`** từ `.env.example`, chạy `php artisan key:generate` nếu chưa có `APP_KEY`, rồi `docker compose up` — xem `../README.md`.
 
-Compose **không** nhân đôi toàn bộ biến Laravel: container đọc `backend/.env` trên volume; `docker-compose.yml` chỉ ghi đè **`DB_HOST=db`** và **`REDIS_HOST=redis`** (và `WORKER_INTERNAL_TOKEN` từ biến compose) để trỏ đúng service Docker.
+Compose **không** nhân đôi toàn bộ biến Laravel: container đọc `backend/.env` trên volume; `docker-compose.yml` ghi đè **`DB_HOST=db`**, **`REDIS_HOST=redis`**, **`REDIS_CLIENT=predis`** (image PHP không cài extension `phpredis`; dùng package `predis/predis`), và `WORKER_INTERNAL_TOKEN` từ biến compose.
+
+Chạy **ngoài Docker** mà không cài extension Redis: trong `.env` đặt **`REDIS_CLIENT=predis`** (mặc định trong `config/database.php` và `.env.example`).
 
 `php artisan serve` trong image dùng `--no-reload` để env DB/Redis không bị strip.
 
@@ -77,6 +106,7 @@ Chạy từ **gốc repo** (cùng thư mục với `docker-compose.yml`). Cần 
 | Mục đích | Lệnh |
 |----------|------|
 | Artisan (migrate, route:list, …) | `docker compose exec backend php artisan migrate` |
+| Seed (admin CMS + user test) | `docker compose exec backend php artisan db:seed` |
 | Tạo `APP_KEY` lần đầu | `docker compose exec backend php artisan key:generate` |
 | Composer | `docker compose exec backend composer install` |
 | Export OpenAPI file tĩnh | `docker compose exec backend php artisan scramble:export` |

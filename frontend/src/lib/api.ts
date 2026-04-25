@@ -27,3 +27,33 @@ export async function apiFetch<T>(
   }
   return res.json() as Promise<T>;
 }
+
+// Story types
+export interface Story {
+  id: number;
+  title: string;
+  slug: string;
+  description: string | null;
+  genre: string | null;
+  created_at: string;
+  updated_at: string;
+  chapters_count?: number;
+}
+
+export interface CreateStoryData {
+  title: string;
+  slug?: string;
+  description?: string;
+  genre?: string;
+  first_chapter?: {
+    title: string;
+    content: string;
+  };
+}
+
+export async function createStory(data: CreateStoryData): Promise<Story> {
+  return apiFetch<Story>("/api/stories", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}

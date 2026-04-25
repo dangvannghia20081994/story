@@ -32,17 +32,20 @@ export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
     }
   }, [storyId]);
 
+  const panel =
+    "rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
+
   return (
-    <div className="mx-auto max-w-5xl p-4 md:p-6">
-      <div className="grid gap-6 lg:grid-cols-3">
+    <div className="mx-auto max-w-6xl p-4 md:p-8">
+      <div className="grid gap-8 lg:grid-cols-3">
         {/* Main content */}
-        <div className="lg:col-span-2">{children}</div>
+        <div className="min-w-0 lg:col-span-2">{children}</div>
 
         {/* Sidebar */}
-        <aside className="space-y-6">
+        <aside className="space-y-6 lg:pt-0">
           {/* Related Stories */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+          <div className={panel}>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Truyện khác
             </h3>
             {relatedStories.length > 0 ? (
@@ -51,7 +54,7 @@ export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
                   <li key={story.id}>
                     <Link
                       href={`/stories/${story.id}`}
-                      className="block truncate rounded py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-indigo-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
+                      className="block truncate rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-zinc-300 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
                     >
                       {story.title}
                     </Link>
@@ -64,26 +67,38 @@ export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
           </div>
 
           {/* Quick Links */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+          <div className={panel}>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Liên kết nhanh
             </h3>
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
               <Link
                 href="/"
-                className="block rounded py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="block rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
               >
                 🏠 Trang chủ
               </Link>
               <Link
                 href="/stories"
-                className="block rounded py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="block rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
               >
                 📚 Danh sách truyện
               </Link>
               <Link
+                href="/rankings"
+                className="block rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
+              >
+                🏆 Bảng xếp hạng
+              </Link>
+              <Link
+                href="/members"
+                className="block rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
+              >
+                👥 Thành viên
+              </Link>
+              <Link
                 href="/about"
-                className="block rounded py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="block rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
               >
                 ℹ️ Giới thiệu
               </Link>

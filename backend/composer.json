@@ -10,7 +10,8 @@
         "dedoc/scramble": "^0.13.20",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
-        "predis/predis": "^3.4"
+        "predis/predis": "^3.4",
+        "symfony/filesystem": "^7.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

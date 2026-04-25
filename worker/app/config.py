@@ -22,8 +22,6 @@ class Settings(BaseSettings):
     backend_url: str = "http://localhost:8000"
     worker_token: str = "change-me"
 
-    storage_public_root: str = "/var/www/html/storage/app/public"
-
     ffmpeg_path: str = "ffmpeg"
 
     # --- TTS: ffmpeg (mặc định) hoặc FPT.AI Speech v5 ---
@@ -51,6 +49,11 @@ class Settings(BaseSettings):
     )
     fpt_poll_timeout_sec: float = 120.0
     fpt_poll_interval_sec: float = 2.0
+    # Sau khi POST TTS trả JSON (có link async), chờ bấy nhiêu giây rồi mới GET file — file thường chưa có vài giây đầu.
+    fpt_async_first_poll_delay_sec: float = Field(
+        default=3.0,
+        validation_alias=AliasChoices("FPT_ASYNC_FIRST_POLL_DELAY_SEC"),
+    )
 
 
 settings = Settings()

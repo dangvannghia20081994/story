@@ -33,6 +33,12 @@ function Navbar() {
           <Link href="/stories" className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
             Truyện
           </Link>
+          <Link href="/rankings" className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
+            Bảng xếp hạng
+          </Link>
+          <Link href="/members" className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
+            Thành viên
+          </Link>
           <Link href="/about" className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
             Giới thiệu
           </Link>

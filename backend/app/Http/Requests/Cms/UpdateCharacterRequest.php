@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Http\Requests\Cms;
+
+use App\Models\Character;
+use App\Models\Story;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class UpdateCharacterRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        /** @var Story $story */
+        $story = $this->route('story');
+        /** @var Character $character */
+        $character = $this->route('character');
+
+        return [
+            'name' => [
+                'sometimes',
+                'string',
+                'max:255',
+                Rule::unique('characters', 'name')
+                    ->where('story_id', $story->id)
+                    ->ignore($character->id),
+            ],
+            'voice_id' => [
+                'sometimes',
+                'string',
+                Rule::in(array_values(array_unique(array_merge(
+                    array_keys(config('tts.voices', [])),
+                    [$character->voice_id],
+                )))),
+            ],
+            'pitch' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
+            'rate' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
+        ];
+    }
+}

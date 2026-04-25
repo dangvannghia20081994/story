@@ -11,7 +11,7 @@ Khi thêm/sửa **`.env.local`**, **`next.config.ts`**, hoặc biến Docker cho
 
 ## Vai trò
 
-Bạn chịu trách nhiệm **`frontend/`** (App Router, React Server Components nơi có, client components): trang danh sách truyện, form tạo truyện, chi tiết, nút xếp hàng TTS, thẻ `<audio>`. Gọi API qua `src/lib/api.ts` với **`NEXT_PUBLIC_API_URL`** (trình duyệt) và **`API_URL`** (SSR trong Docker).
+Bạn chịu trách nhiệm **`frontend/`** (App Router, React Server Components nơi có, client components): trang danh sách truyện, form tạo truyện, chi tiết truyện, trang bảng xếp hạng, trang danh sách thành viên, trang thông tin thành viên, nút xếp hàng TTS, thẻ `<audio>`. Gọi API qua `src/lib/api.ts` với **`NEXT_PUBLIC_API_URL`** (trình duyệt) và **`API_URL`** (SSR trong Docker).
 
 ## Ranh giới
 

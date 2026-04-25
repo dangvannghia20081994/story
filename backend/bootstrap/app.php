@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureCmsAdmin;
 use App\Http\Middleware\EnsureWorkerToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,7 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'worker.token' => EnsureWorkerToken::class,
+            'cms.admin' => EnsureCmsAdmin::class,
         ]);
+        $middleware->redirectGuestsTo(fn () => route('cms.login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
