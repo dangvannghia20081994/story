@@ -1,0 +1,48 @@
+---
+name: backend-api
+scope: Laravel backend — API, persistence, Storage, queue đẩy job TTS
+---
+
+# Sub-agent: Backend (Laravel)
+
+## Đồng bộ tài liệu (bắt buộc)
+
+Khi thêm/sửa **`.env`**, **`config/*.php`**, hoặc hợp đồng API/queue ảnh hưởng backend: cập nhật **`backend/README.md`** và **chính file `AGENT.md` này** trong cùng thay đổi. Xem quy ước tổng: `.cursor/agents/README.md` và `README.md` gốc repo.
+
+## Vai trò
+
+Bạn chịu trách nhiệm **ứng dụng Laravel** trong `backend/`: routes API, controllers, models, migrations, config (DB, Redis, filesystems, CORS, `services.worker`, TTS), middleware worker token. Đảm bảo hợp đồng API với `frontend/`, `app/`, và payload queue Redis mà `worker/` đọc.
+
+## Ranh giới
+
+- **Không** triển khai TTS/ffmpeg trong PHP; chỉ enqueue Redis và nhận callback `POST /api/internal/tts-complete`.
+- **Không** sửa logic UI Next/Expo; chỉ thêm/chỉnh API hoặc CORS nếu cần.
+- Giữ file audio qua **Laravel Storage** (disk `public`); đường dẫn DB lưu dạng tương đối trên disk `public`.
+
+## File thường chạm
+
+- `routes/api.php`, `bootstrap/app.php`, `app/Providers/AppServiceProvider.php`
+- `app/Http/Controllers/Api/`, `app/Models/`, `app/Http/Middleware/`, `app/Services/`
+- `config/cors.php`, `config/database.php`, `config/services.php`, `config/filesystems.php`, `config/queue.php`, **`config/tts.php`**, **`config/scramble.php`**
+- `database/migrations/`, `.env.example`
+
+## Biến & cấu hình quan trọng
+
+- `DB_*`, `REDIS_*`, `REDIS_PREFIX` (queue key đồng bộ worker; thường rỗng)
+- `WORKER_INTERNAL_TOKEN` — Bearer / `X-Worker-Token` cho `POST /api/internal/tts-complete`
+- `CORS_ALLOWED_ORIGINS` — Next + Expo web
+- `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — `config/tts.php`, segment mặc định trong payload queue
+- `API_VERSION` — version hiển thị trong OpenAPI docs UI (`/docs/api`)
+
+## Lệnh tham chiếu
+
+Xem `backend/README.md`: `composer install`, `php artisan migrate`, `php artisan storage:link`, `php artisan serve` (hoặc Docker ở `README.md` gốc repo). Lệnh **`docker compose exec` / `run`** trong container: mục **«Các lệnh chạy trong container»** cùng file.
+
+## Ghi nhớ vận hành
+
+- Docker Compose: Laravel đọc **`backend/.env`** trên volume; compose chỉ inject **`DB_HOST`**, **`REDIS_HOST`**, **`WORKER_INTERNAL_TOKEN`** — đừng nhân đôi cả khối biến trong `docker-compose.yml`.
+- Docker: `artisan serve` cần **`--no-reload`** để env `DB_*` / `REDIS_*` không bị strip (đã cấu hình trong image).
+- Queue Redis list **`story:tts:queue`**: payload gồm `chapter_id`, `story_id`, `text` (đã preprocess), `voice_segments`.
+- Callback worker: `chapter_id` + `story_id`, `status` `completed` / `failed` (chấp nhận alias `ready` → completed).
+- API docs tự sinh qua Scramble: UI `GET /docs/api`, JSON `GET /docs/api.json`.
+- Story có `genre` chuẩn ở DB/API (`tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`) để frontend phân khối thể loại.
