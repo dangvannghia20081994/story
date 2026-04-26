@@ -130,7 +130,7 @@ cp .env.example .env
 - `QUEUE_NAME=story:tts:queue`
 - `BACKEND_URL=https://api.example.com` (URL mà worker gọi được — cùng máy có thể `http://localhost:8000` nếu chỉ nội bộ)
 - `WORKER_TOKEN` = `WORKER_INTERNAL_TOKEN` của Laravel
-- `TTS_PROVIDER=fpt` + `FPT_API_KEY` nếu dùng FPT
+- `TTS_PROVIDER=vieneu` (mặc định) hoặc `ffmpeg`; tuỳ chọn `VIENEU_PRESET_VOICE_ID` — xem `worker/README.md`
 
 Chạy thủ công kiểm tra:
 

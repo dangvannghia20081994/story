@@ -16,6 +16,9 @@
     <div class="field">
         <label for="content">{{ $isEdit ? 'Nội dung' : 'Nội dung *' }}</label>
         <textarea id="content" name="content" rows="16" required>{{ old('content', $chapter?->content ?? '') }}</textarea>
+        <p class="muted" style="margin-top: 0.35rem; max-width: 42rem;">
+            TTS nhiều giọng: ngoặc thoại ASCII <code>"</code> hoặc “ ” « » (chuẩn hoá về <code>"</code>); **số dấu <code>"</code> trong cả chương phải chẵn** (đủ cặp). Một khối dài không cần <code>\n\n</code> vẫn tách được nhiều giọng. Phần ngoài ngoặc = người kể; trong ngoặc = giọng nhân vật nếu <strong>dòng không trống ngay trước</strong> mở ngoặc có <strong>tên</strong> (trùng CMS). Hoặc đoạn chỉ dùng <code>Tên:</code> / <code>Tên：</code> đầu đoạn (sau <code>\n\n</code>). Người kể: <code>TTS_NARRATOR_CHARACTER_NAME</code>.
+        </p>
         <p class="muted" id="content-char-count" style="margin-top: 0.35rem;" aria-live="polite"></p>
     </div>
     <div class="field">

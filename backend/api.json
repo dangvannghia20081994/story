@@ -516,7 +516,8 @@
                                 "type": "object",
                                 "properties": {
                                     "regenerate": {
-                                        "type": "boolean"
+                                        "type": "boolean",
+                                        "description": "If true, allow queue-tts while chapter status is still processing (stuck worker / no callback). Risk of duplicate jobs if worker is actually running."
                                     }
                                 }
                             }

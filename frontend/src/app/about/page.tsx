@@ -9,7 +9,7 @@ export default function AboutPage() {
     "Laravel 12",
     "PostgreSQL + Redis",
     "Python Worker",
-    "FPT.AI / ffmpeg TTS",
+    "VieNeu TTS (worker)",
     "Docker Compose",
   ];
 
@@ -129,8 +129,7 @@ export default function AboutPage() {
         <section className="rounded-2xl border border-white/70 bg-white/75 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75">
           <h2 className="mb-2 text-lg font-semibold text-zinc-800 dark:text-zinc-100">Thông tin thêm</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            Backend cung cấp OpenAPI docs tại <code>/docs/api</code> để test API nhanh; worker hỗ trợ `ffmpeg` hoặc FPT.AI
-            qua biến môi trường.
+            Backend cung cấp OpenAPI docs tại <code>/docs/api</code> để test API nhanh; worker TTS dùng VieNeu (hoặc chế độ im lặng <code>ffmpeg</code> khi dev).
           </p>
         </section>
         <footer className="border-t border-zinc-200/70 pt-6 text-center text-sm text-zinc-500 dark:border-zinc-700/70">

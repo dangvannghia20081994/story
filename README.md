@@ -24,6 +24,7 @@ docker compose up --build
 | Next.js   | http://localhost:3000 |
 | Expo web  | http://localhost:8090 |
 | Worker    | http://localhost:8080/health |
+| Coqui TTS (tuỳ chọn, `coqui/`) | http://localhost:5002 — Docker (`coqui/run.ps1`) hoặc **không Docker**: `coqui/run-native.ps1` |
 | Postgres  | localhost:5432 |
 | Redis     | localhost:6379 |
 

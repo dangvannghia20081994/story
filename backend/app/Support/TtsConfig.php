@@ -3,20 +3,20 @@
 namespace App\Support;
 
 /**
- * Đọc cấu hình TTS: dịch vụ đang dùng + danh sách voice (CMS nhân vật, validation).
+ * Đọc cấu hình TTS: TTS_SERVICE + danh sách voice (CMS, validation).
  */
 final class TtsConfig
 {
-    /** @return 'azure'|'fpt' */
+    /** @return 'vieneu'|'coqui' */
     public static function service(): string
     {
-        $s = strtolower(trim((string) config('tts.service', 'fpt')));
+        $s = strtolower(trim((string) config('tts.service', 'vieneu')));
 
-        return in_array($s, ['azure', 'fpt'], true) ? $s : 'fpt';
+        return in_array($s, ['vieneu', 'coqui'], true) ? $s : 'vieneu';
     }
 
     /**
-     * Voice theo dịch vụ đang chọn (TTS_SERVICE) — dùng cho form + Rule::in.
+     * Voice theo TTS_SERVICE — dùng cho form + Rule::in.
      *
      * @return array<string, string> voice_id => nhãn hiển thị
      */
@@ -33,7 +33,7 @@ final class TtsConfig
     }
 
     /**
-     * Nhãn cho một voice_id (tìm trong mọi dịch vụ — hữu ích khi đổi TTS_SERVICE nhưng DB còn mã cũ).
+     * Nhãn cho voice_id (tìm trong mọi nhóm voices — hữu ích khi đổi TTS_SERVICE nhưng DB còn mã cũ).
      */
     public static function labelFor(string $voiceId): string
     {
@@ -41,9 +41,9 @@ final class TtsConfig
         if (! is_array($all)) {
             return $voiceId;
         }
-        foreach (['azure', 'fpt'] as $svc) {
-            if (isset($all[$svc][$voiceId]) && is_string($all[$svc][$voiceId])) {
-                return $all[$svc][$voiceId];
+        foreach ($all as $set) {
+            if (is_array($set) && isset($set[$voiceId]) && is_string($set[$voiceId])) {
+                return $set[$voiceId];
             }
         }
 
@@ -63,7 +63,7 @@ final class TtsConfig
         }
         $keys = array_keys($voices);
 
-        return $keys[0] ?? 'banmai';
+        return $keys[0] ?? '';
     }
 
     public static function narratorCharacterName(): string

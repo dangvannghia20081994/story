@@ -116,9 +116,9 @@ class ChapterController extends Controller
             'regenerate' => ['sometimes', 'boolean'],
         ]);
 
-        if ($chapter->status === Chapter::STATUS_PROCESSING) {
+        if ($chapter->status === Chapter::STATUS_PROCESSING && ! $request->boolean('regenerate')) {
             return response()->json([
-                'message' => 'Chương đang được xử lý TTS.',
+                'message' => 'Chương đang ở trạng thái processing. Gửi regenerate=true (CMS: xếp lại khi kẹt) nếu worker đã dừng/lỗi mà chưa callback.',
             ], 409);
         }
 

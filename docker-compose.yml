@@ -50,7 +50,7 @@ services:
     # Dùng dạng chuỗi path (tương thích mọi bản Compose). Dạng `path:` / `required:` có thể bị bỏ qua → không nạp TTS_PROVIDER từ worker/.env.
     env_file:
       - ./worker/.env
-    # TTS, FPT, … lấy từ worker/.env (env_file) — xem worker/.env.example
+    # TTS (VieNeu, …) lấy từ worker/.env (env_file) — xem worker/.env.example
     environment:
       REDIS_URL: redis://redis:6379/0
       QUEUE_NAME: story:tts:queue

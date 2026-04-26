@@ -53,14 +53,23 @@
                                 <a class="icon-btn" href="{{ route('cms.stories.chapters.edit', [$story, $chapter]) }}" title="Sửa chương" aria-label="Sửa chương">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 </a>
-                                <form action="{{ route('cms.stories.chapters.queue-tts', [$story, $chapter]) }}" method="post" style="display: inline; margin: 0;">
+                                <form
+                                    action="{{ route('cms.stories.chapters.queue-tts', [$story, $chapter]) }}"
+                                    method="post"
+                                    style="display: inline; margin: 0;"
+                                    @if ($chapter->status === \App\Models\Chapter::STATUS_PROCESSING)
+                                        onsubmit="return confirm('Chương vẫn là processing (có thể worker đã tắt / lỗi, không có callback). Xếp hàng TTS lại?');"
+                                    @endif
+                                >
                                     @csrf
+                                    @if ($chapter->status === \App\Models\Chapter::STATUS_PROCESSING)
+                                        <input type="hidden" name="regenerate" value="1">
+                                    @endif
                                     <button
                                         type="submit"
                                         class="icon-btn"
-                                        @disabled($chapter->status === \App\Models\Chapter::STATUS_PROCESSING)
-                                        title="{{ $chapter->status === \App\Models\Chapter::STATUS_PROCESSING ? 'Đang xử lý — chờ xong mới TTS lại.' : 'Xếp hàng TTS (có thể TTS lại khi đã lỗi hoặc đã xong).' }}"
-                                        aria-label="{{ $chapter->status === \App\Models\Chapter::STATUS_PROCESSING ? 'Đang xử lý TTS' : (in_array($chapter->status, [\App\Models\Chapter::STATUS_COMPLETED, \App\Models\Chapter::STATUS_FAILED], true) ? 'TTS lại' : 'Xếp hàng TTS') }}"
+                                        title="{{ $chapter->status === \App\Models\Chapter::STATUS_PROCESSING ? 'Xếp lại khi kẹt processing (worker thật sự đang chạy thì có thể trùng job).' : 'Xếp hàng TTS (có thể TTS lại khi đã lỗi hoặc đã xong).' }}"
+                                        aria-label="{{ $chapter->status === \App\Models\Chapter::STATUS_PROCESSING ? 'Xếp lại TTS khi kẹt' : (in_array($chapter->status, [\App\Models\Chapter::STATUS_COMPLETED, \App\Models\Chapter::STATUS_FAILED], true) ? 'TTS lại' : 'Xếp hàng TTS') }}"
                                     >
                                         @if ($chapter->status === \App\Models\Chapter::STATUS_PROCESSING)
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>

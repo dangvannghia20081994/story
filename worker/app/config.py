@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AliasChoices, Field
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Luôn trỏ tới worker/.env (cạnh thư mục app/), không phụ thuộc cwd khi chạy uvicorn
@@ -24,52 +24,22 @@ class Settings(BaseSettings):
 
     ffmpeg_path: str = "ffmpeg"
 
-    # --- TTS: ffmpeg (mặc định) hoặc FPT.AI Speech v5 ---
-    tts_provider: Literal["ffmpeg", "fpt"] = Field(
-        default="ffmpeg",
-        description="ffmpeg = file im; fpt = gọi api.fpt.ai (cần FPT_API_KEY)",
+    # --- TTS: ffmpeg (im lặng, dev) hoặc VieNeu (vieneu) ---
+    tts_provider: Literal["ffmpeg", "vieneu"] = Field(
+        default="vieneu",
+        description="ffmpeg = im lặng; vieneu = VieNeu-TTS on-device (tiếng Việt)",
     )
 
-    fpt_api_key: str | None = Field(
+    # Mã 1–4 (khớp CMS) hoặc tên preset đầy đủ SDK; None = giọng mặc định SDK.
+    vieneu_preset_voice_id: str | None = Field(
         default=None,
-        description="API key từ console.fpt.ai — header api_key",
+        description="Ghi đè voice_id segment đầu trong queue nếu set (vd. 1–4).",
     )
-    fpt_tts_url: str = "https://api.fpt.ai/hmi/tts/v5"
-    fpt_voice: str = Field(
-        default="banmai",
-        validation_alias=AliasChoices("FPT_TTS_VOICE", "FPT_VOICE"),
-    )
-    fpt_speed: str = Field(
-        default="0",
-        validation_alias=AliasChoices("FPT_TTS_SPEED", "FPT_SPEED"),
-    )
-    fpt_format: str = Field(
-        default="mp3",
-        validation_alias=AliasChoices("FPT_TTS_FORMAT", "FPT_FORMAT"),
-    )
-    fpt_poll_timeout_sec: float = 300.0
-    fpt_poll_interval_sec: float = 2.0
-    # Sau khi POST TTS trả JSON (có link async), chờ bấy nhiêu giây rồi mới GET file — CDN FPT thường chưa sẵn MP3 ngay.
-    fpt_async_first_poll_delay_sec: float = Field(
-        default=10.0,
-        validation_alias=AliasChoices("FPT_ASYNC_FIRST_POLL_DELAY_SEC"),
-    )
-    # Sàn thời gian chờ trước GET đầu: max(DELAY_SEC, FLOOR_SEC). CDN FPT thường 404 nếu GET quá sớm (đặc biệt chunk 2+).
-    fpt_async_first_poll_floor_sec: float = Field(
-        default=2.0,
-        validation_alias=AliasChoices("FPT_ASYNC_FIRST_POLL_FLOOR_SEC"),
-    )
-    # Nghỉ sau khi tải xong một chunk trước khi POST chunk tiếp (giảm tải / race phía FPT).
-    fpt_inter_chunk_delay_sec: float = Field(
-        default=0.35,
-        validation_alias=AliasChoices("FPT_INTER_CHUNK_DELAY_SEC"),
-    )
-    # Chia văn bản trước mỗi request FPT (tối đa API 5000 ký tự). Ví dụ 2000 = nhiều request nhỏ hơn, vẫn ghép MP3 pydub.
-    fpt_chunk_max_chars: int = Field(
-        default=5000,
-        ge=3,
-        le=5000,
-        validation_alias=AliasChoices("FPT_CHUNK_MAX_CHARS"),
+
+    # VieNeu / huggingface_hub đọc biến môi trường HF_TOKEN; đặt trong worker/.env để áp dụng.
+    hf_token: str | None = Field(
+        default=None,
+        description="Token Hugging Face (Read) — tải model VieNeu, giảm rate limit.",
     )
 
 

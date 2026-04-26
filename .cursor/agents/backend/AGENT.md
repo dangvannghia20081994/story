@@ -32,7 +32,7 @@ Bạn chịu trách nhiệm **ứng dụng Laravel** trong `backend/`: routes AP
 - `DB_*`, `REDIS_*`, `REDIS_PREFIX` (queue key đồng bộ worker; thường rỗng)
 - `WORKER_INTERNAL_TOKEN` — Bearer / `X-Worker-Token` cho `POST /api/internal/tts-complete`
 - `CORS_ALLOWED_ORIGINS` — Next + Expo web
-- `TTS_SERVICE` (azure\|fpt), `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — `config/tts.php` + `App\Support\TtsConfig` (danh sách voice CMS theo dịch vụ), segment trong payload queue
+- `TTS_SERVICE` (vd. `vieneu`, mở rộng `coqui`), `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — `config/tts.php` + `App\Support\TtsConfig`, segment trong payload queue
 - `API_VERSION` — version hiển thị trong OpenAPI docs UI (`/docs/api`)
 
 ## Lệnh tham chiếu
@@ -43,7 +43,7 @@ Xem `backend/README.md`: `composer install`, `php artisan migrate`, `php artisan
 
 - Docker Compose: Laravel đọc **`backend/.env`** trên volume; compose inject **`DB_HOST`**, **`REDIS_HOST`**, **`REDIS_CLIENT=predis`** (tránh lỗi `Class "Redis" not found` khi không có extension phpredis), **`WORKER_INTERNAL_TOKEN`** — đừng nhân đôi cả khối biến trong `docker-compose.yml`.
 - Docker: `artisan serve` cần **`--no-reload`** để env `DB_*` / `REDIS_*` không bị strip (đã cấu hình trong image).
-- Queue Redis list **`story:tts:queue`** (tên key thô, **không** thêm `REDIS_PREFIX` trừ khi worker cũng dùng cùng prefix): payload gồm `chapter_id`, `story_id`, `text` (đã preprocess), `voice_segments`.
+- Queue Redis list **`story:tts:queue`** (tên key thô, **không** thêm `REDIS_PREFIX` trừ khi worker cũng dùng cùng prefix): payload gồm `chapter_id`, `story_id`, `text` (đã preprocess), `voice_segments` — `App\Services\VoiceSegmentBuilder`: chuẩn hoá ngoặc “ ”; nếu cả chương có số `"` chẵn thì tách thoại trên toàn văn; không thì đoạn trống + `Tên:`; worker ghép MP3 nhiều segment.
 - Callback worker: `chapter_id` + `story_id`, `status` `completed` / `failed` (chấp nhận alias `ready` → completed); `audio_path` tương đối trên disk `public` (`Storage::disk('public')`), có chuẩn hóa prefix; `storage:link` chỉ phục vụ URL `/storage/...`.
 - API docs tự sinh qua Scramble: UI `GET /docs/api`, JSON `GET /docs/api.json`.
 - Story có `genre` chuẩn ở DB/API (`tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`) để frontend phân khối thể loại.

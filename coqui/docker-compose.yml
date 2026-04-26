@@ -1,0 +1,18 @@
+# Sidecar Coqui TTS (idiap CPU image) — độc lập worker; sau này worker gọi HTTP (vd. COQUI_TTS_URL).
+# Chạy: docker compose up   (từ thư mục coqui/) hoặc .\run.ps1
+# Tuỳ model: tạo file .env cạnh compose (copy .env.example) hoặc export COQUI_MODEL trước khi compose up.
+
+services:
+  coqui-tts:
+    image: ghcr.io/idiap/coqui-tts-cpu:latest
+    ports:
+      - "${COQUI_PORT:-5002}:5002"
+    environment:
+      COQUI_MODEL: "${COQUI_MODEL:-tts_models/en/ljspeech/vits}"
+    volumes:
+      - coqui_tts_models:/root/.local/share/tts
+    # $$ → $ trong container — bash đọc biến COQUI_MODEL từ environment ở trên.
+    entrypoint: ["/bin/bash", "-lc", "exec tts-server --model_name \"$$COQUI_MODEL\" --port 5002 --device cpu"]
+
+volumes:
+  coqui_tts_models:

@@ -27,8 +27,12 @@
             @endif
         </select>
         <p class="muted" style="font-size: 0.8rem; margin-top: 0.35rem;">
-            Danh sách theo dịch vụ <strong>{{ strtoupper(\App\Support\TtsConfig::service()) }}</strong> (<code>TTS_SERVICE</code> trong <code>.env</code>).
-            Worker FPT: mã <code>vi-VN-…</code> (Azure) không gửi được API FPT — dùng <code>FPT_TTS_VOICE</code>; tên FPT trong list áp dụng cho nhân vật <em>{{ \App\Support\TtsConfig::narratorCharacterName() }}</em> khi xếp hàng TTS.
+            Dịch vụ <strong>{{ strtoupper(\App\Support\TtsConfig::service()) }}</strong> (<code>TTS_SERVICE</code> trong <code>.env</code>).
+            @if (\App\Support\TtsConfig::service() === 'vieneu')
+                <code>voice_id</code> <strong>1–4</strong> (theo <code>config/tts.php</code>) — dùng cho đoạn thoại gán theo <strong>tên nhân vật</strong> trong nội dung chương (xem gợi ý ở form chương); người kể <em>{{ \App\Support\TtsConfig::narratorCharacterName() }}</em> cho đoạn không gán giọng. Worker map sang preset VieNeu.
+            @else
+                <code>voice_id</code> theo cột <code>voices.{{ \App\Support\TtsConfig::service() }}</code> trong <code>config/tts.php</code> (worker phải khớp).
+            @endif
         </p>
     </div>
     <div class="field">

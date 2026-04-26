@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { QueueChapterTtsButton } from "./QueueChapterTtsButton";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { SidebarLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
 import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
-import { storyKey, storyReadHref } from "@/lib/storyPath";
+import { storyReadHref } from "@/lib/storyPath";
 
 type ChapterRow = {
   id: number;
@@ -253,7 +252,6 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                     >
                       Đọc chương
                     </Link>
-                    <QueueChapterTtsButton storySlug={storyKey(s)} chapterId={chapter.id} status={chapter.status} />
                   </div>
                 </li>
               ))}

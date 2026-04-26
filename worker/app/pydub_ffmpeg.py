@@ -25,8 +25,6 @@ def ensure_pydub_ffmpeg() -> None:
         return
     _configured = True
 
-    from pydub import AudioSegment
-
     from app.config import settings
 
     raw = (settings.ffmpeg_path or "ffmpeg").strip() or "ffmpeg"
@@ -38,12 +36,17 @@ def ensure_pydub_ffmpeg() -> None:
         if w:
             p = Path(w).resolve()
 
+    # AudioSegment sets converter via get_encoder_name() at import time (PATH only).
     if p is not None and p.is_file():
         bin_dir = str(p.parent)
         old = os.environ.get("PATH", "")
         parts = [x for x in old.split(os.pathsep) if x]
         if bin_dir and bin_dir not in parts:
             os.environ["PATH"] = bin_dir + os.pathsep + old
+
+    from pydub import AudioSegment
+
+    if p is not None and p.is_file():
         AudioSegment.converter = str(p)
         # ffprobe cùng thư mục — pydub gọi tên lệnh "ffprobe" sau khi PATH đã có bin_dir
         logger.info("pydub: ffmpeg=%s (PATH thêm thư mục chứa ffmpeg/ffprobe)", p)

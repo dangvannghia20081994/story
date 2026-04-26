@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    --extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/
 
 COPY app ./app
 

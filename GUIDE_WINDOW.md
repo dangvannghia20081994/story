@@ -92,7 +92,7 @@ Sửa `worker\.env`:
 - `QUEUE_NAME=story:tts:queue`
 - `BACKEND_URL=http://localhost:8000` (trùng host/port với `php artisan serve`)
 - `WORKER_TOKEN` — **cùng giá trị** với `WORKER_INTERNAL_TOKEN` trong `backend\.env`
-- `TTS_PROVIDER=ffmpeg` hoặc `fpt` + `FPT_API_KEY` nếu dùng FPT
+- `TTS_PROVIDER=vieneu` (mặc định) hoặc `ffmpeg` (dev im lặng); tuỳ chọn `VIENEU_PRESET_VOICE_ID` — xem `worker/README.md`
 
 ```bash
 uvicorn app.main:app --reload --port 8080

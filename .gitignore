@@ -90,6 +90,13 @@ pgdata/
 # --- Redis (bundled `redis/`, e.g. Windows) ---
 redis
 
+# --- Coqui TTS (sidecar Docker / venv cục bộ) ---
+coqui/.venv/
+coqui/.env
+
+# --- VieNeu TTS (Python venv trong Vieneu/) ---
+Vieneu/.venv/
+
 # --- Misc ---
 *.log
 coverage/

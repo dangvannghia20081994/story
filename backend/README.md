@@ -54,7 +54,7 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 | `config/filesystems.php` | Disk `public` / Storage |
 | `config/cors.php` | `CORS_ALLOWED_ORIGINS`, đường `api/*` |
 | `config/services.php` | `worker.internal_token` |
-| `config/tts.php` | `TTS_SERVICE` (azure\|fpt), `voices.azure` / `voices.fpt`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — đọc qua `App\Support\TtsConfig` |
+| `config/tts.php` | `TTS_SERVICE` (vd. `vieneu`, sau này `coqui`), `voices.*`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — `App\Support\TtsConfig` |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
 
 **Quy ước:** mỗi lần thêm/sửa config hoặc biến env liên quan backend → cập nhật **`backend/README.md`** và **`.cursor/agents/backend/AGENT.md`**.
@@ -77,7 +77,7 @@ Gửi header `Accept: application/json` khi gọi từ curl.
 | POST | `/api/preprocess-preview` | Body `{ "text": "..." }` — xem văn bản sau áp dụng lexicon |
 | GET/POST/PATCH/DELETE | `/api/stories` … | CRUD truyện; `GET/PATCH/DELETE /api/stories/{story}` dùng **slug** (khuyến nghị) hoặc **id** số; `POST/PATCH` hỗ trợ thêm `genre?` (`tu-tien` \| `huyen-huyen` \| `kiem-hiep` \| `do-thi` \| `khac`), cùng `title`, `slug?`, `description?`, `first_chapter?` `{ title, content }` |
 | GET/POST/PATCH/DELETE | `/api/stories/{story}/chapters` … | CRUD chương; `{story}` = **slug** truyện (URL thân thiện) hoặc **id** số (tương thích cũ) |
-| POST | `/api/stories/{story}/chapters/{chapter}/queue-tts` | Đẩy job Redis (text đã preprocess + `voice_segments`). Có thể gọi lại cho chương **đã lỗi** hoặc **đã hoàn thành** (TTS lại / chỉnh nội dung rồi render lại); body tùy chọn `{ "regenerate": true }`. **Không** xếp hàng khi `status` đang `processing` (409). CMS: nút **TTS lại** trên danh sách chương. |
+| POST | `/api/stories/{story}/chapters/{chapter}/queue-tts` | Đẩy job Redis (text đã preprocess + `voice_segments`). Có thể gọi lại cho chương **đã lỗi** hoặc **đã hoàn thành** (TTS lại / chỉnh nội dung rồi render lại). Khi `status` là **`processing`** nhưng job thật ra đã kẹt (worker tắt, không callback): gửi **`{ "regenerate": true }`** (CMS danh sách chương gửi kèm khi bấm xếp lại + xác nhận) để xếp hàng lại; không gửi thì **409**. CMS: nút trên danh sách chương. |
 | GET/POST/PATCH/DELETE | `/api/stories/{story}/characters` … | CRUD nhân vật / `voice_id` |
 | GET/POST/PATCH/DELETE | `/api/lexicons` … | CRUD lexicon (`type`: `pronunciation` \| `name` \| `filter`, `priority`) |
 | POST | `/api/internal/tts-complete` | Worker: Bearer `WORKER_INTERNAL_TOKEN`. **Hoàn thành (khuyến nghị):** `multipart/form-data` — `audio` (file MP3), `chapter_id`, `story_id`, `status` (`completed`\|`ready`), `duration?`. Laravel lưu `stories/{story_id}/chapters/{chapter_id}/audio.mp3` bằng `Storage::disk('public')`. **Thất bại:** JSON — `status=failed`, `chapter_id`, `story_id`, `error?`. **Tương thích:** JSON `status=completed` + `audio_path` (đường dẫn tương đối trên disk `public`) nếu file đã có sẵn trên server. Upload lớn: chỉnh `upload_max_filesize` / `post_max_size` của PHP nếu cần (mặc định image CLI có thể thấp). **`php artisan storage:link`**: cho URL `/storage/...`. |
@@ -86,7 +86,7 @@ Gửi header `Accept: application/json` khi gọi từ curl.
 
 **Docker — file audio ở đâu:** với `docker-compose.yml` hiện tại, `./backend` được mount vào container nên MP3 nằm trên máy bạn tại **`backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/audio.mp3`** (không dùng named volume che `storage/app/public` nữa). Nếu trước đây bạn dùng volume `backend_public_audio`, file cũ có thể còn trong volume Docker cũ: `docker volume ls` / `docker volume inspect story_backend_public_audio` (tên có tiền tố project).
 
-**Hợp đồng queue Redis** (`story:tts:queue`): JSON gồm tối thiểu `chapter_id`, `story_id`, `text` (đã preprocess), `voice_segments` (mảng `{ voice_id, text, pitch, rate }`).
+**Hợp đồng queue Redis** (`story:tts:queue`): JSON gồm tối thiểu `chapter_id`, `story_id`, `text` (đã preprocess), `voice_segments` (mảng `{ voice_id, text, pitch, rate }`). Laravel tách theo **`VoiceSegmentBuilder`**: chuẩn hoá dấu ngoặc “ ” → `"`; nếu **cả chương** có số `"` chẵn (≥2) thì tách thoại trên toàn bộ nội dung (không bắt buộc `\n\n`); không thì tách theo đoạn trống + quy tắc `Tên:` đầu đoạn. Giọng thoại: tên trên dòng trước mở ngoặc. Worker VieNeu **ghép** nhiều segment thành một MP3.
 
 **Queue TTS “đã xếp hàng” nhưng worker không chạy:** Laravel mặc định từng thêm **prefix** vào mọi key Redis; worker Python lại `BRPOP` đúng tên `story:tts:queue` — nếu `.env` không có `REDIS_PREFIX=` (rỗng), job bị đẩy sang key khác. Cấu hình hiện tại: `config/database.php` mặc định prefix rỗng; Compose ghi đè `REDIS_PREFIX=""`. Sau khi sửa: `php artisan config:clear`. Kiểm tra: service **`worker`** đang chạy, `docker compose logs -f worker`, và trên Redis `LLEN story:tts:queue` (job đang chờ) / log consumer có nhận job không.
 

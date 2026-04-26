@@ -28,7 +28,7 @@ cp compose.env.example .env
 
 - **`backend/.env`:** `APP_URL` (URL công khai của API, ví dụ `https://api.example.com`), `APP_DEBUG=false`, mật khẩu DB mạnh nếu đổi so với compose mặc định, `CORS_ALLOWED_ORIGINS` (domain frontend), `WORKER_INTERNAL_TOKEN` (chuỗi bí mật dài).
 - **`.env` (cạnh `docker-compose.yml`):** `WORKER_INTERNAL_TOKEN` **cùng giá trị** với `WORKER_INTERNAL_TOKEN` trong `backend/.env` (Compose inject vào backend + worker).
-- **`worker/.env`:** `TTS_PROVIDER`, `FPT_API_KEY` (nếu dùng FPT), v.v. — Compose vẫn ghi đè `REDIS_URL`, `BACKEND_URL`, `WORKER_TOKEN`; xem `worker/README.md`.
+- **`worker/.env`:** `TTS_PROVIDER` (vd. `vieneu`), `VIENEU_PRESET_VOICE_ID` (tuỳ chọn), v.v. — Compose vẫn ghi đè `REDIS_URL`, `BACKEND_URL`, `WORKER_TOKEN`; xem `worker/README.md`.
 
 Sinh khóa ứng dụng Laravel (một lần):
 

@@ -19,6 +19,11 @@ def _loop() -> None:
             if item is None:
                 continue
             _, payload = item
+            logger.info(
+                "Redis BRPOP: queue=%s payload_bytes=%d",
+                settings.queue_name,
+                len(payload),
+            )
             handle_job(payload)
         except redis.RedisError:
             logger.exception("Redis error; retrying")

@@ -1,17 +1,89 @@
 # Worker (Python / FastAPI)
 
-Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI**), sinh MP3 tạm rồi gửi Laravel `POST /api/internal/tts-complete` (**multipart**, field `audio`) để backend lưu `storage/app/public` qua `Storage::disk('public')`.
+Consumer Redis (`story:tts:queue`), TTS (**VieNeu** qua gói `vieneu`, hoặc **ffmpeg** im lặng cho dev). **Coqui** chạy sidecar Docker riêng (`coqui/`, HTTP `:5002`) — sau tích hợp vào worker qua URL. Sinh MP3 tạm rồi gửi Laravel `POST /api/internal/tts-complete` (**multipart**, field `audio`) để backend lưu `storage/app/public` qua `Storage::disk('public')`.
+
+## Windows — chạy dev hàng ngày
+
+1. **Redis** đang lắng nghe (ví dụ `redis://127.0.0.1:6379/0`) — Laragon, Docker, hoặc `redis/redis-server.exe` theo `run-dev.sh` ở root repo.
+2. **Laravel** (`php artisan serve` …) với `BACKEND_URL` trong `worker/.env` trùng base URL (thường `http://127.0.0.1:8000`).
+3. **`WORKER_TOKEN`** trong `worker/.env` = **`WORKER_INTERNAL_TOKEN`** trong `backend/.env`.
+4. Trong thư mục **`worker`**, chạy **`run.ps1`** (PowerShell) hoặc **`run.bat`** (CMD). Cả hai đều gọi **`.venv\Scripts\uvicorn.exe`** — không dùng `python -m uvicorn` bằng Python toàn cục (Laragon), kẻo thiếu gói **`vieneu`** và lỗi import.
+
+```powershell
+cd worker
+.\run.ps1
+# Job VieNeu dài (nhiều chunk): tránh --reload để lưu file code không cắt ngang TTS
+.\run.ps1 -NoReload
+```
+
+CMD: `run.bat` (có `--reload`) hoặc **`run.bat noreload`**.
+
+- **`--reload` / WatchFiles:** mặc định mỗi lần **lưu file** dưới `worker/` (ví dụ `app\config.py`) Uvicorn **khởi động lại** → job đang infer (chunk 42/83, v.v.) **bị dừng**. Log `KeyboardInterrupt` / `asyncio.exceptions.CancelledError` trong lifespan lúc shutdown/reload là **hậu quả dừng process**, không phải lỗi logic TTS. Job dở thường cần **xử lý lại từ CMS/Laravel** (enqueue lại) nếu app không tự retry.
+- **`run.ps1` / `run.bat`** và worker trong **`run-dev.sh --with-worker`** là cùng một vai trò: chỉ cần **một** trong các cách đó để chạy worker (tránh hai process cùng queue / cổng 8080).
+- **FFmpeg:** pydub cần `ffmpeg` + `ffprobe`. Nếu không có trên `PATH`, đặt trong `worker/.env` ví dụ Laragon:
+
+  `FFMPEG_PATH=D:\laragon\bin\ffmpeg\bin\ffmpeg.exe`
+
+- **Log job Redis:** `app.consumer` — `Redis BRPOP: queue=… payload_bytes=…`. `app.pipeline` — `Redis job JSON: …` (story/chapter, độ dài `text` gốc, mảng `voice_segments` với `voice_id`, `text_chars`, `text_preview` ~160 ký tự, `extra_keys` nếu có field lạ), rồi `TTS job start (normalized): …`. JSON lỗi / UTF-8 lỗi có log kèm đoạn đầu payload.
+
+## VieNeu (TTS)
+
+- **VieNeu** là TTS on-device (tiếng Việt), gọi qua gói PyPI **`vieneu`**. Worker dùng preset có sẵn trong SDK (`get_preset_voice` / `list_preset_voices`).
+- **Phụ thuộc:** `llama-cpp-python==0.3.16`. Trên Windows nên cài wheel CPU (tránh build MSVC):
+
+  ```bash
+  cd worker
+  python -m venv .venv
+  .\.venv\Scripts\activate
+  python -m pip install -U pip wheel
+  pip install -r requirements.txt --extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/
+  ```
+
+- **Giọng (`voice_id`):** CMS và queue dùng mã ngắn **`1`–`4`**. Worker map sang tên preset VieNeu (khớp `config/tts.php` của Laravel):
+
+  | `voice_id` | Preset VieNeu (worker `vieneu_tts.py`) |
+  |------------|------------------------------------------|
+  | `1` | Bích Ngọc (Nữ - Miền Bắc) |
+  | `2` | Phạm Tuyên (Nam - Miền Bắc) |
+  | `3` | Thục Đoan (Nữ - Miền Nam) |
+  | `4` | Xuân Vĩnh (Nam - Miền Nam) |
+
+  Chuỗi preset đầy đủ từ SDK vẫn được chấp nhận nếu gửi thẳng trong job (tương thích).
+
+- **`VIENEU_PRESET_VOICE_ID`** (tuỳ chọn trong `worker/.env`): nếu set (`1`–`4` hoặc tên preset đầy đủ), **ghi đè** giọng của **segment đầu** trong job; không set thì mỗi segment dùng `voice_id` do Laravel gửi (`voice_segments`).
+
+- **Nhiều giọng / chương:** job có thể có **nhiều** `voice_segments` (backend tách theo đoạn + tiền tố tên nhân vật). Worker VieNeu infer **từng** segment rồi **nối** MP3 (khoảng lặng ~450 ms giữa các đoạn) bằng `app/audio_stitcher.py`.
+
+- **Backend:** `TTS_SERVICE=vieneu` trong `.env` Laravel và mục `voices.vieneu` trong `config/tts.php` phải cùng bộ mã `1`–`4` với worker.
+
+- **Tải model (Hugging Face):** lần đầu chạy job, SDK kéo **GGUF** (`VieNeu-TTS-v2-Turbo-GGUF`) và **ONNX codec** từ Hub — bình thường; file được cache (thường dưới `%USERPROFILE%\.cache\huggingface` trên Windows). Log `You are sending unauthenticated requests` / `HF_TOKEN` đến từ **`huggingface_hub`**: có thể đặt token đọc (Read) trong **`worker/.env`** — `HF_TOKEN=...` ([tạo token](https://huggingface.co/settings/tokens)) để giới hạn tốc độ cao hơn và tải ổn định hơn; không bắt buộc nếu tải vẫn thành công.
+
+- **Kiểm tra:** `GET http://127.0.0.1:8080/health` — xem `python` (đúng `worker\.venv\Scripts\python.exe`), `vieneu_import_ok`, `tts_provider`.
 
 ## Yêu cầu
 
-- Python **3.12+**
-- `ffmpeg` và `ffprobe` (cùng bộ; nhánh `ffmpeg` cần `ffmpeg`; **fpt** dùng **pydub** → pydub gọi cả `ffprobe`). Trên **Windows** nếu chưa thêm `bin` vào PATH, đặt `FFMPEG_PATH` trỏ tới `ffmpeg.exe` (worker sẽ thêm thư mục đó vào `PATH` — xem `app/pydub_ffmpeg.py`).
+- Python **3.10+** (Dockerfile dùng 3.12).
+- `ffmpeg` và `ffprobe` (nhánh **vieneu** dùng **pydub** để xuất MP3). Trên **Windows** có thể đặt `FFMPEG_PATH` trỏ tới `ffmpeg.exe` (xem `app/pydub_ffmpeg.py`).
+
+## Cài gói Python (VieNeu + llama-cpp)
+
+Gói `vieneu` phụ thuộc **`llama-cpp-python==0.3.16`**. Trên **Windows** nên cài kèm index wheel CPU của tác giả (tránh build từ source — cần MSVC):
+
+```bash
+cd worker
+python -m venv .venv
+.\.venv\Scripts\activate
+python -m pip install -U pip wheel
+pip install -r requirements.txt --extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/
+```
+
+**Docker:** `worker/Dockerfile` đã thêm `--extra-index-url` tương tự khi `pip install`.
 
 ## Nguồn cấu hình (`.env`)
 
-1. **`worker/.env`** — tạo bằng `cp .env.example .env` (không commit). Danh sách biến dưới đây là nội dung file đó.
-2. **`app/config.py`** — Pydantic `Settings` đọc file **`worker/.env`** theo đường dẫn cố định (cạnh thư mục `app/`), **chỉ khi file tồn tại**; biến đã có trong **môi trường OS** (ví dụ Docker Compose inject) **ghi đè** giá trị trong file.
-3. **Docker** — `docker-compose.yml` nạp thêm **`env_file: ./worker/.env`** (tùy chọn, không bắt buộc có file) và chỉ inject vài biến override mạng nội bộ — xem mục **Docker** phía dưới.
+1. **`worker/.env`** — `cp .env.example .env`.
+2. **`app/config.py`** — đọc `worker/.env` nếu có; biến môi trường OS ghi đè.
+3. **Docker** — `env_file: ./worker/.env` + override mạng trong `docker-compose.yml`.
 
 ## Biến môi trường
 
@@ -21,64 +93,46 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 | `QUEUE_NAME` | Mặc định `story:tts:queue` |
 | `BACKEND_URL` | Base URL Laravel |
 | `WORKER_TOKEN` | Trùng `WORKER_INTERNAL_TOKEN` của Laravel |
-| **`TTS_PROVIDER`** | `ffmpeg` (mặc định) hoặc **`fpt`** |
-| **`FFMPEG_PATH`** | Đường dẫn tới binary `ffmpeg` (mặc định: tìm theo tên trên `PATH`). **Tùy chọn trên Linux/Docker** nếu `ffmpeg`+`ffprobe` đã có trong `/usr/bin`. **Thường cần trên Windows** (Laragon: `…\bin\ffmpeg.exe`) để pydub gọi được `ffprobe` cùng thư mục. |
-| **`FPT_API_KEY`** | Bắt buộc khi `TTS_PROVIDER=fpt` — lấy từ [console.fpt.ai](https://console.fpt.ai/) |
-| `FPT_TTS_URL` | Mặc định `https://api.fpt.ai/hmi/tts/v5` |
-| `FPT_TTS_VOICE` | `banmai`, `lannhi`, … (xem tài liệu FPT) |
-| `FPT_TTS_SPEED` | `-3` … `+3` hoặc `0` |
-| `FPT_TTS_FORMAT` | `mp3` hoặc `wav` |
-| `FPT_POLL_TIMEOUT_SEC` | Chờ file async (giây) |
-| `FPT_POLL_INTERVAL_SEC` | Khoảng cách giữa các lần poll (sau **404** tối thiểu 3s một lần) |
-| `FPT_ASYNC_FIRST_POLL_DELAY_SEC` | Sau JSON async, chờ bấy nhiêu giây rồi mới GET file mp3 (mặc định `10`) |
-| `FPT_ASYNC_FIRST_POLL_FLOOR_SEC` | Sàn: thực tế chờ trước GET đầu = `max(DELAY, FLOOR)` (mặc định `2`) — nếu `.env` đặt `DELAY=0`, vẫn chờ ít nhất 2s trừ khi `FLOOR=0` |
-| `FPT_INTER_CHUNK_DELAY_SEC` | Nghỉ sau khi tải xong một chunk, trước POST chunk tiếp (mặc định `0.35`) |
-| `FPT_CHUNK_MAX_CHARS` | Giới hạn ký tự mỗi request FPT trước khi chia (3–5000, mặc định `5000`). Có thể đặt `2000` để chunk nhỏ hơn; các MP3 vẫn được ghép bằng pydub. |
+| **`TTS_PROVIDER`** | **`vieneu`** (mặc định) hoặc **`ffmpeg`** (file im 3s, dev) |
+| **`FFMPEG_PATH`** | Đường dẫn tới `ffmpeg` (Windows / pydub). |
+| **`VIENEU_PRESET_VOICE_ID`** | Tuỳ chọn — **`1`–`4`** (khớp `config/tts.php` backend) hoặc tên preset đầy đủ SDK; **ghi đè** `voice_id` segment đầu trong queue. |
+| **`HF_TOKEN`** | Tuỳ chọn — token Hugging Face (Read); SDK VieNeu dùng khi tải model; giảm cảnh báo / rate limit khi chưa đăng nhập. |
 
-Sao chép `cp .env.example .env` rồi điền giá trị.
+## Chạy local (thủ công)
 
-## Chạy local
+**Bắt buộc** dùng Python trong **`worker/.venv`**. Nếu chạy bằng `python` toàn cục / Laragon → lỗi **`No module named 'vieneu'`**.
 
 ```bash
 cd worker
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8080
+# Windows: ưu tiên run.ps1 / run.bat (xem mục Windows ở trên).
+.\.venv\Scripts\uvicorn.exe app.main:app --reload --port 8080
+# Job TTS dài, không muốn reload khi sửa file: bỏ --reload
+.\.venv\Scripts\uvicorn.exe app.main:app --port 8080
 ```
 
-## FPT.AI TTS
-
-- API: POST `FPT_TTS_URL`, header **`api_key`**, body **raw UTF-8** (3–5000 ký tự mỗi request).
-- Nội dung chương **dài hơn 5000 ký tự**: worker **chia đoạn** (ưu tiên ngắt xuống dòng / câu; không tạo request body >5000 ký tự khi gộp đuôi chương), gọi FPT **nhiều lần**, ghép các MP3 bằng **pydub** thành một file (log: `FPT TTS: text split into N API requests`).
-- Phản hồi JSON: `error == 0` và trường **`async`** là URL MP3; CDN thường trả **404** vài lần đầu cho tới khi file sẵn sàng — worker **chờ** `max(FPT_ASYNC_FIRST_POLL_DELAY_SEC, FPT_ASYNC_FIRST_POLL_FLOOR_SEC)` (mặc định 10s / 2s) rồi **poll** (sau 404 chờ ≥3s) tới `FPT_POLL_TIMEOUT_SEC`. Nếu `FPT_ASYNC_FIRST_POLL_DELAY_SEC=0`, mặc định vẫn áp **sàn** `FPT_ASYNC_FIRST_POLL_FLOOR_SEC` (2s) trước GET đầu để tránh 404 chunk 2+.
+`GET /health` trả thêm `python` (đường dẫn interpreter) và `vieneu_import_ok` — kiểm tra nhanh có đúng venv không.
 
 ## Docker
 
-Từ gốc repo: tạo **`worker/.env`** từ `.env.example`, đặt **`TTS_PROVIDER=fpt`**, **`FPT_API_KEY=...`** (và các biến khác nếu cần). Compose đọc file đó qua **`env_file`** và ghi đè thêm **`REDIS_URL`**, **`BACKEND_URL`**, **`WORKER_TOKEN`** (khớp `WORKER_INTERNAL_TOKEN` ở `backend/.env` / `.env` gốc repo). Service worker **không** cần volume chung với backend: file audio do Laravel ghi vào `backend/storage/app/public` trên host (bind mount `./backend` trong Docker Compose).
+Tạo **`worker/.env`** (có thể chỉ `TTS_PROVIDER=vieneu` và token). Compose ghi đè `REDIS_URL`, `BACKEND_URL`, `WORKER_TOKEN`.
 
 ```bash
+docker compose build worker
 docker compose up worker
 ```
 
 Health: `GET http://localhost:8080/health`
 
-## Các lệnh chạy trong container
+## Coqui (sidecar — chưa nối worker)
 
-Chạy từ **gốc repo**. Thư mục làm việc trong image: **`/app`** (code worker đóng gói trong image; không mount `storage` của Laravel).
-
-| Mục đích | Lệnh |
-|----------|------|
-| Shell / debug | `docker compose exec worker sh` |
-| Kiểm tra biến đã nạp (Python) | `docker compose exec worker python -c "from app.config import settings; print(settings.redis_url)"` |
-
-Cần service **`worker`** đang chạy. Sửa code Python trong repo: chỉnh file dưới `worker/app/` trên host rồi **build lại** image hoặc mount thêm source nếu bạn bổ sung volume (mặc định compose hiện tại **không** mount `./worker` vào `/app`).
+HTTP server Coqui (idiap, CPU) chạy riêng trong **`coqui/`** (Docker, mặc định **:5002**). Hướng dẫn chạy và API: **`coqui/README.md`**. Worker hiện **chưa** gọi Coqui; bước sau: thêm provider `coqui` + `httpx` tới `COQUI_TTS_URL`, đồng bộ `config/tts.php` → `voices.coqui`.
 
 ## Cấu hình trong code
 
-| Nguồn | Mô tả |
-|--------|--------|
-| `app/config.py` | `Settings`: đọc `worker/.env` (nếu có) + biến môi trường; alias `FPT_TTS_VOICE` / `FPT_TTS_SPEED` / `FPT_TTS_FORMAT` |
-| `app/fpt_tts.py` | Luồng FPT khi `TTS_PROVIDER=fpt` |
+| File | Mô tả |
+|------|--------|
+| `app/config.py` | `Settings` |
+| `app/vieneu_tts.py` | TTS khi `TTS_PROVIDER=vieneu`, map `1`–`4` → preset |
+| `app/pipeline.py` | Job → render MP3 → callback Laravel |
 
-**Quy ước:** mỗi lần thêm/sửa env hoặc provider TTS → cập nhật **`worker/.env.example`**, **`worker/README.md`**, và **`.cursor/agents/worker/AGENT.md`**.
+**Quy ước:** đổi env hoặc TTS → cập nhật **`worker/.env.example`**, **`worker/README.md`**, **`.cursor/agents/worker/AGENT.md`**.
