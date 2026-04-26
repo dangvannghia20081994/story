@@ -87,6 +87,9 @@ build/
 # --- Docker / local volumes (if bind-mounted as dirs) ---
 pgdata/
 
+# --- Redis (bundled `redis/`, e.g. Windows) ---
+redis
+
 # --- Misc ---
 *.log
 coverage/

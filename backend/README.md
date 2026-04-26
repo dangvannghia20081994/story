@@ -19,6 +19,7 @@ composer install
 php artisan migrate
 php artisan db:seed
 php artisan storage:link --force --relative
+php artisan scramble:export
 php artisan serve
 ```
 

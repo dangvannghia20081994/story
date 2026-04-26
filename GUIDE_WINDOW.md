@@ -23,7 +23,7 @@ Monorepo: `backend/` (Laravel), `frontend/` (Next.js), `worker/` (TTS), tùy ch�
 
 PowerShell hoặc cmd, từ thư mục repo:
 
-```powershell
+```bash
 cd backend
 copy .env.example .env
 php artisan key:generate
@@ -37,7 +37,7 @@ Sửa `backend\.env`:
 - `APP_URL=http://127.0.0.1:8000` (hoặc URL bạn dùng).
 - `CORS_ALLOWED_ORIGINS` — thêm `http://localhost:3000` (và cổng khác nếu Next chạy khác).
 
-```powershell
+```bash
 composer install
 php artisan migrate
 php artisan db:seed
@@ -55,9 +55,9 @@ Giữ terminal này mở. API: http://127.0.0.1:8000 — docs: http://127.0.0.1:
 
 Terminal mới:
 
-```powershell
+```bash
 cd frontend
-npm ci
+npm install
 ```
 
 Tạo file `frontend\.env.local`:
@@ -66,7 +66,7 @@ Tạo file `frontend\.env.local`:
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
-```powershell
+```bash
 npm run dev
 ```
 
@@ -78,7 +78,7 @@ Mở http://localhost:3000
 
 Terminal mới:
 
-```powershell
+```bash
 cd worker
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -94,7 +94,7 @@ Sửa `worker\.env`:
 - `WORKER_TOKEN` — **cùng giá trị** với `WORKER_INTERNAL_TOKEN` trong `backend\.env`
 - `TTS_PROVIDER=ffmpeg` hoặc `fpt` + `FPT_API_KEY` nếu dùng FPT
 
-```powershell
+```bash
 uvicorn app.main:app --reload --port 8080
 ```
 
