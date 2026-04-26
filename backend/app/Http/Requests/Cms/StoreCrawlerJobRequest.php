@@ -17,6 +17,9 @@ class StoreCrawlerJobRequest extends FormRequest
         if ($this->has('chapter_fetch_concurrency') && $this->input('chapter_fetch_concurrency') === '') {
             $this->merge(['chapter_fetch_concurrency' => null]);
         }
+        if ($this->has('chapter_start') && $this->input('chapter_start') === '') {
+            $this->merge(['chapter_start' => null]);
+        }
     }
 
     public function authorize(): bool
@@ -38,6 +41,7 @@ class StoreCrawlerJobRequest extends FormRequest
             'story_id' => ['nullable', 'integer', 'exists:stories,id'],
             'new_story_title' => ['nullable', 'string', 'max:255', 'required_without:story_id'],
             'max_chapters' => ['nullable', 'integer', 'min:0'],
+            'chapter_start' => ['nullable', 'integer', 'min:1', 'max:999999'],
             'delay_seconds' => ['nullable', 'numeric', 'min:0', 'max:120'],
             'chapter_fetch_concurrency' => ['nullable', 'integer', 'min:1', 'max:16'],
         ];

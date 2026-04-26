@@ -50,7 +50,8 @@ services:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     environment:
-      NEXT_PUBLIC_API_URL: http://story.test/api
+      # Không kèm /api — apiFetch luôn gọi path /api/...
+      NEXT_PUBLIC_API_URL: http://story.test
       API_URL: http://backend:8000
     depends_on:
       - backend
@@ -65,12 +66,32 @@ services:
       - ./app:/app
       - expo_node_modules:/app/node_modules
     environment:
-      EXPO_PUBLIC_API_URL: http://story.test/api
+      EXPO_PUBLIC_API_URL: http://story.test
       CHOKIDAR_USEPOLLING: "1"
     stdin_open: true
     tty: true
     depends_on:
       - backend
+
+  # Cần `crawler/.env` (token đồng bộ backend). Bật: docker compose --profile crawler up -d
+  crawler:
+    profiles: ["crawler"]
+    build:
+      context: ./crawler
+      dockerfile: ../docker/crawler.Dockerfile
+    volumes:
+      - ./crawler:/app
+    env_file:
+      - ./crawler/.env
+    environment:
+      REDIS_HOST: redis
+      CRAWLER_API_BASE_URL: http://backend:8000
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    restart: unless-stopped
 
   nginx:
     image: nginx:1.27-alpine

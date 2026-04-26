@@ -6,7 +6,7 @@ ENV EXPO_NO_INTERACTIVE=1
 ENV CI=1
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 

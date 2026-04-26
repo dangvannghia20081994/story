@@ -48,6 +48,7 @@ class CrawlerJobController extends Controller
                     'story_id' => $fromJob->story_id,
                     'new_story_title' => $fromJob->new_story_title ?? '',
                     'max_chapters' => $fromJob->max_chapters,
+                    'chapter_start' => $fromJob->chapter_start ?? 1,
                     'delay_seconds' => (string) $fromJob->delay_seconds,
                     'chapter_fetch_concurrency' => $fromJob->chapter_fetch_concurrency,
                 ];
@@ -79,6 +80,7 @@ class CrawlerJobController extends Controller
             'max_chapters' => array_key_exists('max_chapters', $validated) && $validated['max_chapters'] !== null
                 ? (int) $validated['max_chapters']
                 : null,
+            'chapter_start' => max(1, (int) ($validated['chapter_start'] ?? 1)),
             'delay_seconds' => isset($validated['delay_seconds']) ? (float) $validated['delay_seconds'] : 1.5,
             'chapter_fetch_concurrency' => array_key_exists('chapter_fetch_concurrency', $validated) && $validated['chapter_fetch_concurrency'] !== null
                 ? (int) $validated['chapter_fetch_concurrency']

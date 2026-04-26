@@ -10,18 +10,14 @@ export type StoryChapterListRow = {
   updated_at?: string;
 };
 
+/** Định dạng cố định theo UTC — tránh lệch SSR/CSR với Intl.DateTimeFormat + vi-VN giữa Node và trình duyệt. */
 function chapterListDateTime(c: StoryChapterListRow): string {
   const raw = c.created_at ?? c.updated_at;
   if (!raw) return "—";
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
 type Props = {

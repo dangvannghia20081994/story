@@ -1,4 +1,3 @@
-import { log } from "console";
 import type { NextConfig } from "next";
 
 function stripTrailingSlash(s: string | undefined): string {
@@ -9,9 +8,10 @@ const backend =
   stripTrailingSlash(process.env.API_URL) ||
   stripTrailingSlash(process.env.NEXT_PUBLIC_API_URL) ||
   "http://localhost:8000";
-  console.log("backend", backend);
 
 const nextConfig: NextConfig = {
+  // Dev: cho phép truy cập qua reverse proxy (nginx) với Host story.test — tránh 502 / chặn asset dev
+  allowedDevOrigins: ["story.test", "www.story.test"],
   async rewrites() {
     return [
       { source: "/api/:path*", destination: `${backend}/api/:path*` },

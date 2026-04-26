@@ -38,7 +38,7 @@ Bạn chịu trách nhiệm **ứng dụng Laravel** trong `backend/`: routes AP
 - `DB_*`, `REDIS_*`, `REDIS_PREFIX` (thường rỗng)
 - `CORS_ALLOWED_ORIGINS` — Next + Expo web
 - `API_VERSION` — version hiển thị trong OpenAPI docs UI (`/docs/api`)
-- **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** — job crawl CMS đẩy Redis; worker Python (`crawler/worker.py`) gọi `/api/internal/crawler/*` với header `X-Crawler-Token`
+- **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** — job crawl CMS đẩy Redis; worker Python (`crawler/worker.py`) gọi `/api/internal/crawler/*` với header `X-Crawler-Token`. **Docker:** service `crawler` (profile `crawler`) — `docker compose --profile crawler up -d`; compose set `REDIS_HOST=redis`, `CRAWLER_API_BASE_URL=http://backend:8000` (xem `docker/README.md`).
 
 ## Lệnh tham chiếu
 

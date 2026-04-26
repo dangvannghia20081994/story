@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('chapter_title_selector');
             $table->string('chapter_content_selector');
             $table->unsignedInteger('max_chapters')->nullable();
+            $table->unsignedInteger('chapter_start')->default(1);
             $table->decimal('delay_seconds', 5, 2)->default(1.5);
             $table->unsignedTinyInteger('chapter_fetch_concurrency')->nullable();
             $table->string('status', 32)->default('pending');

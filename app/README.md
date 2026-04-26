@@ -12,7 +12,7 @@ Một codebase: **iOS / Android** (Expo Go hoặc build native), **web** (Metro 
 
 ```bash
 cd app
-npm ci
+npm install
 cp .env.example .env
 ```
 
@@ -47,7 +47,7 @@ Chạy từ **gốc repo**. Thư mục làm việc trong container: **`/app`** (
 
 | Mục đích | Lệnh |
 |----------|------|
-| Cài lại dependency | `docker compose exec expo npm ci` |
+| Cài lại dependency | `docker compose exec expo npm install` |
 | Thêm/cập nhật package Expo | `docker compose exec expo npx expo install <tên-package>` |
 | Shell | `docker compose exec expo sh` |
 

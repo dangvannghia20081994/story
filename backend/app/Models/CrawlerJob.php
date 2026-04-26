@@ -26,6 +26,7 @@ class CrawlerJob extends Model
         'chapter_title_selector',
         'chapter_content_selector',
         'max_chapters',
+        'chapter_start',
         'delay_seconds',
         'chapter_fetch_concurrency',
         'status',
@@ -38,6 +39,7 @@ class CrawlerJob extends Model
         return [
             'delay_seconds' => 'float',
             'max_chapters' => 'integer',
+            'chapter_start' => 'integer',
             'chapter_fetch_concurrency' => 'integer',
             'chapters_imported' => 'integer',
             'created_at' => 'datetime',

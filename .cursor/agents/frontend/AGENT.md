@@ -33,7 +33,7 @@ Bạn chịu trách nhiệm **`frontend/`** (App Router, React Server Components
 
 ## Lệnh tham chiếu
 
-Xem `frontend/README.md`: `npm ci`, `npm run dev`, Docker; mục **«Các lệnh chạy trong container»** cho `docker compose exec frontend …`.
+Xem `frontend/README.md`: `npm install`, `npm run dev`, Docker; mục **«Các lệnh chạy trong container»** cho `docker compose exec frontend …`.
 
 ## Ghi nhớ
 

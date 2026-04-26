@@ -10,6 +10,8 @@ cp backend/.env.example backend/.env
 # docker compose run --rm backend php artisan key:generate
 # Tuỳ chọn: cp compose.env.example .env (biến Compose chung, xem compose.env.example)
 docker compose up --build
+# Crawler worker (Playwright) — tuỳ chọn: cần crawler/.env + token trùng backend, rồi:
+# docker compose --profile crawler up -d --build
 ```
 
 `docker-compose.yml` ghi đè **`DB_HOST` / `REDIS_HOST`** cho backend. Chi tiết: `docker/README.md`, `backend/README.md`.
@@ -25,7 +27,7 @@ docker compose up --build
 | Coqui TTS (tuỳ chọn, `coqui/`) | http://localhost:5002 — Docker (`coqui/run.ps1`) hoặc **không Docker**: `coqui/run-native.ps1` |
 | Postgres  | localhost:5432 |
 | Redis     | localhost:6379 |
-| Crawler worker (Python, tuỳ chọn) | `crawler/worker.py` + `crawler/.env` — Redis + token nội bộ; xem [GUIDE_WINDOW.md](GUIDE_WINDOW.md) mục Crawler, [run-dev.sh](run-dev.sh) |
+| Crawler worker (Python, tuỳ chọn) | **Docker:** `docker compose --profile crawler up -d` (xem [docker/README.md](docker/README.md)). **Host:** `crawler/worker.py` + `crawler/.env` — [GUIDE_WINDOW.md](GUIDE_WINDOW.md), [run-dev.sh](run-dev.sh) |
 
 Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, **`crawler/README.md`**, và **`docker/README.md`** cho image Docker / biến Compose.
 

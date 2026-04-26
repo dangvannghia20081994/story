@@ -1,9 +1,22 @@
 import Constants from "expo-constants";
 
+function stripTrailingSlash(s: string): string {
+  return s.replace(/\/$/, "");
+}
+
+/** Tránh `.../api` + path `/api/...` → `/api/api/...`. */
+function normalizeApiBase(base: string): string {
+  let b = stripTrailingSlash(base);
+  if (b.endsWith("/api")) {
+    b = stripTrailingSlash(b.slice(0, -4));
+  }
+  return b;
+}
+
 export function apiBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
   const fromExtra = Constants.expoConfig?.extra?.apiUrl as string | undefined;
-  return (fromEnv ?? fromExtra ?? "http://localhost:8000").replace(/\/$/, "");
+  return normalizeApiBase(stripTrailingSlash(fromEnv ?? fromExtra ?? "http://localhost:8000"));
 }
 
 /** URL tuyệt đối cho expo-av khi API trả đường dẫn `/storage/...`. */

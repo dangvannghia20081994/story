@@ -96,7 +96,7 @@ Trên cùng máy hoặc máy khác:
 
 ```bash
 cd /var/www/story/frontend
-npm ci
+npm install
 ```
 
 Tạo `.env.production` (hoặc export trước khi build):

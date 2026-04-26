@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from urllib.parse import urljoin
@@ -16,6 +17,27 @@ DEFAULT_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
 )
+
+
+def _env_int_ms(name: str, default: int) -> int:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        v = int(raw)
+    except ValueError:
+        return default
+    return max(1_000, min(v, 900_000))
+
+
+def goto_timeout_ms() -> int:
+    """Playwright page.goto — mặc định 120s (site chậm / CDN). Ghi đè: CRAWLER_GOTO_TIMEOUT_MS."""
+    return _env_int_ms("CRAWLER_GOTO_TIMEOUT_MS", 120_000)
+
+
+def selector_timeout_ms() -> int:
+    """wait_for_selector sau goto — mặc định 60s. Ghi đè: CRAWLER_SELECTOR_TIMEOUT_MS."""
+    return _env_int_ms("CRAWLER_SELECTOR_TIMEOUT_MS", 60_000)
 
 
 def clean_content(html_content: str) -> str:
@@ -59,9 +81,9 @@ def collect_chapter_urls(
     """
     next_sel = (next_page_selector or "").strip()
     if not next_sel:
-        page.goto(start_url, wait_until="domcontentloaded", timeout=60_000)
+        page.goto(start_url, wait_until="domcontentloaded", timeout=goto_timeout_ms())
         try:
-            page.wait_for_selector(links_selector, timeout=30_000)
+            page.wait_for_selector(links_selector, timeout=selector_timeout_ms())
         except PlaywrightTimeout:
             print(
                 f"[warn] Không thấy selector danh sách chương: {links_selector!r}.",
@@ -82,9 +104,9 @@ def collect_chapter_urls(
             break
         toc_pages_seen.add(current)
 
-        page.goto(current, wait_until="domcontentloaded", timeout=60_000)
+        page.goto(current, wait_until="domcontentloaded", timeout=goto_timeout_ms())
         try:
-            page.wait_for_selector(links_selector, timeout=30_000)
+            page.wait_for_selector(links_selector, timeout=selector_timeout_ms())
         except PlaywrightTimeout:
             print(
                 f"[warn] Trang mục lục {current!r} không có selector {links_selector!r}.",
@@ -129,8 +151,8 @@ def resolve_chapter_urls(
 
 
 def crawl_chapter(page: Page, url: str, title_sel: str, body_sel: str) -> dict:
-    page.goto(url, wait_until="domcontentloaded", timeout=60_000)
-    page.wait_for_selector(body_sel, timeout=30_000)
+    page.goto(url, wait_until="domcontentloaded", timeout=goto_timeout_ms())
+    page.wait_for_selector(body_sel, timeout=selector_timeout_ms())
     title_el = page.query_selector(title_sel)
     title = title_el.inner_text().strip() if title_el else ""
     raw_html = page.inner_html(body_sel)
@@ -140,9 +162,9 @@ def crawl_chapter(page: Page, url: str, title_sel: str, body_sel: str) -> dict:
 
 async def crawl_chapter_async(page: AsyncPage, url: str, title_sel: str, body_sel: str) -> dict:
     """Giống crawl_chapter nhưng async — dùng với page riêng trong context (song song nhiều chương)."""
-    await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+    await page.goto(url, wait_until="domcontentloaded", timeout=goto_timeout_ms())
     try:
-        await page.wait_for_selector(body_sel, timeout=30_000)
+        await page.wait_for_selector(body_sel, timeout=selector_timeout_ms())
     except PlaywrightAsyncTimeout:
         print(
             f"[warn] Timeout chờ selector nội dung chương: {body_sel!r} — {url!r}.",

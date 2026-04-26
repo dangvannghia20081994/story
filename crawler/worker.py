@@ -9,8 +9,11 @@ Biến môi trường (export hoặc file `crawler/.env` — tự nạp khi ch�
   CRAWLER_API_BASE_URL — vd: http://localhost:8000
   CRAWLER_INTERNAL_TOKEN — trùng CRAWLER_INTERNAL_TOKEN (header X-Crawler-Token)
   CRAWLER_HEADLESS — 1/true để headless (mặc định true)
+  CRAWLER_GOTO_TIMEOUT_MS — timeout page.goto (mặc định 120000). CRAWLER_SELECTOR_TIMEOUT_MS — wait_for_selector (mặc định 60000). Xem crawl_lib.py.
   CRAWLER_WORKER_CONCURRENCY — số process consumer song song (mặc định 1). Mỗi process BLPOP riêng → nhiều job chạy đồng thời (mỗi job một Chromium riêng).
   CRAWLER_CHAPTER_CONCURRENCY — khi job không ghi chapter_fetch_concurrency: số trang chương tải song song (mặc định 1). API job có field chapter_fetch_concurrency thì ưu tiên.
+
+API job có chapter_start (cột crawler_jobs.chapter_start, mặc định 1): bỏ qua các URL chương đứng trước trong mục lục, rồi mới áp max_chapters. (Tên cũ crawl_chapter_start vẫn đọc được nếu có.)
 
 Luồng mỗi chương: quét HTML → POST /api/internal/crawler/jobs/{id}/chapters theo đúng thứ tự mục lục (fetch có thể song song khi concurrency > 1).
 """
@@ -129,6 +132,29 @@ def post_chapter(job_id: int, title: str, content: str) -> dict[str, Any]:
 def fetch_job(job_id: int) -> dict[str, Any]:
     r = http_json("GET", f"/internal/crawler/jobs/{job_id}")
     return r.get("data") or {}
+
+
+def slice_urls_for_crawl(
+    urls: list[str],
+    crawl_chapter_start: Any,
+    max_chapters: Any,
+) -> list[str]:
+    """Bỏ các URL đầu theo chapter_start (1 = giữ từ đầu); rồi giới hạn max_chapters nếu có."""
+    try:
+        start = int(crawl_chapter_start) if crawl_chapter_start is not None else 1
+    except (TypeError, ValueError):
+        start = 1
+    if start < 1:
+        start = 1
+    out = urls[start - 1 :]
+    if max_chapters is not None and max_chapters != "":
+        try:
+            cap = int(max_chapters)
+        except (TypeError, ValueError):
+            cap = 0
+        if cap > 0:
+            out = out[:cap]
+    return out
 
 
 def _effective_chapter_fetch_concurrency(job: dict[str, Any]) -> int:
@@ -264,6 +290,7 @@ def _run_one_job_impl(job_id: int) -> None:
     title_sel = (job.get("chapter_title_selector") or "").strip()
     body_sel = (job.get("chapter_content_selector") or "").strip()
     max_chapters = job.get("max_chapters")
+    chapter_start = job.get("chapter_start", job.get("crawl_chapter_start"))
     delay = float(job.get("delay_seconds") or 1.5)
 
     if not source_url or not title_sel or not body_sel:
@@ -274,7 +301,8 @@ def _run_one_job_impl(job_id: int) -> None:
         f"Job #{job_id}: source_url={source_url!r} "
         f"links_sel={links_sel!r} next_page_sel={next_page_sel!r} "
         f"title_sel={title_sel!r} body_sel={body_sel!r} "
-        f"max_chapters={max_chapters!r} delay={delay} chapter_fetch_concurrency={ch_fetch}"
+        f"chapter_start={chapter_start!r} max_chapters={max_chapters!r} "
+        f"delay={delay} chapter_fetch_concurrency={ch_fetch}"
     )
 
     patch_status(job_id, "processing")
@@ -294,8 +322,12 @@ def _run_one_job_impl(job_id: int) -> None:
             if not urls:
                 raise RuntimeError("Không có URL chương (kiểm tra chapter_links_selector).")
 
-            if max_chapters is not None and int(max_chapters) > 0:
-                urls = urls[: int(max_chapters)]
+            urls = slice_urls_for_crawl(urls, chapter_start, max_chapters)
+            if not urls:
+                raise RuntimeError(
+                    "Sau khi áp chapter_start / max_chapters không còn URL chương "
+                    "(tăng max_chapters hoặc giảm chapter_start trên job)."
+                )
 
             total = len(urls)
             crawler_log(f"Job #{job_id}: đã thu thập {total} URL chương sẽ quét (theo thứ tự).")

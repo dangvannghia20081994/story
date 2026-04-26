@@ -65,6 +65,8 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 
 Luồng: form **`/admin/crawler-jobs`** → bảng **`crawler_jobs`** (gồm tuỳ chọn **`chapter_list_next_page_selector`** — CSS link sang trang mục lục kế, ví dụ `.custom-page-item.nav-next .custom-page-link` cho tvtruyen; tuỳ chọn **`chapter_fetch_concurrency`** — tải nhiều trang chương song song, hoặc dùng **`CRAWLER_CHAPTER_CONCURRENCY`** trong `crawler/.env`) → **`Redis::rPush`** payload `{"crawler_job_id": id}`. Worker (**`crawler/worker.py`**) BLPOP, `GET` job, gom URL chương qua nhiều trang mục lục nếu có selector next, rồi quét chương (tuần tự hoặc async theo concurrency). Hướng dẫn: [GUIDE_WINDOW.md](../GUIDE_WINDOW.md), [crawler/README.md](../crawler/README.md).
 
+**Docker:** service **`crawler`** (profile `crawler`) — `docker compose --profile crawler up -d --build`; cần **`crawler/.env`** (token trùng backend). Chi tiết: [docker/README.md](../docker/README.md).
+
 **Token nội bộ:** nếu chưa có `CRAWLER_INTERNAL_TOKEN`, chạy **`php artisan crawler:internal-token`** (trong `backend/`), copy dòng in ra vào **`backend/.env`** và **`crawler/.env`**, rồi `php artisan config:clear` và khởi động lại worker.
 
 **Nội dung chương:** khi lưu (API, CMS, crawler nội bộ), `Story::sanitizeChapterContent()` áp dụng lên `content`: bỏ dòng quảng bá “đăng tải duy nhất” và **xóa chuỗi tham chiếu `tvtruyen.co.uk`** (kèm `www` / `https://` nếu có) khỏi text crawl.

@@ -56,6 +56,11 @@
                 <input type="number" name="max_chapters" id="max_chapters" value="{{ old('max_chapters', array_key_exists('max_chapters', $d) && $d['max_chapters'] !== null ? $d['max_chapters'] : '') }}" min="0" step="1" placeholder="vd: 50">
             </div>
             <div class="field">
+                <label for="chapter_start">Bắt đầu từ chương (thứ tự mục lục nguồn)</label>
+                <input type="number" name="chapter_start" id="chapter_start" value="{{ old('chapter_start', $d['chapter_start'] ?? 1) }}" min="1" step="1" required>
+                <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;"><code>1</code> = từ đầu; ví dụ <code>101</code> = bỏ qua 100 URL chương đầu, rồi mới áp giới hạn số chương phía trên.</span>
+            </div>
+            <div class="field">
                 <label for="delay_seconds">Nghỉ giữa các chương (giây)</label>
                 <input type="number" name="delay_seconds" id="delay_seconds" value="{{ old('delay_seconds', $d['delay_seconds'] ?? '1.5') }}" min="0" max="120" step="0.1">
             </div>

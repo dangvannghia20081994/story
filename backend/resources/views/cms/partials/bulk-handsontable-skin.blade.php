@@ -20,17 +20,15 @@
             border-radius: 0.4rem;
             overflow: hidden;
         }
-        @media (prefers-color-scheme: dark) {
-            .bulk-hot {
-                --ht-border: #334155;
-                --ht-header-bg1: #0f172a;
-                --ht-header-bg2: #1e1b4b;
-                --ht-rowhead-bg: #0f172a;
-                --ht-rowhead-fg: #94a3b8;
-                --ht-cell-odd: #0f172a;
-                --ht-cell-even: #1e293b;
-                --ht-cursor: #818cf8;
-            }
+        html.theme-dark .bulk-hot {
+            --ht-border: #334155;
+            --ht-header-bg1: #0f172a;
+            --ht-header-bg2: #1e1b4b;
+            --ht-rowhead-bg: #0f172a;
+            --ht-rowhead-fg: #94a3b8;
+            --ht-cell-odd: #0f172a;
+            --ht-cell-even: #1e293b;
+            --ht-cursor: #818cf8;
         }
         .bulk-hot .handsontable { font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; color: var(--text); }
         .bulk-hot .wtHider,
@@ -45,9 +43,7 @@
             letter-spacing: 0.04em;
             border-color: #4338ca !important;
         }
-        @media (prefers-color-scheme: dark) {
-            .bulk-hot .htCore thead th { border-color: #3730a3 !important; }
-        }
+        html.theme-dark .bulk-hot .htCore thead th { border-color: #3730a3 !important; }
         .bulk-hot .htCore tbody th,
         .bulk-hot tr td.rowHeader { background: var(--ht-rowhead-bg) !important; color: var(--ht-rowhead-fg) !important; border-color: var(--ht-border) !important; }
         .bulk-hot .htCore td {
@@ -59,10 +55,8 @@
         .bulk-hot .htCore td.current, .bulk-hot .htCore td.highlight {
             background-color: rgba(99, 102, 241, 0.14) !important;
         }
-        @media (prefers-color-scheme: dark) {
-            .bulk-hot .htCore td.current, .bulk-hot .htCore td.highlight {
-                background-color: rgba(129, 140, 248, 0.22) !important;
-            }
+        html.theme-dark .bulk-hot .htCore td.current, html.theme-dark .bulk-hot .htCore td.highlight {
+            background-color: rgba(129, 140, 248, 0.22) !important;
         }
         .bulk-hot .wtBorder { background-color: var(--ht-cursor) !important; }
         .bulk-hot .handsontableInput,
@@ -77,13 +71,11 @@
             border: 1px solid #cbd5e1 !important;
             box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15) !important;
         }
-        @media (prefers-color-scheme: dark) {
-            .htListbox, .htContextMenu, .htMenu, .htDropdownMenu, .htFiltersMenuHolder {
-                background: #1e293b !important;
-                color: #e2e8f0 !important;
-                border-color: #334155 !important;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
-            }
+        html.theme-dark .htListbox, html.theme-dark .htContextMenu, html.theme-dark .htMenu, html.theme-dark .htDropdownMenu, html.theme-dark .htFiltersMenuHolder {
+            background: #1e293b !important;
+            color: #e2e8f0 !important;
+            border-color: #334155 !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
         }
         .htListbox tr td, .htListbox table td, .htListbox tr th {
             color: #0f172a !important;
@@ -95,17 +87,15 @@
             background: #c7d2fe !important;
             color: #1e1b4b !important;
         }
-        @media (prefers-color-scheme: dark) {
-            .htListbox tr td, .htListbox table td, .htListbox tr th {
-                color: #e2e8f0 !important;
-                background: #0f172a !important;
-                border-color: #334155 !important;
-            }
-            .htListbox tr:hover td, .htListbox tr.ht__highlight td, .htListbox tr.ht__active td, .htListbox tr.ht__current td,
-            .htListbox tr.ht__highlight th, .htListbox tr.ht__active th, .htListbox tr.ht__current th {
-                background: #4f46e5 !important;
-                color: #eef2ff !important;
-            }
+        html.theme-dark .htListbox tr td, html.theme-dark .htListbox table td, html.theme-dark .htListbox tr th {
+            color: #e2e8f0 !important;
+            background: #0f172a !important;
+            border-color: #334155 !important;
+        }
+        html.theme-dark .htListbox tr:hover td, html.theme-dark .htListbox tr.ht__highlight td, html.theme-dark .htListbox tr.ht__active td, html.theme-dark .htListbox tr.ht__current td,
+        html.theme-dark .htListbox tr.ht__highlight th, html.theme-dark .htListbox tr.ht__active th, html.theme-dark .htListbox tr.ht__current th {
+            background: #4f46e5 !important;
+            color: #eef2ff !important;
         }
         .htListbox.ht__active, .htListbox .ht__active, .htListbox .current {
             color: inherit !important;
@@ -116,9 +106,7 @@
         }
         .htContextMenu tr td, .htMenu tr td, .htDropdownMenu tr:hover td { background: var(--surface) !important; }
         .htContextMenu tr:hover td, .htMenu tr.ht__highlight, .htDropdownMenu tr:hover { background: #f1f5f9 !important; }
-        @media (prefers-color-scheme: dark) {
-            .htContextMenu tr:hover td, .htMenu tr.ht__highlight, .htDropdownMenu tr:hover { background: #1e293b !important; }
-        }
+        html.theme-dark .htContextMenu tr:hover td, html.theme-dark .htMenu tr.ht__highlight, html.theme-dark .htDropdownMenu tr:hover { background: #1e293b !important; }
         .bulk-hot select,
         .bulk-hot .handsontableInput.htSelect,
         #bulk-form select.htSelect, #chapters-bulk-form select.htSelect,
@@ -135,20 +123,18 @@
             background-color: #f1f5f9 !important;
             border-color: #6366f1 !important;
         }
-        @media (prefers-color-scheme: dark) {
-            .bulk-hot select, .bulk-hot .handsontableInput.htSelect, #bulk-form select.htSelect, #chapters-bulk-form select.htSelect, .handsontable select {
-                color: #e2e8f0 !important;
-                background: #1e293b !important;
-                background-color: #1e293b !important;
-                border-color: #64748b !important;
-            }
-            .bulk-hot select:focus, .bulk-hot select:active, .handsontable select:focus, .handsontable select:hover {
-                background: #334155 !important;
-                background-color: #334155 !important;
-                border-color: #818cf8 !important;
-            }
+        html.theme-dark .bulk-hot select, html.theme-dark .bulk-hot .handsontableInput.htSelect, html.theme-dark #bulk-form select.htSelect, html.theme-dark #chapters-bulk-form select.htSelect, html.theme-dark .handsontable select {
+            color: #e2e8f0 !important;
+            background: #1e293b !important;
+            background-color: #1e293b !important;
+            border-color: #64748b !important;
+        }
+        html.theme-dark .bulk-hot select:focus, html.theme-dark .bulk-hot select:active, html.theme-dark .handsontable select:focus, html.theme-dark .handsontable select:hover {
+            background: #334155 !important;
+            background-color: #334155 !important;
+            border-color: #818cf8 !important;
         }
         .htListbox, .htListbox table { background: #e2e8f0 !important; }
-        @media (prefers-color-scheme: dark) { .htListbox, .htListbox table { background: #1e293b !important; } }
+        html.theme-dark .htListbox, html.theme-dark .htListbox table { background: #1e293b !important; }
         .sheet-form-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
     </style>

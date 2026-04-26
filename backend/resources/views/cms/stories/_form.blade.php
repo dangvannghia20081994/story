@@ -38,6 +38,14 @@
         <label for="description">Mô tả</label>
         <textarea id="description" name="description" rows="4">{{ old('description', $story?->description ?? '') }}</textarea>
     </div>
+    @if ($isEdit)
+        <div class="field">
+            <label for="crawl_chapter_start">Crawl từ chương (thứ tự mục lục nguồn)</label>
+            <input type="number" id="crawl_chapter_start" name="crawl_chapter_start" min="1" step="1"
+                value="{{ old('crawl_chapter_start', $story->crawl_chapter_start ?? 1) }}">
+            <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.85rem;">Gợi ý nội bộ (vd. tiếp tục từ chương nào). Worker dùng <strong>chapter_start</strong> trên từng <strong>job crawler</strong> — khi tạo job, điền cùng số vào ô &quot;Bắt đầu từ chương&quot;.</p>
+        </div>
+    @endif
     @unless ($isEdit)
         <h2>Chương đầu (tùy chọn)</h2>
         <div class="field">

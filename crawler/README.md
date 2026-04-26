@@ -35,8 +35,21 @@ Sau khi activate, mỗi lần làm việc: `.\.venv\Scripts\activate` (PowerShel
 - `worker.py` nạp `.env` tự động nếu đã cài `python-dotenv` (có trong `requirements.txt`).
 - **`CRAWLER_WORKER_CONCURRENCY`** (mặc định `1`): một process chỉ xử lý **một job tại một thời điểm** (tuần tự các chương trong job). Đặt `3` (ví dụ) để fork **ba consumer** cùng `BLPOP` một list Redis — Redis gán mỗi message cho một consumer, nên **ba job khác nhau** có thể chạy song song (RAM/CPU cao hơn vì mỗi job mở Chromium riêng). Không nên đẩy hai worker cùng lúc lên **cùng một `crawler_job_id`** (trùng chương / race); hàng đợi bình thường mỗi message là một job id khác nhau thì ổn.
 - **`CRAWLER_CHAPTER_CONCURRENCY`** (mặc định `1`) và/hoặc field **Số chương tải song song** khi tạo job CMS (`chapter_fetch_concurrency`): trong **một** job, worker có thể mở tối đa N tab chương **async** (Playwright) rồi **POST API vẫn theo thứ tự mục lục**. Giá trị trên job (nếu có) **ưu tiên** hơn biến môi trường. Giảm **`delay_seconds`** trên job (hoặc `0`) cũng rút ngắn thời gian nếu site cho phép.
+- **`chapter_start`** (API nội bộ GET job, cột **`crawler_jobs.chapter_start`**, nhập khi **Tạo job Crawler**, mặc định `1`): số thứ tự chương **theo thứ tự URL mục lục nguồn** — worker bỏ qua mọi URL đứng trước, rồi mới áp **`max_chapters`**. Trường *Crawl từ chương* trên **Sửa truyện** (`stories.crawl_chapter_start`) chỉ là gợi ý khi chỉnh tay; có thể copy sang ô *Bắt đầu từ chương* khi tạo job.
+- **`CRAWLER_GOTO_TIMEOUT_MS`** (mặc định `120000`) và **`CRAWLER_SELECTOR_TIMEOUT_MS`** (mặc định `60000`): thời gian chờ `page.goto` và `wait_for_selector` trong `crawl_lib.py`. Nếu log báo `Page.goto: Timeout … exceeded`, tăng dần (ví dụ `180000`) trong `crawler/.env`; giới hạn 1s–15 phút.
 
-## Chạy
+## Chạy bằng Docker (Compose)
+
+Service **`crawler`** dùng profile `crawler` (mặc định **không** chạy để tránh tốn RAM Chromium nếu không cần).
+
+1. `cp .env.example .env` (trong thư mục `crawler/`), điền **`CRAWLER_INTERNAL_TOKEN`** trùng `backend/.env`.
+2. Từ **gốc repo**: `docker compose --profile crawler up -d --build`
+
+Compose ghi đè **`REDIS_HOST=redis`** và **`CRAWLER_API_BASE_URL=http://backend:8000`** (gọi API trong mạng Docker; không dùng `story.test` trong container). Các biến khác (`CRAWLER_WORKER_CONCURRENCY`, …) lấy từ `crawler/.env`.
+
+Log: `docker compose logs -f crawler`
+
+## Chạy trên máy (venv)
 
 Luôn dùng **Python trong `.venv`** (đã có `playwright`, `redis`, …):
 

@@ -12,13 +12,14 @@ Trang chủ hiển thị truyện theo khối thể loại (mỗi thể loại t
 
 ```bash
 cd frontend
-npm ci
+npm install
 cp ../compose.env.example ../.env   # không bắt buộc
 ```
 
 Tạo `.env.local` (hoặc export):
 
 ```bash
+# Chỉ gốc origin (không thêm /api) — mã gọi API luôn dùng path kiểu /api/stories/...
 NEXT_PUBLIC_API_URL=http://localhost:8000
 # SSR trong Docker cần thêm API_URL=http://backend:8000 — xem docker-compose
 ```
@@ -37,7 +38,7 @@ Mở http://localhost:3000
 | `next.config.ts` | Tùy chọn rewrite, domain ảnh, v.v. |
 | `package.json` | Script `dev`, `build`, … |
 
-**Docker:** biến do Compose inject — xem `docker-compose.yml` (service `frontend`): `NEXT_PUBLIC_API_URL`, `API_URL` (SSR gọi `http://backend:8000`).
+**Docker:** biến do Compose inject — xem `docker-compose.yml` (service `frontend`): `NEXT_PUBLIC_API_URL=http://story.test` (không `/api`), `API_URL` (SSR gọi `http://backend:8000`).
 
 **Quy ước:** mỗi lần thêm env hoặc chỉnh `next.config` / Docker liên quan frontend → cập nhật **`frontend/README.md`** và **`.cursor/agents/frontend/AGENT.md`**.
 
@@ -58,7 +59,7 @@ Chạy từ **gốc repo**. Thư mục làm việc trong container: **`/app`** (
 |----------|------|
 | Build production | `docker compose exec frontend npm run build` |
 | Lint | `docker compose exec frontend npm run lint` |
-| Cài lại dependency sau khi đổi `package.json` | `docker compose exec frontend npm ci` |
+| Cài lại dependency sau khi đổi `package.json` | `docker compose exec frontend npm install` |
 | Shell | `docker compose exec frontend sh` |
 
 Cần service **`frontend`** đang chạy (`docker compose up -d frontend` hoặc full stack).

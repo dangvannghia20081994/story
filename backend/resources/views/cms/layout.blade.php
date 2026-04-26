@@ -2,6 +2,18 @@
 <html lang="vi">
 <head>
     <meta charset="utf-8">
+    <script>
+    (function () {
+        try {
+            var k = 'cms-theme', s = localStorage.getItem(k), mq = window.matchMedia('(prefers-color-scheme: dark)');
+            if (s !== 'light' && s !== 'dark' && s !== 'system') { s = 'system'; }
+            var eff = s === 'light' ? 'light' : s === 'dark' ? 'dark' : (mq.matches ? 'dark' : 'light');
+            document.documentElement.classList.remove('theme-light', 'theme-dark');
+            document.documentElement.classList.add('theme-' + eff);
+            document.documentElement.dataset.themePref = s;
+        } catch (e) {}
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'CMS') — {{ config('app.name') }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,14 +38,14 @@
             --text: #0f172a;
             --muted: #64748b;
         }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --body-bg: #020617;
-                --surface: #0f172a;
-                --surface-border: #1e293b;
-                --text: #f1f5f9;
-                --muted: #94a3b8;
-            }
+        html.theme-light { color-scheme: light; }
+        html.theme-dark {
+            color-scheme: dark;
+            --body-bg: #020617;
+            --surface: #0f172a;
+            --surface-border: #1e293b;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
         }
         *, *::before, *::after { box-sizing: border-box; }
         body {
@@ -118,9 +130,7 @@
             border-bottom: 1px solid var(--surface-border);
             box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
         }
-        @media (prefers-color-scheme: dark) {
-            .content-header { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2); }
-        }
+        html.theme-dark .content-header { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2); }
         .content-header__left {
             display: flex;
             align-items: center;
@@ -186,7 +196,7 @@
             background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.875rem; font-weight: 500; font-family: inherit; text-decoration: none;
         }
         .btn:hover { background: #f8fafc; text-decoration: none; }
-        @media (prefers-color-scheme: dark) { .btn:hover { background: #1e293b; } }
+        html.theme-dark .btn:hover { background: #1e293b; }
         .btn-primary {
             background: var(--accent); border-color: var(--accent-hover); color: #fff;
         }
@@ -203,24 +213,20 @@
             outline: none;
             border-color: var(--accent);
         }
-        @media (prefers-color-scheme: dark) {
-            input, select, textarea { background: #020617; border-color: #334155; }
-            input:focus, select:focus, textarea:focus {
-                border-color: #818cf8;
-            }
-        }
+        html.theme-dark input, html.theme-dark select, html.theme-dark textarea { background: #020617; border-color: #334155; }
+        html.theme-dark input:focus, html.theme-dark select:focus, html.theme-dark textarea:focus { border-color: #818cf8; }
         textarea { min-height: 10rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.85rem; }
         .field { margin-bottom: 0.9rem; }
         .error { color: #dc2626; font-size: 0.8rem; margin-top: 0.25rem; }
         .flash {
             background: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; padding: 0.7rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;
         }
-        @media (prefers-color-scheme: dark) { .flash { background: #052e1b; border-color: #166534; color: #bbf7d0; } }
+        html.theme-dark .flash { background: #052e1b; border-color: #166534; color: #bbf7d0; }
         table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
         th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--surface-border); vertical-align: top; }
         th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
         tbody tr:hover { background: rgba(99, 102, 241, 0.04); }
-        @media (prefers-color-scheme: dark) { tbody tr:hover { background: rgba(99, 102, 241, 0.08); } }
+        html.theme-dark tbody tr:hover { background: rgba(99, 102, 241, 0.08); }
         h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.5rem; }
         .row-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
         .sidebar-backdrop {
@@ -235,14 +241,49 @@
             padding: 0.3rem; background: var(--surface); border: 1px solid var(--surface-border);
             border-radius: 0.45rem; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
         }
-        @media (prefers-color-scheme: dark) { .add-dropdown__menu { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); } }
+        html.theme-dark .add-dropdown__menu { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
         .add-dropdown__menu a {
             display: block; padding: 0.5rem 0.7rem; border-radius: 0.35rem; color: var(--text); text-decoration: none; font-size: 0.875rem;
         }
         .add-dropdown__menu a:hover { background: #f1f5f9; text-decoration: none; }
-        @media (prefers-color-scheme: dark) { .add-dropdown__menu a:hover { background: #1e293b; } }
+        html.theme-dark .add-dropdown__menu a:hover { background: #1e293b; }
         .add-dropdown > summary { list-style: none; }
         .add-dropdown > summary::-webkit-details-marker { display: none; }
+        .theme-picker {
+            display: inline-flex;
+            align-items: stretch;
+            border-radius: 0.45rem;
+            border: 1px solid var(--surface-border);
+            overflow: hidden;
+            background: var(--body-bg);
+        }
+        .theme-picker__btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.35rem;
+            height: 2.35rem;
+            padding: 0;
+            border: none;
+            border-right: 1px solid var(--surface-border);
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .theme-picker__btn:last-child { border-right: none; }
+        .theme-picker__btn:hover { color: var(--text); background: rgba(99, 102, 241, 0.08); }
+        html.theme-dark .theme-picker__btn:hover { background: rgba(129, 140, 248, 0.12); }
+        .theme-picker__btn[aria-pressed="true"] {
+            background: var(--surface);
+            color: var(--accent);
+            box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.35);
+        }
+        html.theme-dark .theme-picker__btn[aria-pressed="true"] {
+            box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.45);
+        }
+        .theme-picker__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .theme-picker__btn svg { width: 1rem; height: 1rem; }
     </style>
     @stack('head')
 </head>
@@ -285,6 +326,17 @@
                     <span class="muted" style="font-size: 0.8rem; font-weight: 500; letter-spacing: 0.02em;">@yield('header_crumbs', 'Story CMS')</span>
                 </div>
                 <div class="content-header__right">
+                    <div class="theme-picker" role="group" aria-label="Chế độ giao diện">
+                        <button type="button" class="theme-picker__btn" data-theme-pick="light" title="Giao diện sáng" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                        </button>
+                        <button type="button" class="theme-picker__btn" data-theme-pick="system" title="Theo thiết bị" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                        </button>
+                        <button type="button" class="theme-picker__btn" data-theme-pick="dark" title="Giao diện tối" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        </button>
+                    </div>
                     <span class="user-email" title="{{ auth()->user()->email }}">{{ auth()->user()->email }}</span>
                     <form action="{{ route('cms.logout') }}" method="post" style="display: inline; margin: 0;">
                         @csrf
@@ -324,6 +376,44 @@
         document.querySelectorAll('.sidebar a[href]:not([target="_blank"])').forEach(function (a) {
             a.addEventListener('click', function () { if (window.matchMedia('(max-width: 900px)').matches) { closeNav(); } });
         });
+    })();
+    (function () {
+        var STORAGE = 'cms-theme';
+        function readPref() {
+            try {
+                var s = localStorage.getItem(STORAGE);
+                if (s === 'light' || s === 'dark' || s === 'system') { return s; }
+            } catch (e) {}
+            return 'system';
+        }
+        function effective(p) {
+            if (p === 'light') { return 'light'; }
+            if (p === 'dark') { return 'dark'; }
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        function applyFromPref(p) {
+            var e = effective(p);
+            document.documentElement.classList.remove('theme-light', 'theme-dark');
+            document.documentElement.classList.add('theme-' + e);
+            document.documentElement.dataset.themePref = p;
+            document.querySelectorAll('.theme-picker__btn').forEach(function (b) {
+                b.setAttribute('aria-pressed', (b.getAttribute('data-theme-pick') === p) ? 'true' : 'false');
+            });
+        }
+        function setPref(p) {
+            try { localStorage.setItem(STORAGE, p); } catch (err) {}
+            applyFromPref(p);
+        }
+        var mq = window.matchMedia('(prefers-color-scheme: dark)');
+        if (mq.addEventListener) {
+            mq.addEventListener('change', function () { if (readPref() === 'system') { applyFromPref('system'); } });
+        } else if (mq.addListener) {
+            mq.addListener(function () { if (readPref() === 'system') { applyFromPref('system'); } });
+        }
+        document.querySelectorAll('.theme-picker__btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { setPref(btn.getAttribute('data-theme-pick') || 'system'); });
+        });
+        applyFromPref(readPref());
     })();
     </script>
 </body>

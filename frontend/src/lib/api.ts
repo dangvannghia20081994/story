@@ -2,6 +2,16 @@ function stripTrailingSlash(s: string | undefined): string {
   return s?.replace(/\/$/, "") ?? "";
 }
 
+/** Tránh `.../api` + path `/api/...` → `/api/api/...` khi cấu hình nhầm thêm `/api`. */
+function normalizeApiBase(base: string): string {
+  let b = stripTrailingSlash(base);
+  if (b.endsWith("/api")) {
+    b = b.slice(0, -4);
+    b = stripTrailingSlash(b);
+  }
+  return b;
+}
+
 /** Base URL tuyệt đối cho fetch (Node bắt buộc). Trình duyệt có thể dùng '' + đường dẫn tương đối (rewrite /api trong next.config). */
 function resolveBase(): string {
   const server = stripTrailingSlash(process.env.API_URL);
@@ -24,7 +34,8 @@ function resolveBase(): string {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const base = resolveBase();
+  const raw = resolveBase();
+  const base = raw !== "" ? normalizeApiBase(raw) : "";
   const url = base !== "" ? `${base}${path.startsWith("/") ? path : `/${path}`}` : path;
 
   const res = await fetch(url, {

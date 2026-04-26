@@ -14,6 +14,8 @@ class CrawlerInternalController extends Controller
 {
     public function show(CrawlerJob $crawlerJob): JsonResponse
     {
+        $chapterStart = max(1, (int) ($crawlerJob->chapter_start ?? 1));
+
         return response()->json([
             'data' => [
                 'id' => $crawlerJob->id,
@@ -24,6 +26,7 @@ class CrawlerInternalController extends Controller
                 'chapter_content_selector' => $crawlerJob->chapter_content_selector,
                 'story_id' => $crawlerJob->story_id,
                 'new_story_title' => $crawlerJob->new_story_title,
+                'chapter_start' => $chapterStart,
                 'max_chapters' => $crawlerJob->max_chapters,
                 'delay_seconds' => $crawlerJob->delay_seconds,
                 'chapter_fetch_concurrency' => $crawlerJob->chapter_fetch_concurrency,

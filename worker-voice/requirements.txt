@@ -1,0 +1,11 @@
+# Coqui TTS (PyPI: coqui-tts). Python 3.10–3.14.
+# Torch CPU (+cpu) từ index PyTorch — tránh bản CUDA khổng lồ từ PyPI mặc định.
+# Torch 2.9+ thường yêu cầu torchcodec; dùng 2.8+cpu để đơn giản hóa.
+#
+# GPU: bỏ 3 dòng đầu, cài torch/torchaudio CUDA theo https://pytorch.org/get-started/locally/
+# rồi thêm: torchcodec>=0.8  (nếu dùng torch >= 2.9)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.8.0+cpu
+torchaudio==2.8.0+cpu
+coqui-tts==0.27.5
+transformers>=4.46,<5
