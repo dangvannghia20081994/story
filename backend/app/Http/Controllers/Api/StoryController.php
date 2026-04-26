@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Chapter;
 use App\Models\Story;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,7 +47,7 @@ class StoryController extends Controller
             }
         }
         if (! empty($data['first_chapter']['content']) && is_string($data['first_chapter']['content'])) {
-            $data['first_chapter']['content'] = Story::stripExclusivePublishingNoticeLines($data['first_chapter']['content']);
+            $data['first_chapter']['content'] = Story::sanitizeChapterContent($data['first_chapter']['content']);
         }
 
         $story = DB::transaction(function () use ($data) {
@@ -60,10 +61,11 @@ class StoryController extends Controller
             ]);
 
             if (! empty($data['first_chapter'])) {
-                $story->chapters()->create([
-                    'title' => $data['first_chapter']['title'],
-                    'content' => $data['first_chapter']['content'],
-                ]);
+                Chapter::createOrUpdateByTitleForStory(
+                    $story,
+                    $data['first_chapter']['title'],
+                    $data['first_chapter']['content'],
+                );
             }
 
             return $story->fresh();
@@ -72,9 +74,26 @@ class StoryController extends Controller
         return response()->json($story->loadCount('chapters'), 201);
     }
 
-    public function show(Story $story): JsonResponse
+    public function show(Request $request, Story $story): JsonResponse
     {
-        $story->load(['chapters' => fn ($q) => $q->orderBy('id')]);
+        $data = $request->validate([
+            'chapters_order' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
+        ]);
+        $chaptersOrder = ($data['chapters_order'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+        $fullChapters = $request->boolean('chapters_full');
+
+        $chaptersTotal = $story->chapters()->count();
+        $chaptersWithAudioTotal = $story->chapters()
+            ->whereNotNull('audio_path')
+            ->where('audio_path', '<>', '')
+            ->count();
+
+        $story->load(['chapters' => function ($q) use ($chaptersOrder, $fullChapters) {
+            $q->orderBy('created_at', $chaptersOrder)->orderBy('id', $chaptersOrder);
+            if (! $fullChapters) {
+                $q->limit(10);
+            }
+        }]);
         $story->loadCount('characters');
 
         $chapters = $story->chapters->map(fn (Chapter $c) => array_merge($c->toArray(), [
@@ -84,6 +103,8 @@ class StoryController extends Controller
         return response()->json([
             'data' => array_merge($story->toArray(), [
                 'chapters' => $chapters,
+                'chapters_total' => $chaptersTotal,
+                'chapters_with_audio_total' => $chaptersWithAudioTotal,
             ]),
         ]);
     }

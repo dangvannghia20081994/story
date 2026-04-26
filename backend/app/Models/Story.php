@@ -74,6 +74,40 @@ class Story extends Model
         return implode("\n", $out);
     }
 
+    /**
+     * Xóa chuỗi domain nguồn crawl (ví dụ tvtruyen) khỏi nội dung chương để tránh nhắc site gốc.
+     * Thay thế dài (kèm scheme) trước, rồi hostname ngắn.
+     */
+    public static function stripKnownRepostedSourceDomains(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+
+        $needles = [
+            'https://www.tvtruyen.co.uk',
+            'http://www.tvtruyen.co.uk',
+            'https://tvtruyen.co.uk',
+            'http://tvtruyen.co.uk',
+            '//www.tvtruyen.co.uk',
+            '//tvtruyen.co.uk',
+            'www.tvtruyen.co.uk',
+            'tvtruyen.co.uk',
+        ];
+
+        return str_ireplace($needles, '', $text);
+    }
+
+    /**
+     * Chuẩn hóa body chương khi lưu (CMS, API, crawler nội bộ): dòng quảng bá độc quyền + domain nguồn crawl.
+     */
+    public static function sanitizeChapterContent(string $text): string
+    {
+        $text = self::stripExclusivePublishingNoticeLines($text);
+
+        return self::stripKnownRepostedSourceDomains($text);
+    }
+
     protected $fillable = [
         'title',
         'slug',

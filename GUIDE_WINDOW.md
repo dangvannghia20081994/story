@@ -77,7 +77,30 @@ Xem `app/README.md`.
 
 ---
 
-## 5. Gợi ý thêm
+## 5. Crawler (Python + Playwright)
+
+CMS tạo job tại **`/admin/crawler-jobs`**: lưu bảng `crawler_jobs`, đẩy `{"crawler_job_id": …}` lên Redis (list mặc định `crawler:queue`). Worker **`crawler/worker.py`** lấy job, crawl bằng Playwright, gọi API nội bộ `GET/PATCH/POST /api/internal/crawler/...` (header **`X-Crawler-Token`**).
+
+**Backend** (`backend/.env`): đặt **`CRAWLER_INTERNAL_TOKEN`** (chuỗi bí mật, trùng với worker) và tuỳ chọn **`CRAWLER_REDIS_QUEUE`**. **`QUEUE_CONNECTION=redis`** đã phù hợp để Laravel dùng Redis; worker chỉ cần cùng host/cổng Redis.
+
+**Worker** (`crawler/`):
+
+```bash
+cd crawler
+pip install -r requirements.txt
+playwright install chromium
+copy .env.example .env
+# Sửa .env: REDIS_* , CRAWLER_API_BASE_URL=http://localhost:8000 , CRAWLER_INTERNAL_TOKEN=...
+python worker.py
+```
+
+`worker.py` tự gọi **`load_dotenv(crawler/.env)`** — biến đọc từ file `.env` cạnh script (không cần export tay).
+
+**Một lệnh dev (Git Bash):** từ gốc repo, [`run-dev.sh`](run-dev.sh) khởi Redis (nếu có `redis/redis-server.exe`), backend, frontend. **Crawler worker** chỉ chạy khi thêm **`./run-dev.sh --with-crawler`** và có **`crawler/.env`** + **`crawler/.venv`** (dùng `crawler/.venv/.../python` để tránh thiếu `playwright` trên Python global). `./run-dev.sh --help` xem gợi ý. Tắt worker dù có `--with-crawler`: `SKIP_CRAWLER_WORKER=1 ./run-dev.sh --with-crawler`.
+
+---
+
+## 6. Gợi ý thêm
 
 - **WSL2 (Ubuntu):** Postgres/Redis + symlink đôi khi đơn giản hơn so với Windows thuần; có thể clone repo trong WSL và làm tương tự [GUIDE_VPS_NO_DOCKER.md](GUIDE_VPS_NO_DOCKER.md) (lệnh `bash`).
 - **Firewall:** cho phép cổng khi Windows hỏi lần đầu chạy PHP/Node.

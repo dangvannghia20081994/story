@@ -26,7 +26,7 @@ class StoreStoryRequest extends FormRequest
         }
         $content = $this->input('first_chapter_content');
         if (is_string($content) && $content !== '') {
-            $this->merge(['first_chapter_content' => Story::stripExclusivePublishingNoticeLines($content)]);
+            $this->merge(['first_chapter_content' => Story::sanitizeChapterContent($content)]);
         }
     }
 

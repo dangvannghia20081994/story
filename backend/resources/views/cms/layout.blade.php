@@ -264,6 +264,10 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                     Lexicon
                 </a>
+                <a class="nav-item" href="{{ route('cms.crawler-jobs.index') }}" @if (request()->routeIs('cms.crawler-jobs.*')) aria-current="page" @endif>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+                    Crawler
+                </a>
             </nav>
             <div class="sidebar__footer">
                 <a class="nav-item" href="{{ url('/docs/api') }}" target="_blank" rel="noopener" style="margin: 0;">

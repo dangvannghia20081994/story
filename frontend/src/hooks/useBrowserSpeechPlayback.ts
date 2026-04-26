@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { estimateSpeechDurationSec, plainTextForSpeech } from "@/lib/browserSpeech";
+import {
+  estimateSpeechDurationSec,
+  logVietnameseVoiceAvailability,
+  plainTextForSpeech,
+  resolveVietnameseVoice,
+} from "@/lib/browserSpeech";
 
 type Options = {
   /** Bật khi không dùng thẻ audio (chỉ đọc trình duyệt). */
@@ -13,13 +18,6 @@ type Options = {
   /** `voiceURI` từ SpeechSynthesisVoice; rỗng = tự chọn giọng tiếng Việt đầu tiên. */
   voiceUri: string;
 };
-
-function pickDefaultViVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  const vi = voices.filter((v) => (v.lang || "").toLowerCase().startsWith("vi"));
-  if (vi.length === 0) return null;
-  const neural = vi.find((v) => /\bvi\b/i.test(v.lang) && (v.name.includes("Neural") || v.name.includes("Online")));
-  return neural ?? vi[0];
-}
 
 export function useBrowserSpeechPlayback({ enabled, text, rate, volume, voiceUri }: Options) {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -54,8 +52,7 @@ export function useBrowserSpeechPlayback({ enabled, text, rate, volume, voiceUri
     u.rate = Math.max(0.5, Math.min(2, rate));
     u.volume = Math.max(0, Math.min(1, volume));
 
-    const chosen =
-      (voiceUri && voices.find((v) => v.voiceURI === voiceUri)) || pickDefaultViVoice(voices) || voices[0] || null;
+    const chosen = resolveVietnameseVoice(voices, voiceUri);
     if (chosen) {
       u.voice = chosen;
     }
@@ -116,7 +113,8 @@ export function useBrowserSpeechPlayback({ enabled, text, rate, volume, voiceUri
     if (!enabled || typeof window === "undefined") return;
     const load = () => {
       try {
-        window.speechSynthesis.getVoices();
+        const list = window.speechSynthesis.getVoices();
+        logVietnameseVoiceAvailability(list);
       } catch {
         /* ignore */
       }

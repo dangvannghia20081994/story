@@ -16,7 +16,7 @@ class StoreChapterRequest extends FormRequest
     {
         $content = $this->input('content');
         if (is_string($content) && $content !== '') {
-            $this->merge(['content' => Story::stripExclusivePublishingNoticeLines($content)]);
+            $this->merge(['content' => Story::sanitizeChapterContent($content)]);
         }
     }
 

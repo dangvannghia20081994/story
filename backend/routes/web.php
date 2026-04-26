@@ -3,6 +3,7 @@
 use App\Http\Controllers\Cms\AuthController;
 use App\Http\Controllers\Cms\ChapterController as CmsChapterController;
 use App\Http\Controllers\Cms\CharacterController as CmsCharacterController;
+use App\Http\Controllers\Cms\CrawlerJobController;
 use App\Http\Controllers\Cms\DashboardController;
 use App\Http\Controllers\Cms\LexiconController as CmsLexiconController;
 use App\Http\Controllers\Cms\StoryController as CmsStoryController;
@@ -39,5 +40,10 @@ Route::prefix('admin')->name('cms.')->group(function (): void {
         Route::get('lexicons/bulk', [CmsLexiconController::class, 'createBulk'])->name('lexicons.bulk');
         Route::post('lexicons/bulk', [CmsLexiconController::class, 'storeBulk'])->name('lexicons.bulk.store');
         Route::resource('lexicons', CmsLexiconController::class)->except(['show']);
+
+        Route::get('crawler-jobs', [CrawlerJobController::class, 'index'])->name('crawler-jobs.index');
+        Route::get('crawler-jobs/create', [CrawlerJobController::class, 'create'])->name('crawler-jobs.create');
+        Route::post('crawler-jobs', [CrawlerJobController::class, 'store'])->name('crawler-jobs.store');
+        Route::post('crawler-jobs/{crawlerJob}/resend', [CrawlerJobController::class, 'resend'])->name('crawler-jobs.resend');
     });
 });

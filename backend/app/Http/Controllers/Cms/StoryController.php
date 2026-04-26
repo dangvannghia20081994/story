@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Cms\StoreBulkStoriesRequest;
 use App\Http\Requests\Cms\StoreStoryRequest;
 use App\Http\Requests\Cms\UpdateStoryRequest;
+use App\Models\Chapter;
 use App\Models\Story;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,10 +77,11 @@ class StoryController extends Controller
             ]);
 
             if (! empty($data['first_chapter_title']) && ! empty($data['first_chapter_content'])) {
-                $story->chapters()->create([
-                    'title' => $data['first_chapter_title'],
-                    'content' => $data['first_chapter_content'],
-                ]);
+                Chapter::createOrUpdateByTitleForStory(
+                    $story,
+                    $data['first_chapter_title'],
+                    $data['first_chapter_content'],
+                );
             }
         });
 

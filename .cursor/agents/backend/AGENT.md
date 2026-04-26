@@ -30,7 +30,7 @@ Bạn chịu trách nhiệm **ứng dụng Laravel** trong `backend/`: routes AP
 - `routes/api.php`, **`routes/web.php`** (CMS + alias `GET /login` → CMS), `bootstrap/app.php`, `app/Providers/AppServiceProvider.php`
 - `app/Http/Controllers/Api/`, **`app/Http/Controllers/Cms/`**, **`app/Http/Requests/Cms/`** (Form Request validate CMS), `app/Models/`, `app/Http/Middleware/`, `app/Services/`
 - **`resources/views/cms/`** — giao diện quản trị; form create/edit gộp partial `*_form.blade.php` theo từng resource
-- `config/cors.php`, `config/database.php`, `config/services.php`, `config/filesystems.php`, `config/queue.php`, **`config/scramble.php`**
+- `config/cors.php`, `config/database.php`, `config/services.php`, `config/filesystems.php`, `config/queue.php`, **`config/scramble.php`**, **`config/crawler.php`** (Redis list + token worker crawl)
 - `database/migrations/`, `.env.example`
 
 ## Biến & cấu hình quan trọng
@@ -38,6 +38,7 @@ Bạn chịu trách nhiệm **ứng dụng Laravel** trong `backend/`: routes AP
 - `DB_*`, `REDIS_*`, `REDIS_PREFIX` (thường rỗng)
 - `CORS_ALLOWED_ORIGINS` — Next + Expo web
 - `API_VERSION` — version hiển thị trong OpenAPI docs UI (`/docs/api`)
+- **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** — job crawl CMS đẩy Redis; worker Python (`crawler/worker.py`) gọi `/api/internal/crawler/*` với header `X-Crawler-Token`
 
 ## Lệnh tham chiếu
 
@@ -50,4 +51,4 @@ Xem `backend/README.md`: `composer install`, `php artisan migrate`, `php artisan
 - API docs tự sinh qua Scramble: UI `GET /docs/api`, JSON `GET /docs/api.json`. File repo **`api.json`** chỉ cập nhật bằng `php artisan scramble:export`, không chỉnh tay.
 - Story có `genre` chuẩn ở DB/API (`tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`) để frontend phân khối thể loại.
 - Tham số route `{story}` (API + CMS): **`Story::getRouteKeyName()` = `slug`**; `AppServiceProvider` đăng ký `Route::bind('story', …)` — segment **toàn chữ số** → tìm theo `id`, ngược lại → theo `slug` (giữ tương thích URL cũ dùng id).
-- **CMS:** đăng nhập `GET /admin/login` (tên route `cms.login`). Người dùng cần `is_admin = true` (middleware `cms.admin`). Sau `php artisan db:seed`: `admin@example.com` / `password` — đổi ngay trên môi trường thật. CRUD truyện, chương, nhân vật, lexicon. Form tạo/sửa chương (`chapters/_form`) hiển thị **đếm ký tự nội dung** (cập nhật khi gõ).
+- **CMS:** đăng nhập `GET /admin/login` (tên route `cms.login`). Người dùng cần `is_admin = true` (middleware `cms.admin`). Sau `php artisan db:seed`: `admin@example.com` / `password` — đổi ngay trên môi trường thật. CRUD truyện, chương, nhân vật, lexicon. Form tạo/sửa chương (`chapters/_form`) hiển thị **đếm ký tự nội dung** (cập nhật khi gõ). Nội dung chương khi lưu qua **`Story::sanitizeChapterContent()`** (dòng đăng tải duy nhất + gỡ domain crawl kiểu `tvtruyen.co.uk`).

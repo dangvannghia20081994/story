@@ -44,7 +44,7 @@ class StoreBulkChaptersRequest extends FormRequest
             }
             $filtered[] = [
                 'title' => $row['title'],
-                'content' => Story::stripExclusivePublishingNoticeLines((string) $row['content']),
+                'content' => Story::sanitizeChapterContent((string) $row['content']),
             ];
         }
         $this->merge(['chapters' => array_values($filtered)]);

@@ -1,11 +1,17 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import {
+  AudioWeb,
+  splitIntoSentences,
+  type AudioWebHandle,
+  type AudioWebReadingHighlight,
+} from "@/components/AudioWeb";
 
 function readProgressStorageKey(storyId: string): string {
   return `story-read:${storyId}`;
@@ -73,8 +79,10 @@ async function loadReadPayload(storySlug: string): Promise<ReadPayload> {
 
   const task = (async () => {
     const key = encodeURIComponent(storySlug);
-    const storyRes = await apiFetch<{ data: Story }>(`/api/stories/${key}`);
-    const chapters = [...(storyRes.data.chapters ?? [])].sort((a, b) => a.id - b.id);
+    const storyRes = await apiFetch<{ data: Story }>(
+      `/api/stories/${key}?chapters_order=asc&chapters_full=1`,
+    );
+    const chapters = [...(storyRes.data.chapters ?? [])];
 
     return {
       story: storyRes.data,
@@ -199,6 +207,35 @@ function ReadStoryPageContent() {
   const hasPrev = currentChapterIndex > 0;
   const hasNext = currentChapterIndex < chapters.length - 1;
   const audioUrl = chapterAudioUrl(currentChapter);
+
+  const sentenceElementsRef = useRef<(HTMLElement | null)[]>([]);
+  const audioWebRef = useRef<AudioWebHandle | null>(null);
+  const [readTtsHighlight, setReadTtsHighlight] = useState<{
+    sentenceIndex: number | null;
+    isPlaying: boolean;
+    word: { start: number; end: number } | null;
+  }>({ sentenceIndex: null, isPlaying: false, word: null });
+
+  const readSentences = useMemo(
+    () => splitIntoSentences(currentChapter?.content ?? ""),
+    [currentChapter?.content],
+  );
+
+  useEffect(() => {
+    sentenceElementsRef.current.length = readSentences.length;
+  }, [readSentences.length, currentChapter?.id]);
+
+  useEffect(() => {
+    setReadTtsHighlight({ sentenceIndex: null, isPlaying: false, word: null });
+  }, [currentChapter?.id]);
+
+  const onReadHighlightChange = useCallback((h: AudioWebReadingHighlight) => {
+    setReadTtsHighlight({
+      sentenceIndex: h.sentenceIndex,
+      isPlaying: h.isPlaying,
+      word: h.wordInSentence,
+    });
+  }, []);
 
   const scrollReadToAudioRatio = useCallback((ratio: number) => {
     const el = readScrollRef.current;
@@ -423,42 +460,112 @@ function ReadStoryPageContent() {
             className="text-pretty leading-[1.85] text-zinc-800 dark:text-zinc-200"
             style={{ fontSize: `${fontSize}px` }}
           >
-            <div className="whitespace-pre-wrap selection:bg-indigo-200/60 selection:text-zinc-900 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100">
-              {currentChapter?.content}
-            </div>
+            {audioUrl ? (
+              <div className="whitespace-pre-wrap selection:bg-indigo-200/60 selection:text-zinc-900 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100">
+                {currentChapter?.content}
+              </div>
+            ) : readSentences.length === 0 ? (
+              <div className="whitespace-pre-wrap selection:bg-indigo-200/60 selection:text-zinc-900 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100">
+                {currentChapter?.content}
+              </div>
+            ) : (
+              <div className="whitespace-pre-wrap text-left selection:bg-indigo-200/60 selection:text-zinc-900 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100">
+                {readSentences.map((sentence, i) => {
+                  const isPlayingHere =
+                    readTtsHighlight.isPlaying && readTtsHighlight.sentenceIndex === i;
+                  const idleHere =
+                    !readTtsHighlight.isPlaying &&
+                    readTtsHighlight.sentenceIndex === i &&
+                    readTtsHighlight.sentenceIndex !== null;
+                  const wr =
+                    readTtsHighlight.sentenceIndex === i ? readTtsHighlight.word : null;
+
+                  return (
+                    <span
+                      key={`rt-${currentChapter?.id}-${i}`}
+                      ref={(el) => {
+                        sentenceElementsRef.current[i] = el;
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => audioWebRef.current?.playFromSentence(i)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          audioWebRef.current?.playFromSentence(i);
+                        }
+                      }}
+                      className={`mb-1 inline cursor-pointer rounded px-0.5 transition-all duration-200 ${
+                        isPlayingHere
+                          ? "bg-amber-200/95 font-medium text-zinc-900 shadow-sm ring-1 ring-amber-400/60 dark:bg-amber-400/25 dark:text-amber-50 dark:ring-amber-500/40"
+                          : idleHere
+                            ? "bg-indigo-100/90 text-indigo-950 dark:bg-indigo-950/50 dark:text-indigo-100"
+                            : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
+                      } ${isPlayingHere ? "motion-safe:scale-[1.02]" : ""}`}
+                    >
+                      {isPlayingHere && wr && wr.end > wr.start ? (
+                        <>
+                          {sentence.slice(0, wr.start)}
+                          <mark className="rounded-sm bg-violet-300/90 px-0.5 text-zinc-900 dark:bg-violet-600/50 dark:text-zinc-50">
+                            {sentence.slice(wr.start, wr.end)}
+                          </mark>
+                          {sentence.slice(wr.end)}
+                        </>
+                      ) : (
+                        sentence
+                      )}{" "}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </article>
       </main>
 
-      <div className="sticky bottom-0 z-[40] mt-auto border-t border-indigo-200/35 bg-gradient-to-t from-white/97 via-indigo-50/40 to-violet-50/35 shadow-[0_-10px_44px_-10px_rgba(79,70,229,0.18)] backdrop-blur-xl dark:border-indigo-900/40 dark:from-zinc-950/97 dark:via-indigo-950/25 dark:to-violet-950/20">
-        <div className="relative isolate mx-auto max-w-3xl space-y-0 px-3 pb-3 pt-2 md:px-6 md:pb-4">
-          <AudioPlayer
-            layout="read"
-            src={audioUrl ?? ""}
-            speechText={currentChapter.content}
-            storyTitle={story.title}
-            title={currentChapter.title}
-            initialChapterId={currentChapter.id}
-            chapters={chapters.map((c) => ({
-              id: c.id,
-              title: c.title,
-              audio_url: chapterAudioUrl(c),
-              speech_text: c.content,
-            }))}
-            onChapterChange={(id) => {
-              const idx = chapters.findIndex((c) => c.id === id);
-              if (idx >= 0) setCurrentChapterIndex(idx);
-            }}
-            onPlaybackProgress={onPlaybackProgress}
-            onSeekComplete={onSeekComplete}
-            durationHintSec={currentChapter.duration > 0 ? currentChapter.duration : null}
-          />
-          <div className="flex items-center justify-between gap-3 border-t border-white/60 pt-3 dark:border-zinc-800/80">
+      <div className="sticky bottom-0 z-[40] mt-auto border-t border-indigo-200/35 bg-gradient-to-t from-white/97 via-indigo-50/40 to-violet-50/35 shadow-[0_-8px_32px_-10px_rgba(79,70,229,0.14)] backdrop-blur-xl dark:border-indigo-900/40 dark:from-zinc-950/97 dark:via-indigo-950/25 dark:to-violet-950/20">
+        <div className="relative isolate mx-auto w-full max-w-3xl space-y-0 px-4 pb-2 pt-1.5 md:px-8 md:pb-3">
+          {audioUrl ? (
+            <AudioPlayer
+              layout="read"
+              src={audioUrl}
+              speechText={currentChapter.content}
+              initialChapterId={currentChapter.id}
+              chapters={chapters.map((c) => ({
+                id: c.id,
+                title: c.title,
+                audio_url: chapterAudioUrl(c),
+                speech_text: c.content,
+              }))}
+              onChapterChange={(id) => {
+                const idx = chapters.findIndex((c) => c.id === id);
+                if (idx >= 0) setCurrentChapterIndex(idx);
+              }}
+              onPlaybackProgress={onPlaybackProgress}
+              onSeekComplete={onSeekComplete}
+              durationHintSec={currentChapter.duration > 0 ? currentChapter.duration : null}
+            />
+          ) : (
+            <AudioWeb
+              ref={audioWebRef}
+              key={currentChapter.id}
+              text={currentChapter.content ?? ""}
+              sentenceElementsRef={sentenceElementsRef}
+              onHighlightChange={onReadHighlightChange}
+              positionStorageKey={
+                story?.id != null
+                  ? `story-audioweb:${story.id}:${currentChapter.id}`
+                  : undefined
+              }
+              className="border-0 bg-transparent shadow-none dark:bg-transparent"
+            />
+          )}
+          <div className="flex items-center justify-between gap-3 border-t border-white/60 pt-1.5 dark:border-zinc-800/80">
             <button
               type="button"
               onClick={goToPrev}
               disabled={!hasPrev}
-              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition md:px-4 md:py-2 md:text-sm ${
                 hasPrev
                   ? "border border-zinc-200 bg-white text-zinc-800 hover:border-indigo-200 hover:bg-indigo-50/80 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40"
                   : "cursor-not-allowed border border-transparent text-zinc-300 dark:text-zinc-600"
@@ -466,14 +573,14 @@ function ReadStoryPageContent() {
             >
               ← Trước
             </button>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[10px] font-semibold tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 md:px-3 md:py-1 md:text-xs">
               {currentChapterIndex + 1} / {chapters.length}
             </span>
             <button
               type="button"
               onClick={goToNext}
               disabled={!hasNext}
-              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition md:px-4 md:py-2 md:text-sm ${
                 hasNext
                   ? "border border-zinc-200 bg-white text-zinc-800 hover:border-indigo-200 hover:bg-indigo-50/80 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40"
                   : "cursor-not-allowed border border-transparent text-zinc-300 dark:text-zinc-600"

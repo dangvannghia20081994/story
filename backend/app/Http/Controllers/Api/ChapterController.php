@@ -32,14 +32,18 @@ class ChapterController extends Controller
             'content' => ['required', 'string'],
         ]);
 
-        $data['content'] = Story::stripExclusivePublishingNoticeLines($data['content']);
+        $data['content'] = Story::sanitizeChapterContent($data['content']);
 
-        $chapter = $story->chapters()->create([
-            'title' => $data['title'],
-            'content' => $data['content'],
-        ]);
+        $outcome = Chapter::createOrUpdateByTitleForStory($story, $data['title'], $data['content']);
+        $chapter = $outcome['chapter'];
 
-        return response()->json($chapter, 201);
+        return response()->json(
+            array_merge($chapter->toArray(), [
+                'audio_url' => $chapter->publicAudioUrl(),
+                'chapter_created' => $outcome['created'],
+            ]),
+            $outcome['created'] ? 201 : 200
+        );
     }
 
     public function show(Story $story, Chapter $chapter): JsonResponse
@@ -60,11 +64,11 @@ class ChapterController extends Controller
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'content' => ['sometimes', 'string'],
-            'duration' => ['sometimes', 'integer', 'min:0'],
+            'duration' => ['sometimes', 'numeric', 'min:0'],
         ]);
 
         if (array_key_exists('content', $data) && is_string($data['content']) && $data['content'] !== '') {
-            $data['content'] = Story::stripExclusivePublishingNoticeLines($data['content']);
+            $data['content'] = Story::sanitizeChapterContent($data['content']);
         }
 
         $chapter->fill($data)->save();

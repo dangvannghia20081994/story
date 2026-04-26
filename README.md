@@ -25,8 +25,9 @@ docker compose up --build
 | Coqui TTS (tuỳ chọn, `coqui/`) | http://localhost:5002 — Docker (`coqui/run.ps1`) hoặc **không Docker**: `coqui/run-native.ps1` |
 | Postgres  | localhost:5432 |
 | Redis     | localhost:6379 |
+| Crawler worker (Python, tuỳ chọn) | `crawler/worker.py` + `crawler/.env` — Redis + token nội bộ; xem [GUIDE_WINDOW.md](GUIDE_WINDOW.md) mục Crawler, [run-dev.sh](run-dev.sh) |
 
-Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, và **`docker/README.md`** cho image Docker / biến Compose.
+Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, **`crawler/README.md`**, và **`docker/README.md`** cho image Docker / biến Compose.
 
 ## Quy ước: thêm cấu hình hoặc config
 

@@ -30,6 +30,32 @@ class Chapter extends Model
         return $this->belongsTo(Story::class);
     }
 
+    /**
+     * Cùng truyện + cùng tiêu đề: cập nhật nội dung; chưa có thì tạo mới.
+     *
+     * @return array{chapter: Chapter, created: bool}
+     */
+    public static function createOrUpdateByTitleForStory(Story $story, string $title, string $content): array
+    {
+        $existing = static::query()
+            ->where('story_id', $story->id)
+            ->where('title', $title)
+            ->first();
+
+        if ($existing !== null) {
+            $existing->fill(['content' => $content])->save();
+
+            return ['chapter' => $existing->fresh(), 'created' => false];
+        }
+
+        $chapter = $story->chapters()->create([
+            'title' => $title,
+            'content' => $content,
+        ]);
+
+        return ['chapter' => $chapter, 'created' => true];
+    }
+
     public function publicAudioUrl(): ?string
     {
         if ($this->audio_path === null || $this->audio_path === '') {

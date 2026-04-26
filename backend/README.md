@@ -23,7 +23,7 @@ php artisan scramble:export
 php artisan serve
 ```
 
-Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS_PREFIX` (thường rỗng), `CORS_ALLOWED_ORIGINS`, `API_VERSION`, `APP_URL`, `FRONTEND_URL`.
+Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS_PREFIX` (thường rỗng), `CORS_ALLOWED_ORIGINS`, `API_VERSION`, `APP_URL`, `FRONTEND_URL`, **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** (worker Python đọc cùng tên list Redis; token gửi header `X-Crawler-Token` khi gọi `/api/internal/crawler/*`).
 
 Migration **`2026_04_27_100000_drop_tts_related_columns`** (nếu chưa chạy): xoá cột `voice_id`, `pitch`, `rate` trên bảng `characters` và `status`, `error_message` trên `chapters` (DB cũ từ worker/TTS).
 
@@ -37,6 +37,7 @@ Giao diện web trong Laravel (Blade + session), **không** dùng Filament. Qu�
 |-----|--------|
 | `http://localhost:8000/admin/login` | Đăng nhập CMS |
 | `http://localhost:8000/admin` | Bảng điều khiển (sau khi đăng nhập) |
+| `http://localhost:8000/admin/crawler-jobs` | Crawler: tạo job crawl (lưu DB + RPUSH Redis cho worker Python) |
 | `http://localhost:8000/login` | Chuyển hướng tới `/admin/login` (alias cho trang welcome) |
 
 **Quyền:** cột `users.is_admin` (migration `2026_04_26_120000_add_is_admin_to_users_table`). Middleware `cms.admin` chặn user thường.
@@ -56,8 +57,19 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 | `config/filesystems.php` | Disk `public` / Storage |
 | `config/cors.php` | `CORS_ALLOWED_ORIGINS`, đường `api/*` |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
+| `config/crawler.php` | List Redis (`CRAWLER_REDIS_QUEUE`), token API nội bộ (`CRAWLER_INTERNAL_TOKEN`) |
 
 **Quy ước:** mỗi lần thêm/sửa config hoặc biến env liên quan backend → cập nhật **`backend/README.md`** và **`.cursor/agents/backend/AGENT.md`**.
+
+### Crawler (CMS + worker ngoài PHP)
+
+Luồng: form **`/admin/crawler-jobs`** → bảng **`crawler_jobs`** (gồm tuỳ chọn **`chapter_list_next_page_selector`** — CSS link sang trang mục lục kế, ví dụ `.custom-page-item.nav-next .custom-page-link` cho tvtruyen; tuỳ chọn **`chapter_fetch_concurrency`** — tải nhiều trang chương song song, hoặc dùng **`CRAWLER_CHAPTER_CONCURRENCY`** trong `crawler/.env`) → **`Redis::rPush`** payload `{"crawler_job_id": id}`. Worker (**`crawler/worker.py`**) BLPOP, `GET` job, gom URL chương qua nhiều trang mục lục nếu có selector next, rồi quét chương (tuần tự hoặc async theo concurrency). Hướng dẫn: [GUIDE_WINDOW.md](../GUIDE_WINDOW.md), [crawler/README.md](../crawler/README.md).
+
+**Token nội bộ:** nếu chưa có `CRAWLER_INTERNAL_TOKEN`, chạy **`php artisan crawler:internal-token`** (trong `backend/`), copy dòng in ra vào **`backend/.env`** và **`crawler/.env`**, rồi `php artisan config:clear` và khởi động lại worker.
+
+**Nội dung chương:** khi lưu (API, CMS, crawler nội bộ), `Story::sanitizeChapterContent()` áp dụng lên `content`: bỏ dòng quảng bá “đăng tải duy nhất” và **xóa chuỗi tham chiếu `tvtruyen.co.uk`** (kèm `www` / `https://` nếu có) khỏi text crawl.
+
+**Trùng tiêu đề chương:** `Chapter::createOrUpdateByTitleForStory()` — cùng `story_id` + cùng `title` thì **cập nhật `content`**, không tạo dòng mới (API crawler trả `chapter_created` + HTTP 200 khi update; `chapters_imported` chỉ tăng khi tạo mới).
 
 ## API Docs (OpenAPI / Swagger-like)
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Cms\StoreBulkChaptersRequest;
 use App\Http\Requests\Cms\StoreChapterRequest;
 use App\Http\Requests\Cms\UpdateChapterRequest;
+use App\Models\Chapter;
 use App\Models\Story;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -37,12 +38,12 @@ class ChapterController extends Controller
     {
         $data = $request->validated();
 
-        $story->chapters()->create([
-            'title' => $data['title'],
-            'content' => $data['content'],
-        ]);
+        $outcome = Chapter::createOrUpdateByTitleForStory($story, $data['title'], $data['content']);
+        $status = $outcome['created']
+            ? 'Đã tạo chương.'
+            : 'Chương cùng tiêu đề đã tồn tại — đã cập nhật nội dung.';
 
-        return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã tạo chương.');
+        return redirect()->route('cms.stories.chapters.index', $story)->with('status', $status);
     }
 
     public function storeBulk(StoreBulkChaptersRequest $request, Story $story): RedirectResponse
@@ -51,16 +52,13 @@ class ChapterController extends Controller
 
         DB::transaction(function () use ($rows, $story): void {
             foreach ($rows as $row) {
-                $story->chapters()->create([
-                    'title' => $row['title'],
-                    'content' => $row['content'],
-                ]);
+                Chapter::createOrUpdateByTitleForStory($story, $row['title'], $row['content']);
             }
         });
 
         $n = count($rows);
 
-        return redirect()->route('cms.stories.chapters.index', $story)->with('status', "Đã tạo {$n} chương.");
+        return redirect()->route('cms.stories.chapters.index', $story)->with('status', "Đã xử lý {$n} dòng (trùng tiêu đề thì cập nhật nội dung).");
     }
 
     public function edit(Story $story, Chapter $chapter): View

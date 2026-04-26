@@ -16,7 +16,7 @@ class UpdateChapterRequest extends FormRequest
     {
         $content = $this->input('content');
         if (is_string($content) && $content !== '') {
-            $this->merge(['content' => Story::stripExclusivePublishingNoticeLines($content)]);
+            $this->merge(['content' => Story::sanitizeChapterContent($content)]);
         }
     }
 
@@ -28,7 +28,7 @@ class UpdateChapterRequest extends FormRequest
         return [
             'title' => ['sometimes', 'string', 'max:255'],
             'content' => ['sometimes', 'string'],
-            'duration' => ['sometimes', 'integer', 'min:0'],
+            'duration' => ['sometimes', 'numeric', 'min:0'],
             'audio_path' => ['nullable', 'string', 'max:1024'],
         ];
     }

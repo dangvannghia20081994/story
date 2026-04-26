@@ -87,7 +87,17 @@ Chi tiết image và env: [docker/README.md](docker/README.md), [README.md](READ
 
 ---
 
-## 6. Checklist production
+## 6. Crawler (worker Python)
+
+Compose **không** chạy sẵn worker crawl: Playwright + Chromium thường cài trên **host** (hoặc container riêng bạn tự thêm).
+
+1. **Backend** trong `backend/.env`: **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** (mặc định `crawler:queue`). Redis trong Compose publish cổng **6379** — từ host đặt `REDIS_HOST=127.0.0.1` trong `crawler/.env`.
+2. **`CRAWLER_API_BASE_URL`:** URL mà worker gọi được tới API (từ host: `http://127.0.0.1:8000` nếu publish 8000; hoặc domain HTTPS qua reverse proxy).
+3. Trên host: `cd crawler && pip install -r requirements.txt && playwright install chromium`, tạo **`crawler/.env`** từ **`crawler/.env.example`**, chạy **`python worker.py`** (hoặc systemd). Worker đọc `.env` qua `python-dotenv`.
+
+---
+
+## 7. Checklist production
 
 - [ ] `APP_DEBUG=false`, `APP_KEY` đã có
 - [ ] Đổi mật khẩu user seed (`admin@example.com`, …) — xem `backend/README.md`

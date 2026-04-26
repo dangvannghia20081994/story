@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\CharacterController;
+use App\Http\Controllers\Api\Internal\CrawlerInternalController;
 use App\Http\Controllers\Api\LexiconController;
 use App\Http\Controllers\Api\StoryController;
 use Illuminate\Support\Facades\Route;
@@ -29,3 +30,8 @@ Route::get('/lexicons/{lexicon}', [LexiconController::class, 'show']);
 Route::patch('/lexicons/{lexicon}', [LexiconController::class, 'update']);
 Route::delete('/lexicons/{lexicon}', [LexiconController::class, 'destroy']);
 
+Route::prefix('internal/crawler')->middleware('crawler.internal')->group(function (): void {
+    Route::get('/jobs/{crawlerJob}', [CrawlerInternalController::class, 'show']);
+    Route::post('/jobs/{crawlerJob}/chapters', [CrawlerInternalController::class, 'storeChapter']);
+    Route::patch('/jobs/{crawlerJob}/status', [CrawlerInternalController::class, 'updateStatus']);
+});

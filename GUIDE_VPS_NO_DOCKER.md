@@ -120,7 +120,18 @@ Tùy chọn; development thường trên máy cục bộ. Production web có th�
 
 ---
 
-## 6. Kiểm tra
+## 6. Crawler (worker Python)
+
+- **Backend:** trong `backend/.env` đặt **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** (mặc định `crawler:queue`), cùng **`REDIS_*`** trỏ Redis trên máy.
+- **Worker:** Python 3.11+ khuyến nghị, thư mục `crawler/`: `pip install -r requirements.txt`, `playwright install chromium`, file **`crawler/.env`** (mẫu `crawler/.env.example`) với `REDIS_HOST=127.0.0.1`, `CRAWLER_API_BASE_URL` (URL API Laravel, ví dụ `https://api.example.com`), **`CRAWLER_INTERNAL_TOKEN`** trùng backend, `CRAWLER_REDIS_QUEUE` trùng backend.
+- Chạy nền: **`python crawler/worker.py`** (hoặc **systemd** / **supervisor** một process `WorkingDirectory=/var/www/story/crawler`, `ExecStart=.../venv/bin/python worker.py`).
+- **Bảo mật:** không public route `/api/internal/crawler/*`; chỉ worker có token. Tuân thủ robots/ToS site nguồn.
+
+Chi tiết luồng: `backend/README.md` (mục Crawler), CMS `/admin/crawler-jobs`.
+
+---
+
+## 7. Kiểm tra
 
 - API: `curl -sS -H "Accept: application/json" https://api.example.com/docs/api.json | head`
 - File audio (nếu có): `backend/storage/app/public/...` — xem `backend/README.md`
