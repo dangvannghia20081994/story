@@ -25,6 +25,16 @@ class Story extends Model
         'khac' => 'Khác',
     ];
 
+    public const SERIAL_STATUSES = [
+        'ongoing',
+        'completed',
+    ];
+
+    public const SERIAL_STATUS_LABELS = [
+        'ongoing' => 'Đang ra',
+        'completed' => 'Hoàn thành',
+    ];
+
     public static function genreLabel(?string $slug): string
     {
         if ($slug === null || $slug === '') {
@@ -34,11 +44,41 @@ class Story extends Model
         return self::GENRE_LABELS[$slug] ?? $slug;
     }
 
+    public static function serialStatusLabel(?string $status): string
+    {
+        if ($status === null || $status === '') {
+            return '—';
+        }
+
+        return self::SERIAL_STATUS_LABELS[$status] ?? $status;
+    }
+
+    /**
+     * Bỏ cả dòng nếu (sau khoảng trắng đầu dòng) bắt đầu bằng câu quảng bá đăng tải duy nhất.
+     * Một số bản ghi là “... duy nhất tại …”, số khác dừng ở “... duy nhất” nên dùng tiền tố ngắn hơn, không bắt buộc “ tại”.
+     */
+    public static function stripExclusivePublishingNoticeLines(string $text): string
+    {
+        $prefix = 'Truyện được đăng tải duy nhất';
+        $lines = preg_split('/\R/u', $text) ?: [];
+        $out = [];
+        foreach ($lines as $line) {
+            $forCheck = preg_replace('/^[\x{FEFF}\x{200B}-\x{200D}\p{Zs}\s]+/u', '', $line) ?? $line;
+            if (str_starts_with($forCheck, $prefix)) {
+                continue;
+            }
+            $out[] = $line;
+        }
+
+        return implode("\n", $out);
+    }
+
     protected $fillable = [
         'title',
         'slug',
         'description',
         'genre',
+        'serial_status',
     ];
 
     protected function casts(): array
@@ -80,5 +120,14 @@ class Story extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /** Trang chi tiết truyện trên site công khai (Next) — cùng quy ước với @/lib/storyPath. */
+    public function frontendDetailUrl(): string
+    {
+        $root = rtrim((string) config('app.frontend_url', 'http://localhost:3000'), '/');
+        $key = (is_string($this->slug) && $this->slug !== '') ? $this->slug : (string) $this->id;
+
+        return $root.'/stories/'.rawurlencode($key);
     }
 }

@@ -9,15 +9,15 @@ export default async function MembersPage() {
     <FullWidthLayout>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6 md:p-10">
         <header className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/70">
-          <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Danh sach thanh vien</h1>
+          <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Danh sách thành viên</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Danh sach nhan vat tu cac truyen trong he thong.
+            Danh sách nhân vật từ các truyện trong hệ thống.
           </p>
         </header>
 
         {members.length === 0 ? (
           <section className="rounded-2xl border border-dashed border-zinc-300 bg-white/70 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900/70">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Chua co thanh vien de hien thi.</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Chưa có thành viên để hiển thị.</p>
           </section>
         ) : (
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -30,7 +30,7 @@ export default async function MembersPage() {
                 <h2 className="text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.name}</h2>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Voice ID: {member.voice_id}</p>
                 <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-                  Truyen: <span className="font-medium">{member.story_title ?? `#${member.story_id}`}</span>
+                  Truyện: <span className="font-medium">{member.story_title ?? `#${member.story_id}`}</span>
                 </p>
                 <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                   <span className="rounded-full bg-zinc-100 px-2 py-0.5 dark:bg-zinc-800">

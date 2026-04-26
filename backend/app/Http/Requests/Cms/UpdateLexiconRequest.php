@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Cms;
 
+use App\Enums\LexiconType;
 use App\Models\Lexicon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -32,11 +33,7 @@ class UpdateLexiconRequest extends FormRequest
                     ->ignore($lexicon->id),
             ],
             'replacement' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string', Rule::in([
-                Lexicon::TYPE_PRONUNCIATION,
-                Lexicon::TYPE_NAME,
-                Lexicon::TYPE_FILTER,
-            ])],
+            'type' => ['required', 'string', Rule::in(LexiconType::values())],
             'priority' => ['sometimes', 'integer', 'min:0', 'max:999999'],
         ];
     }

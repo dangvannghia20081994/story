@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Cms;
 
 use App\Http\Controllers\Api\ChapterController as ApiChapterController;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cms\StoreBulkChaptersRequest;
 use App\Http\Requests\Cms\StoreChapterRequest;
 use App\Http\Requests\Cms\UpdateChapterRequest;
 use App\Models\Chapter;
 use App\Models\Story;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ChapterController extends Controller
@@ -29,6 +31,11 @@ class ChapterController extends Controller
         return view('cms.chapters.create', compact('story'));
     }
 
+    public function createBulk(Story $story): View
+    {
+        return view('cms.chapters.bulk', compact('story'));
+    }
+
     public function store(StoreChapterRequest $request, Story $story): RedirectResponse
     {
         $data = $request->validated();
@@ -40,6 +47,25 @@ class ChapterController extends Controller
         ]);
 
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã tạo chương.');
+    }
+
+    public function storeBulk(StoreBulkChaptersRequest $request, Story $story): RedirectResponse
+    {
+        $rows = $request->validated('chapters');
+
+        DB::transaction(function () use ($rows, $story): void {
+            foreach ($rows as $row) {
+                $story->chapters()->create([
+                    'title' => $row['title'],
+                    'content' => $row['content'],
+                    'status' => Chapter::STATUS_PENDING,
+                ]);
+            }
+        });
+
+        $n = count($rows);
+
+        return redirect()->route('cms.stories.chapters.index', $story)->with('status', "Đã tạo {$n} chương.");
     }
 
     public function edit(Story $story, Chapter $chapter): View

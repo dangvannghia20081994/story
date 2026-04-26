@@ -18,6 +18,11 @@ const GENRES = [
   { value: "khac", label: "Khác" },
 ];
 
+const SERIAL_OPTIONS = [
+  { value: "ongoing", label: "Đang ra" },
+  { value: "completed", label: "Hoàn thành" },
+];
+
 export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +33,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
     slug: "",
     description: "",
     genre: "",
+    serial_status: "ongoing",
     firstChapterTitle: "",
     firstChapterContent: "",
   });
@@ -39,6 +45,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
         slug: "",
         description: "",
         genre: "",
+        serial_status: "ongoing",
         firstChapterTitle: "",
         firstChapterContent: "",
       });
@@ -67,6 +74,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
         slug: formData.slug.trim() || undefined,
         description: formData.description.trim() || undefined,
         genre: formData.genre || undefined,
+        serial_status: formData.serial_status || undefined,
       };
 
       if (formData.firstChapterTitle.trim() && formData.firstChapterContent.trim()) {
@@ -164,6 +172,23 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
               {GENRES.map((g) => (
                 <option key={g.value} value={g.value}>
                   {g.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Trạng thái ra truyện
+            </label>
+            <select
+              value={formData.serial_status}
+              onChange={(e) => setFormData({ ...formData, serial_status: e.target.value })}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            >
+              {SERIAL_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
                 </option>
               ))}
             </select>

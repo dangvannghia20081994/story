@@ -30,10 +30,21 @@ class StoryController extends Controller
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')],
             'description' => ['nullable', 'string', 'max:10000'],
             'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
+            'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
             'first_chapter' => ['nullable', 'array'],
             'first_chapter.title' => ['required_with:first_chapter', 'string', 'max:255'],
             'first_chapter.content' => ['required_with:first_chapter', 'string'],
         ]);
+
+        if (isset($data['description']) && is_string($data['description']) && $data['description'] !== '') {
+            $data['description'] = Story::stripExclusivePublishingNoticeLines($data['description']);
+            if (trim($data['description']) === '') {
+                $data['description'] = null;
+            }
+        }
+        if (! empty($data['first_chapter']['content']) && is_string($data['first_chapter']['content'])) {
+            $data['first_chapter']['content'] = Story::stripExclusivePublishingNoticeLines($data['first_chapter']['content']);
+        }
 
         $story = DB::transaction(function () use ($data) {
             $slug = $data['slug'] ?? null;
@@ -42,6 +53,7 @@ class StoryController extends Controller
                 'slug' => $slug,
                 'description' => $data['description'] ?? null,
                 'genre' => $data['genre'] ?? null,
+                'serial_status' => $data['serial_status'] ?? 'ongoing',
             ]);
 
             if (! empty($data['first_chapter'])) {
@@ -81,10 +93,18 @@ class StoryController extends Controller
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')->ignore($story->id)],
             'description' => ['nullable', 'string', 'max:10000'],
             'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
+            'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
         ]);
 
         if (array_key_exists('slug', $data) && ($data['slug'] === null || $data['slug'] === '')) {
             $data['slug'] = Str::slug($story->title).'-'.$story->id;
+        }
+
+        if (array_key_exists('description', $data) && is_string($data['description']) && $data['description'] !== '') {
+            $data['description'] = Story::stripExclusivePublishingNoticeLines($data['description']);
+            if (trim($data['description']) === '') {
+                $data['description'] = null;
+            }
         }
 
         $story->fill($data)->save();

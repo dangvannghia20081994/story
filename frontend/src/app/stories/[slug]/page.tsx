@@ -6,6 +6,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { SidebarLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
+import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
 import { storyKey, storyReadHref } from "@/lib/storyPath";
 
 type ChapterRow = {
@@ -25,6 +26,7 @@ type StoryShowData = {
   slug: string;
   description: string | null;
   genre: string | null;
+  serial_status?: string | null;
   chapters?: ChapterRow[];
   chapters_count?: number;
   characters_count?: number;
@@ -87,6 +89,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   const audioSrc = currentChapter != null ? chapterAudioUrl(currentChapter) : null;
 
   const genre = genreLabel(s.genre);
+  const serialLabel = serialStatusLabel(s.serial_status ?? undefined);
   const withAudio = chapters.filter((c) => chapterAudioUrl(c)).length;
   const failedChapter = chapters.find((c) => c.status === "failed" && c.error_message);
 
@@ -115,6 +118,13 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                 {genre ? (
                   <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-200">
                     {genre}
+                  </span>
+                ) : null}
+                {serialLabel ? (
+                  <span
+                    className={`rounded-full border px-3 py-0.5 text-xs font-semibold tracking-wide ${serialStatusBadgeClass(s.serial_status ?? undefined)}`}
+                  >
+                    {serialLabel}
                   </span>
                 ) : null}
                 {typeof s.chapters_count === "number" ? (
@@ -191,8 +201,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
               </h2>
               <p className="mt-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">Chưa có audio</p>
               <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
-                Dùng nút <span className="font-medium text-zinc-700 dark:text-zinc-400">Xếp hàng TTS</span> ở từng
-                chương chưa có audio bên dưới. Sau vài phút, tải lại trang để nghe thử.
+                Audio sẽ được hiển thị khi từng chương xử lý xong. Sau vài phút, tải lại trang để nghe thử.
               </p>
             </div>
           </section>
@@ -252,7 +261,6 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
         ) : (
           <section className={`${shell} p-6 text-center`}>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Truyện này chưa có chương.</p>
-            <p className="mt-2 text-xs text-zinc-500">Thêm chương qua CMS hoặc API để bắt đầu.</p>
           </section>
         )}
       </div>

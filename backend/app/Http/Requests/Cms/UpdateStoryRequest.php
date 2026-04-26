@@ -13,6 +13,15 @@ class UpdateStoryRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $desc = $this->input('description');
+        if (is_string($desc) && $desc !== '') {
+            $clean = Story::stripExclusivePublishingNoticeLines($desc);
+            $this->merge(['description' => trim($clean) === '' ? null : $clean]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -26,6 +35,7 @@ class UpdateStoryRequest extends FormRequest
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')->ignore($story->id)],
             'description' => ['nullable', 'string', 'max:10000'],
             'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
+            'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
         ];
     }
 }

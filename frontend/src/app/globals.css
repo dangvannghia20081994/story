@@ -5,11 +5,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: light;
 }
 
 html.dark {
   --background: #09090b;
   --foreground: #f4f4f5;
+  color-scheme: dark;
 }
 
 body {

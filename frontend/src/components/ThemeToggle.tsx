@@ -5,7 +5,10 @@ import { useCallback, useLayoutEffect, useState } from "react";
 const STORAGE_KEY = "story-theme";
 
 function applyTheme(mode: "light" | "dark") {
-  document.documentElement.classList.toggle("dark", mode === "dark");
+  const dark = mode === "dark";
+  const root = document.documentElement;
+  root.classList.toggle("dark", dark);
+  root.style.colorScheme = dark ? "dark" : "light";
   try {
     localStorage.setItem(STORAGE_KEY, mode);
   } catch {

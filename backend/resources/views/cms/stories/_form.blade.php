@@ -27,6 +27,14 @@
         </select>
     </div>
     <div class="field">
+        <label for="serial_status">Trạng thái ra truyện</label>
+        <select id="serial_status" name="serial_status">
+            @foreach (\App\Models\Story::SERIAL_STATUSES as $st)
+                <option value="{{ $st }}" @selected(old('serial_status', $story?->serial_status ?? 'ongoing') === $st)>{{ \App\Models\Story::serialStatusLabel($st) }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div class="field">
         <label for="description">Mô tả</label>
         <textarea id="description" name="description" rows="4">{{ old('description', $story?->description ?? '') }}</textarea>
     </div>

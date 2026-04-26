@@ -2,11 +2,22 @@
 
 @section('title', 'Sửa lexicon')
 
+@push('head')
+    @include('cms.partials.icon-toolbar-styles')
+@endpush
+
 @section('content')
     <h1>Sửa lexicon</h1>
-    <p><a href="{{ route('cms.lexicons.index') }}">← Danh sách</a></p>
+    <div class="cms-story-toolbar">
+        <a class="icon-btn" href="{{ route('cms.lexicons.index') }}" title="Danh sách lexicon" aria-label="Quay lại danh sách lexicon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </a>
+        <a class="icon-btn" href="{{ route('cms.stories.index') }}" title="Truyện" aria-label="Danh sách truyện">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </a>
+    </div>
     @include('cms.lexicons._form', [
-        'types' => $types,
+        'lexiconTypes' => $lexiconTypes,
         'lexicon' => $lexicon,
         'action' => route('cms.lexicons.update', $lexicon),
         'method' => 'PUT',

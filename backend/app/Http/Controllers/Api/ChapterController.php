@@ -47,6 +47,8 @@ class ChapterController extends Controller
             ])],
         ]);
 
+        $data['content'] = Story::stripExclusivePublishingNoticeLines($data['content']);
+
         $chapter = $story->chapters()->create([
             'title' => $data['title'],
             'content' => $data['content'],
@@ -83,6 +85,10 @@ class ChapterController extends Controller
             'duration' => ['sometimes', 'integer', 'min:0'],
             'error_message' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        if (array_key_exists('content', $data) && is_string($data['content']) && $data['content'] !== '') {
+            $data['content'] = Story::stripExclusivePublishingNoticeLines($data['content']);
+        }
 
         $chapter->fill($data)->save();
         $fresh = $chapter->fresh();

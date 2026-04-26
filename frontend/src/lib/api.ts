@@ -50,6 +50,7 @@ export interface Story {
   slug: string;
   description: string | null;
   genre: string | null;
+  serial_status?: string;
   created_at: string;
   updated_at: string;
   chapters_count?: number;
@@ -60,6 +61,7 @@ export interface CreateStoryData {
   slug?: string;
   description?: string;
   genre?: string;
+  serial_status?: string;
   first_chapter?: {
     title: string;
     content: string;

@@ -17,6 +17,19 @@ class StoreStoryRequest extends FormRequest
     /**
      * @return array<string, mixed>
      */
+    protected function prepareForValidation(): void
+    {
+        $desc = $this->input('description');
+        if (is_string($desc) && $desc !== '') {
+            $clean = Story::stripExclusivePublishingNoticeLines($desc);
+            $this->merge(['description' => trim($clean) === '' ? null : $clean]);
+        }
+        $content = $this->input('first_chapter_content');
+        if (is_string($content) && $content !== '') {
+            $this->merge(['first_chapter_content' => Story::stripExclusivePublishingNoticeLines($content)]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -24,6 +37,7 @@ class StoreStoryRequest extends FormRequest
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')],
             'description' => ['nullable', 'string', 'max:10000'],
             'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
+            'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
             'first_chapter_title' => ['nullable', 'string', 'max:255'],
             'first_chapter_content' => ['nullable', 'string'],
         ];

@@ -28,13 +28,13 @@ export default async function MemberDetailPage({ params, searchParams }: MemberD
     <FullWidthLayout>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 md:p-10">
         <Link href="/members" className="text-sm text-zinc-600 underline-offset-4 hover:underline dark:text-zinc-400">
-          ← Danh sach thanh vien
+          ← Danh sách thành viên
         </Link>
 
         <section className="rounded-2xl border border-white/70 bg-white/75 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75">
           <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">{member.name}</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Thuoc truyen: <span className="font-medium">{member.story_title ?? `#${member.story_id}`}</span>
+            Thuộc truyện: <span className="font-medium">{member.story_title ?? `#${member.story_id}`}</span>
           </p>
         </section>
 

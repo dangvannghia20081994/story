@@ -27,9 +27,9 @@ const genreDefinitions = [
 ];
 
 function statusLabel(status: string): string {
-  if (status === "completed") return "Da render";
-  if (status === "processing") return "Dang xu ly";
-  return "Chua render";
+  if (status === "completed") return "Đã render";
+  if (status === "processing") return "Đang xử lý";
+  return "Chưa render";
 }
 
 async function loadStories(): Promise<Story[]> {
@@ -64,12 +64,12 @@ export default async function Home() {
                 {genre.label}
               </h2>
               <Link href="/stories" className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
-                Xem tat ca →
+                Xem tất cả →
               </Link>
             </div>
 
             {genre.stories.length === 0 ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Chua co truyen cho the loai nay.</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Chưa có truyện cho thể loại này.</p>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {genre.stories.map((story) => (
@@ -85,16 +85,16 @@ export default async function Home() {
                       {story.title}
                     </h3>
                     <p className="mt-2 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      {story.description || "Khong co mo ta"}
+                      {story.description || "Không có mô tả"}
                     </p>
                     <div className="mt-3 flex items-center justify-between text-xs">
                       <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                         {statusLabel(story.tts_status)}
                       </span>
                       {story.audio_url ? (
-                        <span className="font-medium text-emerald-600 dark:text-emerald-400">Co audio</span>
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">Có audio</span>
                       ) : (
-                        <span className="text-zinc-400 dark:text-zinc-500">Chua audio</span>
+                        <span className="text-zinc-400 dark:text-zinc-500">Chưa audio</span>
                       )}
                     </div>
                   </Link>

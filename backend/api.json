@@ -1601,6 +1601,17 @@
                                             "khac"
                                         ]
                                     },
+                                    "serial_status": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "enum": [
+                                            "ongoing",
+                                            "completed"
+                                        ],
+                                        "description": "Mặc định ongoing (đang ra) nếu bỏ qua."
+                                    },
                                     "first_chapter": {
                                         "type": "object",
                                         "properties": {
@@ -1857,6 +1868,16 @@
                                             "kiem-hiep",
                                             "do-thi",
                                             "khac"
+                                        ]
+                                    },
+                                    "serial_status": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "enum": [
+                                            "ongoing",
+                                            "completed"
                                         ]
                                     }
                                 }
@@ -2117,6 +2138,14 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "serial_status": {
+                        "type": "string",
+                        "description": "ongoing = đang ra, completed = hoàn thành",
+                        "enum": [
+                            "ongoing",
+                            "completed"
+                        ]
                     }
                 },
                 "required": [
@@ -2126,7 +2155,8 @@
                     "updated_at",
                     "slug",
                     "description",
-                    "genre"
+                    "genre",
+                    "serial_status"
                 ],
                 "title": "Story"
             }

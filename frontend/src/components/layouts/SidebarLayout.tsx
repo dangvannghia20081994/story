@@ -1,6 +1,4 @@
-"use client";
-
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, Suspense } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { storyDetailHref } from "@/lib/storyPath";
@@ -9,7 +7,6 @@ type Story = {
   id: number;
   slug: string | null;
   title: string;
-  tts_status: string;
 };
 
 interface SidebarLayoutProps {
@@ -17,22 +14,61 @@ interface SidebarLayoutProps {
   storyId?: number;
 }
 
-export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
-  const [relatedStories, setRelatedStories] = useState<Story[]>([]);
+async function loadRelatedStories(storyId?: number): Promise<Story[]> {
+  if (!storyId) return [];
 
-  useEffect(() => {
-    async function loadRelated() {
-      try {
-        const res = await apiFetch<{ data: Story[] }>("/api/stories?limit=5");
-        setRelatedStories(res.data.filter((s) => s.id !== storyId));
-      } catch (e) {
-        console.error("Failed to load related stories:", e);
-      }
-    }
-    if (storyId) {
-      loadRelated();
-    }
-  }, [storyId]);
+  try {
+    const res = await apiFetch<{ data: Story[] }>("/api/stories?limit=5");
+    return (res.data ?? []).filter((story) => story.id !== storyId);
+  } catch {
+    return [];
+  }
+}
+
+function RelatedStoriesSkeleton({ panelClass }: { panelClass: string }) {
+  return (
+    <div className={panelClass}>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        Truyện khác
+      </h3>
+      <ul className="space-y-2">
+        {Array.from({ length: 4 }).map((_, idx) => (
+          <li key={idx} className="h-8 animate-pulse rounded-lg bg-zinc-200/80 dark:bg-zinc-800/80" />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+async function RelatedStoriesPanel({ panelClass, storyId }: { panelClass: string; storyId?: number }) {
+  const relatedStories = await loadRelatedStories(storyId);
+
+  return (
+    <div className={panelClass}>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        Truyện khác
+      </h3>
+      {relatedStories.length > 0 ? (
+        <ul className="space-y-2">
+          {relatedStories.map((story) => (
+            <li key={story.id}>
+              <Link
+                href={storyDetailHref(story)}
+                className="block truncate rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-zinc-300 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
+              >
+                {story.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-zinc-500">Không có truyện khác</p>
+      )}
+    </div>
+  );
+}
+
+export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
 
   const panel =
     "rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
@@ -46,27 +82,9 @@ export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
         {/* Sidebar */}
         <aside className="space-y-6 lg:pt-0">
           {/* Related Stories */}
-          <div className={panel}>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Truyện khác
-            </h3>
-            {relatedStories.length > 0 ? (
-              <ul className="space-y-2">
-                {relatedStories.map((story) => (
-                  <li key={story.id}>
-                    <Link
-                      href={storyDetailHref(story)}
-                      className="block truncate rounded-lg px-2 py-2 text-sm text-zinc-700 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-zinc-300 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
-                    >
-                      {story.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-zinc-500">Không có truyện khác</p>
-            )}
-          </div>
+          <Suspense fallback={<RelatedStoriesSkeleton panelClass={panel} />}>
+            <RelatedStoriesPanel panelClass={panel} storyId={storyId} />
+          </Suspense>
 
           {/* Quick Links */}
           <div className={panel}>

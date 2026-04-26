@@ -1,5 +1,5 @@
 {{--
-    Biến: $types, $lexicon (null khi tạo), $action, $method ('POST'|'PUT')
+    Biến: $lexiconTypes (App\Enums\LexiconType[]), $lexicon (null khi tạo), $action, $method ('POST'|'PUT')
 --}}
 @php
     $isEdit = isset($lexicon) && $lexicon instanceof \App\Models\Lexicon && $lexicon->exists;
@@ -20,8 +20,8 @@
     <div class="field">
         <label for="type">{{ $isEdit ? 'Loại' : 'Loại *' }}</label>
         <select id="type" name="type" required>
-            @foreach ($types as $t)
-                <option value="{{ $t }}" @selected(old('type', $lexicon?->type ?? 'pronunciation') === $t)>{{ $t }}</option>
+            @foreach ($lexiconTypes as $t)
+                <option value="{{ $t->value }}" @selected(old('type', $lexicon?->type ?? 'pronunciation') === $t->value)>{{ $t->label() }}</option>
             @endforeach
         </select>
     </div>
