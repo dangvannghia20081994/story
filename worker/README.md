@@ -17,7 +17,7 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 
 | Biến | Mô tả |
 |-------|--------|
-| `REDIS_URL` | Redis, ví dụ `redis://127.0.0.1:6379/0` |
+| `REDIS_URL` | Redis, ví dụ `redis://localhost:6379/0` |
 | `QUEUE_NAME` | Mặc định `story:tts:queue` |
 | `BACKEND_URL` | Base URL Laravel |
 | `WORKER_TOKEN` | Trùng `WORKER_INTERNAL_TOKEN` của Laravel |

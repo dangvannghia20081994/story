@@ -11,7 +11,7 @@ Monorepo: `backend/` (Laravel), `frontend/` (Next.js), `worker/` (TTS), tùy ch�
 | Thành phần | Gợi ý trên Windows |
 |-------------|---------------------|
 | **PostgreSQL** | [Installer chính thức](https://www.postgresql.org/download/windows/) — nhớ cổng (mặc định 5432) và mật khẩu user `postgres` hoặc user riêng. |
-| **Redis** | [Memurai](https://www.memurai.com/) (tương thích Redis), hoặc Redis qua **WSL2**, hoặc bản port Windows khác — worker + Laravel cần Redis chạy tại `127.0.0.1:6379`. |
+| **Redis** | [Memurai](https://www.memurai.com/) (tương thích Redis), hoặc Redis qua **WSL2**, hoặc bản port Windows khác — worker + Laravel cần Redis chạy tại `localhost:6379`. |
 | **PHP 8.4 + Composer** | [windows.php.net](https://windows.php.net/download/) (Thread Safe ZIP) + bật extension `pgsql`, `openssl`, `curl`, `mbstring`, `zip`, `bcmath` trong `php.ini`; [Composer](https://getcomposer.org/download/). Hoặc dùng **Laragon** / **XAMPP** nếu đủ PHP 8.4. |
 | **Node.js 20+** | [nodejs.org](https://nodejs.org/) LTS. |
 | **Python 3.12+** | [python.org](https://www.python.org/downloads/windows/) — khi cài, chọn **Add python.exe to PATH**. |
@@ -32,9 +32,9 @@ php artisan key:generate
 Sửa `backend\.env`:
 
 - `DB_*` trỏ tới PostgreSQL local.
-- `REDIS_*` (`REDIS_HOST=127.0.0.1`, …). Nếu chưa cài extension **phpredis**, đặt `REDIS_CLIENT=predis` (mặc định trong `.env.example` của project).
+- `REDIS_*` (`REDIS_HOST=localhost`, …). Nếu chưa cài extension **phpredis**, đặt `REDIS_CLIENT=predis` (mặc định trong `.env.example` của project).
 - `WORKER_INTERNAL_TOKEN` — chuỗi bí mật; ghi lại để dùng cho worker.
-- `APP_URL=http://127.0.0.1:8000` (hoặc URL bạn dùng).
+- `APP_URL=http://localhost:8000` (hoặc URL bạn dùng).
 - `CORS_ALLOWED_ORIGINS` — thêm `http://localhost:3000` (và cổng khác nếu Next chạy khác).
 
 ```bash
@@ -45,7 +45,7 @@ php artisan storage:link --force --relative
 php artisan serve
 ```
 
-Giữ terminal này mở. API: http://127.0.0.1:8000 — docs: http://127.0.0.1:8000/docs/api
+Giữ terminal này mở. API: http://localhost:8000 — docs: http://localhost:8000/docs/api
 
 **Symlink `public/storage`:** nếu `storage:link` lỗi, xem `backend/README.md` (bật **Developer Mode** hoặc chạy terminal **Run as administrator**).
 
@@ -63,7 +63,7 @@ npm install
 Tạo file `frontend\.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ```bash
@@ -88,9 +88,9 @@ copy .env.example .env
 
 Sửa `worker\.env`:
 
-- `REDIS_URL=redis://127.0.0.1:6379/0`
+- `REDIS_URL=redis://localhost:6379/0`
 - `QUEUE_NAME=story:tts:queue`
-- `BACKEND_URL=http://127.0.0.1:8000` (trùng host/port với `php artisan serve`)
+- `BACKEND_URL=http://localhost:8000` (trùng host/port với `php artisan serve`)
 - `WORKER_TOKEN` — **cùng giá trị** với `WORKER_INTERNAL_TOKEN` trong `backend\.env`
 - `TTS_PROVIDER=ffmpeg` hoặc `fpt` + `FPT_API_KEY` nếu dùng FPT
 
@@ -98,7 +98,7 @@ Sửa `worker\.env`:
 uvicorn app.main:app --reload --port 8080
 ```
 
-Kiểm tra: http://127.0.0.1:8080/health
+Kiểm tra: http://localhost:8080/health
 
 ---
 

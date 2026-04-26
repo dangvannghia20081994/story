@@ -55,7 +55,41 @@ function chapterAudioUrl(c: Chapter | undefined): string | null {
 type Story = {
   id: number;
   title: string;
+  chapters?: Chapter[];
 };
+
+type ReadPayload = {
+  story: Story;
+  chapters: Chapter[];
+};
+
+/**
+ * Cache promise theo slug để tránh gọi API lặp ở dev Strict Mode
+ * (effect mount/unmount/mount lại). Nếu request lỗi thì xóa cache để lần sau retry.
+ */
+const readPayloadPromiseCache = new Map<string, Promise<ReadPayload>>();
+
+async function loadReadPayload(storySlug: string): Promise<ReadPayload> {
+  const cached = readPayloadPromiseCache.get(storySlug);
+  if (cached) return cached;
+
+  const task = (async () => {
+    const key = encodeURIComponent(storySlug);
+    const storyRes = await apiFetch<{ data: Story }>(`/api/stories/${key}`);
+    const chapters = [...(storyRes.data.chapters ?? [])].sort((a, b) => a.id - b.id);
+
+    return {
+      story: storyRes.data,
+      chapters,
+    };
+  })().catch((error) => {
+    readPayloadPromiseCache.delete(storySlug);
+    throw error;
+  });
+
+  readPayloadPromiseCache.set(storySlug, task);
+  return task;
+}
 
 const shell =
   "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
@@ -86,25 +120,34 @@ function ReadStoryPageContent() {
       setLoading(false);
       return;
     }
+
+    let cancelled = false;
+
     async function loadData() {
+      setLoading(true);
       try {
-        const key = encodeURIComponent(storySlug);
-        const [storyRes, chaptersRes] = await Promise.all([
-          apiFetch<{ data: Story }>(`/api/stories/${key}`),
-          apiFetch<{ data: Chapter[] }>(`/api/stories/${key}/chapters`),
-        ]);
-        setStory(storyRes.data);
-        const list = chaptersRes.data ?? [];
+        const payload = await loadReadPayload(storySlug);
+        if (cancelled) return;
+
+        setStory(payload.story);
+        const list = payload.chapters;
         const initialIdx = resolveInitialChapterIndex(storySlug, list);
         setChapters(list);
         setCurrentChapterIndex(initialIdx);
       } catch (e) {
+        if (cancelled) return;
         console.error("Failed to load:", e);
       } finally {
+        if (cancelled) return;
         setLoading(false);
       }
     }
+
     loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [storySlug]);
 
   useEffect(() => {

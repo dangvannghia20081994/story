@@ -450,6 +450,12 @@ def _poll_async_mp3(url: str, *, chunk_label: str) -> bytes:
                 resp = client.get(url, headers=poll_headers)
             last_status = resp.status_code
             last_len = len(resp.content) if resp.content else 0
+            if resp.status_code in (401, 403):
+                body = (resp.text or "")[:500]
+                raise RuntimeError(
+                    f"FPT async URL returned {resp.status_code} (api_key hết hạn/sai; hoặc URL không hợp lệ). "
+                    f"Body: {body!r}"
+                )
             if resp.status_code == 404 and not logged_404_info:
                 logger.info(
                     "%s: async URL returned 404 once (normal until file is ready on CDN); "
@@ -503,7 +509,9 @@ def _poll_async_mp3(url: str, *, chunk_label: str) -> bytes:
         last_len,
     )
     raise TimeoutError(
-        f"FPT async audio not ready after {settings.fpt_poll_timeout_sec}s (last HTTP {last_status})"
+        f"FPT async audio not ready after {settings.fpt_poll_timeout_sec}s (last HTTP {last_status}). "
+        f"If last was 404: CDN chưa ghi file — thử tăng FPT_ASYNC_FIRST_POLL_DELAY_SEC (vd. 15) "
+        f"và FPT_POLL_TIMEOUT_SEC; kiểm tra FPT_API_KEY / biến đội FPT. URL (rút gọn): {_shorten_for_log(url, 120)!r}"
     )
 
 

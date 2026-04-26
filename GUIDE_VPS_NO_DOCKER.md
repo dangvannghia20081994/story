@@ -21,7 +21,7 @@ sudo -u postgres psql -c "CREATE USER story WITH PASSWORD 'your-secure-password'
 sudo -u postgres psql -c "CREATE DATABASE story OWNER story;"
 ```
 
-Trong `backend/.env`: `DB_CONNECTION=pgsql`, `DB_HOST=127.0.0.1`, `DB_DATABASE=story`, `DB_USERNAME=story`, `DB_PASSWORD=...`, `REDIS_HOST=127.0.0.1`, `REDIS_PREFIX=` (rỗng nếu cần đồng bộ tên queue với worker), `REDIS_CLIENT=predis` nếu không cài `phpredis`.
+Trong `backend/.env`: `DB_CONNECTION=pgsql`, `DB_HOST=localhost`, `DB_DATABASE=story`, `DB_USERNAME=story`, `DB_PASSWORD=...`, `REDIS_HOST=localhost`, `REDIS_PREFIX=` (rỗng nếu cần đồng bộ tên queue với worker), `REDIS_CLIENT=predis` nếu không cài `phpredis`.
 
 ---
 
@@ -110,7 +110,7 @@ npm run build
 NODE_ENV=production npm run start -- -p 3000
 ```
 
-Hoặc dùng **systemd** / **PM2** để giữ tiến trình. Nginx `proxy_pass` tới `http://127.0.0.1:3000` cho domain frontend.
+Hoặc dùng **systemd** / **PM2** để giữ tiến trình. Nginx `proxy_pass` tới `http://localhost:3000` cho domain frontend.
 
 ---
 
@@ -126,9 +126,9 @@ cp .env.example .env
 
 `worker/.env` tối thiểu:
 
-- `REDIS_URL=redis://127.0.0.1:6379/0`
+- `REDIS_URL=redis://localhost:6379/0`
 - `QUEUE_NAME=story:tts:queue`
-- `BACKEND_URL=https://api.example.com` (URL mà worker gọi được — cùng máy có thể `http://127.0.0.1:8000` nếu chỉ nội bộ)
+- `BACKEND_URL=https://api.example.com` (URL mà worker gọi được — cùng máy có thể `http://localhost:8000` nếu chỉ nội bộ)
 - `WORKER_TOKEN` = `WORKER_INTERNAL_TOKEN` của Laravel
 - `TTS_PROVIDER=fpt` + `FPT_API_KEY` nếu dùng FPT
 
@@ -151,7 +151,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/var/www/story/worker
 Environment=PATH=/var/www/story/worker/.venv/bin
-ExecStart=/var/www/story/worker/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+ExecStart=/var/www/story/worker/.venv/bin/uvicorn app.main:app --host localhost --port 8080
 Restart=always
 
 [Install]

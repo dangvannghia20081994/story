@@ -78,21 +78,31 @@ def notify_backend_completed_upload(
     }
     files = {"audio": ("audio.mp3", audio_bytes, "audio/mpeg")}
     timeout = httpx.Timeout(300.0, connect=30.0)
-    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
-        r = client.post(url, data=data, files=files, headers=headers)
-        logger.info(
-            "Backend tts-complete (multipart): story_id=%s chapter_id=%s http=%s audio_bytes=%d",
-            story_id,
-            chapter_id,
-            r.status_code,
-            len(audio_bytes),
+    try:
+        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            r = client.post(url, data=data, files=files, headers=headers)
+    except httpx.RequestError as exc:
+        logger.warning(
+            "Cannot reach backend to upload TTS (start Laravel: php artisan serve — BACKEND_URL=%s): %s",
+            settings.backend_url,
+            exc,
         )
-        if r.status_code >= 400:
-            logger.error(
-                "Backend tts-complete error body: %s",
-                (r.text or "")[:500],
-            )
-        r.raise_for_status()
+        raise RuntimeError(
+            f"TTS file ready but backend unreachable at {settings.backend_url!r}: {exc}"
+        ) from exc
+    logger.info(
+        "Backend tts-complete (multipart): story_id=%s chapter_id=%s http=%s audio_bytes=%d",
+        story_id,
+        chapter_id,
+        r.status_code,
+        len(audio_bytes),
+    )
+    if r.status_code >= 400:
+        logger.error(
+            "Backend tts-complete error body: %s",
+            (r.text or "")[:500],
+        )
+    r.raise_for_status()
 
 
 def notify_backend(
@@ -120,16 +130,29 @@ def notify_backend(
         "Authorization": f"Bearer {settings.worker_token}",
         "Accept": "application/json",
     }
-    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-        r = client.post(url, json=payload, headers=headers)
-        logger.info(
-            "Backend tts-complete (json): story_id=%s chapter_id=%s status=%s http=%s",
-            story_id,
-            chapter_id,
-            status,
-            r.status_code,
+    try:
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+            r = client.post(url, json=payload, headers=headers)
+    except httpx.RequestError as exc:
+        logger.warning(
+            "Cannot report TTS result to backend (is Laravel running? BACKEND_URL=%s): %s",
+            settings.backend_url,
+            exc,
         )
-        r.raise_for_status()
+        return
+    logger.info(
+        "Backend tts-complete (json): story_id=%s chapter_id=%s status=%s http=%s",
+        story_id,
+        chapter_id,
+        status,
+        r.status_code,
+    )
+    if r.status_code >= 400:
+        logger.error(
+            "Backend tts-complete (json) error body: %s",
+            (r.text or "")[:500],
+        )
+        return
 
 
 def handle_job(raw: bytes) -> None:
@@ -144,16 +167,13 @@ def handle_job(raw: bytes) -> None:
 
     if settings.tts_provider == "fpt" and not settings.fpt_api_key:
         logger.error("TTS_PROVIDER=fpt but FPT_API_KEY is empty — set env or use TTS_PROVIDER=ffmpeg.")
-        try:
-            notify_backend(
-                story_id=story_id,
-                chapter_id=cid,
-                status="failed",
-                audio_path=None,
-                error="Worker misconfiguration: FPT_API_KEY missing",
-            )
-        except Exception:
-            logger.exception("Failed to report misconfiguration to backend")
+        notify_backend(
+            story_id=story_id,
+            chapter_id=cid,
+            status="failed",
+            audio_path=None,
+            error="Worker misconfiguration: FPT_API_KEY missing",
+        )
         return
 
     try:
@@ -194,13 +214,10 @@ def handle_job(raw: bytes) -> None:
             cid,
             settings.tts_provider,
         )
-        try:
-            notify_backend(
-                story_id=story_id,
-                chapter_id=cid,
-                status="failed",
-                audio_path=None,
-                error=str(exc),
-            )
-        except Exception:
-            logger.exception("Failed to report error to backend")
+        notify_backend(
+            story_id=story_id,
+            chapter_id=cid,
+            status="failed",
+            audio_path=None,
+            error=str(exc),
+        )

@@ -47,7 +47,7 @@ else
   echo "Warning: $REDIS_SERVER not found; skip starting Redis. Install Redis in redis/ or start it manually (port 6379)."
 fi
 
-start_service "backend" "$ROOT_DIR/backend" "php artisan serve --host=127.0.0.1 --port=8000"
+start_service "backend" "$ROOT_DIR/backend" "php artisan serve --host=localhost --port=8000"
 start_service "frontend" "$ROOT_DIR/frontend" "npm run dev"
 
 if [[ "$WITH_WORKER" == "true" ]]; then

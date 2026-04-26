@@ -47,7 +47,7 @@ class Settings(BaseSettings):
         default="mp3",
         validation_alias=AliasChoices("FPT_TTS_FORMAT", "FPT_FORMAT"),
     )
-    fpt_poll_timeout_sec: float = 120.0
+    fpt_poll_timeout_sec: float = 300.0
     fpt_poll_interval_sec: float = 2.0
     # Sau khi POST TTS trả JSON (có link async), chờ bấy nhiêu giây rồi mới GET file — CDN FPT thường chưa sẵn MP3 ngay.
     fpt_async_first_poll_delay_sec: float = Field(

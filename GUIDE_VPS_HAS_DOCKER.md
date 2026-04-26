@@ -51,7 +51,7 @@ Compose mặc định publish:
 | 5432 | PostgreSQL |
 | 6379 | Redis |
 
-**Bảo mật:** trên VPS production, **không nên** mở `5432` / `6379` ra internet trừ khi có lý do đặc biệt và ACL chặt. Có thể chỉnh `docker-compose.yml` bỏ `ports` của `db` / `redis`, chỉ để các service khác truy cập qua mạng nội bộ Docker; API/Next dùng Nginx reverse proxy vào `127.0.0.1:8000` / `127.0.0.1:3000` (bỏ publish trực tiếp nếu muốn).
+**Bảo mật:** trên VPS production, **không nên** mở `5432` / `6379` ra internet trừ khi có lý do đặc biệt và ACL chặt. Có thể chỉnh `docker-compose.yml` bỏ `ports` của `db` / `redis`, chỉ để các service khác truy cập qua mạng nội bộ Docker; API/Next dùng Nginx reverse proxy vào `localhost:8000` / `localhost:3000` (bỏ publish trực tiếp nếu muốn).
 
 Ví dụ `ufw` (chỉ minh họa):
 

@@ -15,7 +15,7 @@ function resolveBase(): string {
   if (pub !== "") return pub;
 
   if (process.env.NODE_ENV !== "production") {
-    return "http://127.0.0.1:8000";
+    return "http://localhost:8000";
   }
 
   throw new Error(
