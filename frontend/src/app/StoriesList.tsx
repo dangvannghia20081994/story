@@ -52,7 +52,7 @@ export async function StoriesList() {
             >
               {s.title}
             </Link>
-            <p className="text-xs text-zinc-500">TTS: {s.tts_status}</p>
+            <p className="text-xs text-zinc-500">Audio: {s.tts_status === "completed" ? "đã có" : s.tts_status === "processing" ? "đang xử lý" : "chưa có"}</p>
           </div>
           {sampleSrc ? (
             <audio controls preload="none" className="h-8 max-w-full">

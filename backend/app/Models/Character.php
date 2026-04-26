@@ -10,16 +10,11 @@ class Character extends Model
     protected $fillable = [
         'story_id',
         'name',
-        'voice_id',
-        'pitch',
-        'rate',
     ];
 
     protected function casts(): array
     {
         return [
-            'pitch' => 'float',
-            'rate' => 'float',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

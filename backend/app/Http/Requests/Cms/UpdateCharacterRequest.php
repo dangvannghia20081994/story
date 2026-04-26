@@ -4,7 +4,6 @@ namespace App\Http\Requests\Cms;
 
 use App\Models\Character;
 use App\Models\Story;
-use App\Support\TtsConfig;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -34,13 +33,6 @@ class UpdateCharacterRequest extends FormRequest
                     ->where('story_id', $story->id)
                     ->ignore($character->id),
             ],
-            'voice_id' => [
-                'sometimes',
-                'string',
-                Rule::in(TtsConfig::allowedVoiceIdsWithLegacy($character->voice_id)),
-            ],
-            'pitch' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
-            'rate' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
         ];
     }
 }

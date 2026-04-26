@@ -1,6 +1,6 @@
 @extends('cms.layout')
 
-@section('title', 'Chương')
+@section('title', e($story->title).' — Chương')
 
 @push('head')
     @include('cms.partials.icon-toolbar-styles')
@@ -39,7 +39,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Tiêu đề</th>
-                        <th>Trạng thái</th>
+                        <th>Audio</th>
                         <th class="th-actions">Thao tác</th>
                     </tr>
                 </thead>
@@ -48,38 +48,11 @@
                         <tr>
                             <td>{{ $chapter->id }}</td>
                             <td><strong style="font-weight: 500;">{{ $chapter->title }}</strong></td>
-                            <td>{{ $chapter->status }}</td>
+                            <td>{{ $chapter->audio_path ? 'Có đường dẫn' : '—' }}</td>
                             <td class="cms-story-row-actions">
                                 <a class="icon-btn" href="{{ route('cms.stories.chapters.edit', [$story, $chapter]) }}" title="Sửa chương" aria-label="Sửa chương">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 </a>
-                                <form
-                                    action="{{ route('cms.stories.chapters.queue-tts', [$story, $chapter]) }}"
-                                    method="post"
-                                    style="display: inline; margin: 0;"
-                                    @if ($chapter->status === \App\Models\Chapter::STATUS_PROCESSING)
-                                        onsubmit="return confirm('Chương vẫn là processing (có thể worker đã tắt / lỗi, không có callback). Xếp hàng TTS lại?');"
-                                    @endif
-                                >
-                                    @csrf
-                                    @if ($chapter->status === \App\Models\Chapter::STATUS_PROCESSING)
-                                        <input type="hidden" name="regenerate" value="1">
-                                    @endif
-                                    <button
-                                        type="submit"
-                                        class="icon-btn"
-                                        title="{{ $chapter->status === \App\Models\Chapter::STATUS_PROCESSING ? 'Xếp lại khi kẹt processing (worker thật sự đang chạy thì có thể trùng job).' : 'Xếp hàng TTS (có thể TTS lại khi đã lỗi hoặc đã xong).' }}"
-                                        aria-label="{{ $chapter->status === \App\Models\Chapter::STATUS_PROCESSING ? 'Xếp lại TTS khi kẹt' : (in_array($chapter->status, [\App\Models\Chapter::STATUS_COMPLETED, \App\Models\Chapter::STATUS_FAILED], true) ? 'TTS lại' : 'Xếp hàng TTS') }}"
-                                    >
-                                        @if ($chapter->status === \App\Models\Chapter::STATUS_PROCESSING)
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                                        @elseif (in_array($chapter->status, [\App\Models\Chapter::STATUS_COMPLETED, \App\Models\Chapter::STATUS_FAILED], true))
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                                        @else
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-                                        @endif
-                                    </button>
-                                </form>
                                 <form action="{{ route('cms.stories.chapters.destroy', [$story, $chapter]) }}" method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Xóa chương?');">
                                     @csrf
                                     @method('DELETE')

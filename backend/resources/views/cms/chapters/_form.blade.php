@@ -17,17 +17,9 @@
         <label for="content">{{ $isEdit ? 'Nội dung' : 'Nội dung *' }}</label>
         <textarea id="content" name="content" rows="16" required>{{ old('content', $chapter?->content ?? '') }}</textarea>
         <p class="muted" style="margin-top: 0.35rem; max-width: 42rem;">
-            TTS nhiều giọng: ngoặc thoại ASCII <code>"</code> hoặc “ ” « » (chuẩn hoá về <code>"</code>); **số dấu <code>"</code> trong cả chương phải chẵn** (đủ cặp). Một khối dài không cần <code>\n\n</code> vẫn tách được nhiều giọng. Phần ngoài ngoặc = người kể; trong ngoặc = giọng nhân vật nếu <strong>dòng không trống ngay trước</strong> mở ngoặc có <strong>tên</strong> (trùng CMS). Hoặc đoạn chỉ dùng <code>Tên:</code> / <code>Tên：</code> đầu đoạn (sau <code>\n\n</code>). Người kể: <code>TTS_NARRATOR_CHARACTER_NAME</code>.
+            Gợi ý thoại nhiều nhân vật: ngoặc thoại ASCII <code>"</code> hoặc “ ” « » (chuẩn hoá về <code>"</code>); **số dấu <code>"</code> trong cả chương phải chẵn** (đủ cặp). Trong ngoặc = lời nhân vật nếu <strong>dòng không trống ngay trước</strong> mở ngoặc có <strong>tên</strong> (trùng tên trong CMS nhân vật). Hoặc đoạn dùng <code>Tên:</code> / <code>Tên：</code> đầu đoạn (sau <code>\n\n</code>). Phần không gán tên = lời người kể.
         </p>
         <p class="muted" id="content-char-count" style="margin-top: 0.35rem;" aria-live="polite"></p>
-    </div>
-    <div class="field">
-        <label for="status">Trạng thái</label>
-        <select id="status" name="status">
-            @foreach (['pending', 'processing', 'completed', 'failed'] as $st)
-                <option value="{{ $st }}" @selected(old('status', $chapter?->status ?? 'pending') === $st)>{{ $st }}</option>
-            @endforeach
-        </select>
     </div>
     @if ($isEdit)
         <div class="field">
@@ -37,10 +29,6 @@
         <div class="field">
             <label for="audio_path">Đường dẫn audio (storage/public)</label>
             <input id="audio_path" name="audio_path" value="{{ old('audio_path', $chapter->audio_path) }}" placeholder="vd: audio/chapters/1.mp3">
-        </div>
-        <div class="field">
-            <label for="error_message">Thông báo lỗi</label>
-            <textarea id="error_message" name="error_message" rows="3">{{ old('error_message', $chapter->error_message) }}</textarea>
         </div>
     @endif
     <button type="submit" class="btn btn-primary">{{ $isEdit ? 'Cập nhật' : 'Lưu' }}</button>

@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from "react";
+
+import { useBrowserSpeechPlayback } from "@/hooks/useBrowserSpeechPlayback";
+import { BROWSER_SPEECH_VOICE_URI_KEY } from "@/lib/browserSpeech";
 
 function normalizeMediaDuration(raw: number): number {
   if (!Number.isFinite(raw) || raw <= 0 || raw === Number.POSITIVE_INFINITY) {
@@ -9,10 +12,18 @@ function normalizeMediaDuration(raw: number): number {
   return raw;
 }
 
-export type AudioChapterItem = { id: number; title: string; audio_url: string | null };
+export type AudioChapterItem = {
+  id: number;
+  title: string;
+  audio_url: string | null;
+  /** Nội dung chương — bật đọc bằng trình duyệt khi không có `audio_url`. */
+  speech_text?: string | null;
+};
 
 interface AudioPlayerProps {
   src: string;
+  /** Khi không có file audio: đọc bằng Web Speech API (tiếng Việt nếu trình duyệt có giọng). */
+  speechText?: string | null;
   title?: string;
   /** Tên truyện — hiển thị phụ khi layout="detail" */
   storyTitle?: string;
@@ -44,6 +55,7 @@ const SLEEP_OPTIONS = [
 
 export function AudioPlayer({
   src,
+  speechText = null,
   title,
   storyTitle,
   chapters = [],
@@ -73,6 +85,59 @@ export function AudioPlayer({
   const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(null);
   const [currentChapterId, setCurrentChapterId] = useState<number | null>(initialChapterId);
   const [showChapterList, setShowChapterList] = useState(false);
+  const [speechVoiceUri, setSpeechVoiceUri] = useState("");
+  const [speechVoices, setSpeechVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  const speechEnabled = useMemo(() => {
+    const hasAudio = Boolean(src?.trim());
+    return !hasAudio && Boolean(speechText?.trim());
+  }, [src, speechText]);
+
+  const speech = useBrowserSpeechPlayback({
+    enabled: speechEnabled,
+    text: speechText ?? "",
+    rate: playbackRate,
+    volume,
+    voiceUri: speechVoiceUri,
+  });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(BROWSER_SPEECH_VOICE_URI_KEY);
+      if (raw) setSpeechVoiceUri(raw);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const sync = () => {
+      try {
+        setSpeechVoices(window.speechSynthesis.getVoices());
+      } catch {
+        setSpeechVoices([]);
+      }
+    };
+    sync();
+    window.speechSynthesis.addEventListener("voiceschanged", sync);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", sync);
+  }, []);
+
+  useEffect(() => {
+    speech.stop();
+  }, [speechText, speech.stop]);
+
+  const speechProgressEmitAtRef = useRef(0);
+  useEffect(() => {
+    if (!speechEnabled) return;
+    const cb = onPlaybackProgressRef.current;
+    if (!cb) return;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - speechProgressEmitAtRef.current < 240) return;
+    speechProgressEmitAtRef.current = now;
+    cb(speech.currentTime, speech.duration, speech.isSpeaking);
+  }, [speechEnabled, speech.currentTime, speech.duration, speech.isSpeaking]);
 
   useEffect(() => {
     setCurrentChapterId(initialChapterId);
@@ -139,6 +204,9 @@ export function AudioPlayer({
           if (audioRef.current) {
             audioRef.current.pause();
           }
+          if (typeof window !== "undefined" && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+          }
           return 0;
         }
         return prev - 1;
@@ -164,6 +232,14 @@ export function AudioPlayer({
   }, [showSpeedMenu, showSleepMenu]);
 
   const togglePlay = useCallback(() => {
+    if (speechEnabled) {
+      if (speech.isSpeaking) {
+        speech.stop();
+      } else {
+        speech.speak();
+      }
+      return;
+    }
     const el = audioRef.current;
     if (!el) return;
     if (el.paused) {
@@ -171,7 +247,7 @@ export function AudioPlayer({
     } else {
       el.pause();
     }
-  }, []);
+  }, [speech, speechEnabled]);
 
   const hintD = normalizeMediaDuration(durationHintSec ?? 0);
 
@@ -214,6 +290,7 @@ export function AudioPlayer({
 
   /** Seek theo vị trí click/kéo trên track (range ẩn hay trình duyệt hay bỏ qua click vào track). */
   const seekFromClientX = useCallback((clientX: number, track: HTMLElement) => {
+    if (speechEnabled) return;
     const el = audioRef.current;
     if (!el) return;
     const fromEl = normalizeMediaDuration(el.duration);
@@ -226,7 +303,7 @@ export function AudioPlayer({
     const time = ratio * d;
     el.currentTime = time;
     setCurrentTime(time);
-  }, [duration, hintD]);
+  }, [duration, hintD, speechEnabled]);
 
   const onSeekTrackPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -258,6 +335,7 @@ export function AudioPlayer({
 
   const onSeekTrackKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (speechEnabled) return;
       const el = audioRef.current;
       if (!el) return;
       const fromEl = normalizeMediaDuration(el.duration);
@@ -285,7 +363,7 @@ export function AudioPlayer({
       setCurrentTime(next);
       emitSeekComplete();
     },
-    [duration, emitSeekComplete, hintD],
+    [duration, emitSeekComplete, hintD, speechEnabled],
   );
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -306,18 +384,19 @@ export function AudioPlayer({
 
   const handleChapterSelect = useCallback(
     (chapter: AudioChapterItem) => {
-      if (!chapter.audio_url) {
-        return;
-      }
+      const canAudio = Boolean(chapter.audio_url?.trim());
+      const canSpeech = Boolean(chapter.speech_text?.trim());
+      if (!canAudio && !canSpeech) return;
+      speech.stop();
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      setActiveSrc(chapter.audio_url);
+      setActiveSrc(chapter.audio_url?.trim() ? chapter.audio_url : "");
       setCurrentChapterId(chapter.id);
       onChapterChange?.(chapter.id);
       setShowChapterList(false);
     },
-    [onChapterChange],
+    [onChapterChange, speech],
   );
 
   const formatTime = (seconds: number) => {
@@ -337,10 +416,15 @@ export function AudioPlayer({
 
   const chapterIndex = chapters.findIndex((c) => c.id === currentChapterId);
   const safeDuration = normalizeMediaDuration(duration);
+  const speechDurationUI = normalizeMediaDuration(speech.duration);
+  const speechCurrentUI = normalizeMediaDuration(speech.currentTime);
+  const uiDuration = speechEnabled ? speechDurationUI : safeDuration;
+  const uiCurrentTime = speechEnabled ? speechCurrentUI : currentTime;
+  const uiPlaying = speechEnabled ? speech.isSpeaking : isPlaying;
   /** Khi metadata chưa về, max phải ≥ currentTime để range controlled không bị kẹt. */
   const seekMax =
-    safeDuration > 0 ? safeDuration : Math.max(1, Number.isFinite(currentTime) ? currentTime : 0);
-  const pct = safeDuration > 0 ? Math.min(100, (currentTime / safeDuration) * 100) : 0;
+    uiDuration > 0 ? uiDuration : Math.max(1, Number.isFinite(uiCurrentTime) ? uiCurrentTime : 0);
+  const pct = uiDuration > 0 ? Math.min(100, (uiCurrentTime / uiDuration) * 100) : 0;
 
   const premiumShell =
     "relative overflow-hidden border border-indigo-200/40 bg-gradient-to-b from-indigo-50/90 via-white to-violet-50/50 shadow-[0_20px_50px_-20px_rgba(99,102,241,0.35)] dark:border-indigo-900/40 dark:from-indigo-950/40 dark:via-zinc-950 dark:to-violet-950/20";
@@ -373,7 +457,7 @@ export function AudioPlayer({
 
       <audio
         ref={audioRef}
-        src={activeSrc}
+        src={activeSrc?.trim() ? activeSrc : undefined}
         preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
@@ -391,9 +475,15 @@ export function AudioPlayer({
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-600/90 dark:text-indigo-400">
-                  {readCompact ? "Đang nghe" : "Nghe audio"}
+                  {speechEnabled
+                    ? readCompact
+                      ? "Đọc trình duyệt"
+                      : "Đọc bằng trình duyệt"
+                    : readCompact
+                      ? "Đang nghe"
+                      : "Nghe audio"}
                 </p>
-                {isPlaying ? (
+                {uiPlaying ? (
                   <span className="flex h-4 items-end gap-0.5" aria-hidden>
                     {[5, 12, 7, 14, 9].map((px, i) => (
                       <span
@@ -420,6 +510,37 @@ export function AudioPlayer({
                   {title}
                 </h3>
               ) : null}
+              {speechEnabled && speechVoices.length > 0 ? (
+                <div className="mt-2 max-w-md">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    Giọng (trình duyệt)
+                  </label>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-zinc-200/90 bg-white/90 px-2 py-1.5 text-xs text-zinc-800 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                    value={speechVoiceUri}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSpeechVoiceUri(v);
+                      try {
+                        if (v) localStorage.setItem(BROWSER_SPEECH_VOICE_URI_KEY, v);
+                        else localStorage.removeItem(BROWSER_SPEECH_VOICE_URI_KEY);
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                  >
+                    <option value="">Mặc định (tiếng Việt)</option>
+                    {(speechVoices.some((v) => (v.lang || "").toLowerCase().startsWith("vi"))
+                      ? speechVoices.filter((v) => (v.lang || "").toLowerCase().startsWith("vi"))
+                      : speechVoices
+                    ).map((v) => (
+                      <option key={v.voiceURI} value={v.voiceURI}>
+                        {v.name} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
             </div>
             {chapters.length > 1 ? (
               <span className="rounded-full border border-white/80 bg-white/60 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-zinc-600 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-400">
@@ -436,7 +557,9 @@ export function AudioPlayer({
               <div className="-mx-1 flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin [scrollbar-width:thin] sm:gap-2">
                 {chapters.map((chapter, i) => {
                   const active = chapter.id === currentChapterId;
-                  const disabled = !chapter.audio_url;
+                  const canPlay =
+                    Boolean(chapter.audio_url?.trim()) || Boolean(chapter.speech_text?.trim());
+                  const disabled = !canPlay;
                   return (
                     <button
                       key={chapter.id}
@@ -466,9 +589,11 @@ export function AudioPlayer({
               tabIndex={0}
               aria-valuemin={0}
               aria-valuemax={Math.max(0, Math.floor(seekMax))}
-              aria-valuenow={Math.min(Math.floor(currentTime), Math.floor(seekMax))}
+              aria-valuenow={Math.min(Math.floor(uiCurrentTime), Math.floor(seekMax))}
               aria-label="Tiến độ phát"
-              className="relative h-2.5 cursor-pointer overflow-hidden rounded-full bg-zinc-200/90 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-zinc-800/90 dark:ring-offset-zinc-900"
+              className={`relative h-2.5 overflow-hidden rounded-full bg-zinc-200/90 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-zinc-800/90 dark:ring-offset-zinc-900 ${
+                speechEnabled ? "pointer-events-none cursor-default opacity-95" : "cursor-pointer"
+              }`}
               onPointerDown={onSeekTrackPointerDown}
               onPointerMove={onSeekTrackPointerMove}
               onPointerUp={onSeekTrackPointerUp}
@@ -481,9 +606,14 @@ export function AudioPlayer({
               />
             </div>
             <div className="mt-2 flex justify-between font-mono text-[11px] tabular-nums text-zinc-500 dark:text-zinc-500">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(safeDuration)}</span>
+              <span>{formatTime(uiCurrentTime)}</span>
+              <span>{formatTime(uiDuration)}</span>
             </div>
+            {speechEnabled ? (
+              <p className="mt-1 text-[10px] text-zinc-400 dark:text-zinc-500">
+                Thanh tiến độ là ước lượng; không tua được khi đọc trình duyệt.
+              </p>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
@@ -493,9 +623,9 @@ export function AudioPlayer({
               className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 ring-4 ring-white/70 transition hover:scale-[1.02] hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] dark:ring-zinc-900/80 ${
                 readCompact ? "h-11 w-11" : "h-14 w-14"
               }`}
-              aria-label={isPlaying ? "Tạm dừng" : "Phát"}
+              aria-label={uiPlaying ? "Tạm dừng" : "Phát"}
             >
-              {isPlaying ? (
+              {uiPlaying ? (
                 <svg className={readCompact ? "h-5 w-5" : "h-6 w-6"} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <rect x="6" y="4" width="4" height="16" rx="1" />
                   <rect x="14" y="4" width="4" height="16" rx="1" />
@@ -612,15 +742,17 @@ export function AudioPlayer({
           {title && <h3 className="mb-3 text-sm font-medium text-zinc-800 dark:text-zinc-200">{title}</h3>}
 
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs text-zinc-500">{formatTime(currentTime)}</span>
+            <span className="text-xs text-zinc-500">{formatTime(uiCurrentTime)}</span>
             <div
               role="slider"
               tabIndex={0}
               aria-valuemin={0}
               aria-valuemax={Math.max(0, Math.floor(seekMax))}
-              aria-valuenow={Math.min(Math.floor(currentTime), Math.floor(seekMax))}
+              aria-valuenow={Math.min(Math.floor(uiCurrentTime), Math.floor(seekMax))}
               aria-label="Tiến độ phát"
-              className="relative h-2 min-w-0 flex-1 cursor-pointer overflow-hidden rounded-full bg-zinc-200 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-zinc-500 dark:bg-zinc-700 dark:ring-offset-zinc-900"
+              className={`relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-200 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-zinc-500 dark:bg-zinc-700 dark:ring-offset-zinc-900 ${
+                speechEnabled ? "pointer-events-none cursor-default opacity-90" : "cursor-pointer"
+              }`}
               onPointerDown={onSeekTrackPointerDown}
               onPointerMove={onSeekTrackPointerMove}
               onPointerUp={onSeekTrackPointerUp}
@@ -632,7 +764,7 @@ export function AudioPlayer({
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <span className="text-xs text-zinc-500">{formatTime(safeDuration)}</span>
+            <span className="text-xs text-zinc-500">{formatTime(uiDuration)}</span>
           </div>
 
           <div className="flex items-center justify-between">
@@ -641,9 +773,9 @@ export function AudioPlayer({
                 type="button"
                 onClick={togglePlay}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-white hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600"
-                aria-label={isPlaying ? "Tạm dừng" : "Phát"}
+                aria-label={uiPlaying ? "Tạm dừng" : "Phát"}
               >
-                {isPlaying ? (
+                {uiPlaying ? (
                   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                     <rect x="6" y="4" width="4" height="16" />
                     <rect x="14" y="4" width="4" height="16" />
@@ -729,26 +861,31 @@ export function AudioPlayer({
 
           {showChapterList && chapters.length > 0 && (
             <div className="mt-3 max-h-60 overflow-y-auto rounded border border-zinc-200 dark:border-zinc-700">
-              {chapters.map((chapter) => (
-                <button
-                  key={chapter.id}
-                  type="button"
-                  onClick={() => handleChapterSelect(chapter)}
-                  disabled={!chapter.audio_url}
-                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
-                    currentChapterId === chapter.id
-                      ? "bg-zinc-100 dark:bg-zinc-800"
-                      : "hover:bg-zinc-50 dark:hover:bg-zinc-900"
-                  } ${!chapter.audio_url ? "opacity-50" : ""}`}
-                >
-                  <span className="truncate">{chapter.title}</span>
-                  {chapter.audio_url ? (
-                    <span className="text-xs text-green-600">✓</span>
-                  ) : (
-                    <span className="text-xs text-zinc-400">Chưa render</span>
-                  )}
-                </button>
-              ))}
+              {chapters.map((chapter) => {
+                const can = Boolean(chapter.audio_url?.trim()) || Boolean(chapter.speech_text?.trim());
+                return (
+                  <button
+                    key={chapter.id}
+                    type="button"
+                    onClick={() => handleChapterSelect(chapter)}
+                    disabled={!can}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
+                      currentChapterId === chapter.id
+                        ? "bg-zinc-100 dark:bg-zinc-800"
+                        : "hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                    } ${!can ? "opacity-50" : ""}`}
+                  >
+                    <span className="truncate">{chapter.title}</span>
+                    {chapter.audio_url?.trim() ? (
+                      <span className="text-xs text-green-600">✓</span>
+                    ) : can ? (
+                      <span className="text-xs text-sky-600 dark:text-sky-400">Trình duyệt</span>
+                    ) : (
+                      <span className="text-xs text-zinc-400">—</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </>

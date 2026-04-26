@@ -34,31 +34,11 @@ services:
       REDIS_HOST: redis
       REDIS_CLIENT: predis
       REDIS_PREFIX: ""
-      WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN:-dev-worker-token}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
-
-  worker:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    # Dùng dạng chuỗi path (tương thích mọi bản Compose). Dạng `path:` / `required:` có thể bị bỏ qua → không nạp TTS_PROVIDER từ worker/.env.
-    env_file:
-      - ./worker/.env
-    # TTS (VieNeu, …) lấy từ worker/.env (env_file) — xem worker/.env.example
-    environment:
-      REDIS_URL: redis://redis:6379/0
-      QUEUE_NAME: story:tts:queue
-      BACKEND_URL: http://backend:8000
-      WORKER_TOKEN: ${WORKER_INTERNAL_TOKEN:-dev-worker-token}
-    depends_on:
-      - redis
-      - backend
 
   frontend:
     build:
@@ -70,7 +50,7 @@ services:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: http://story.test/api
       API_URL: http://backend:8000
     depends_on:
       - backend
@@ -85,11 +65,22 @@ services:
       - ./app:/app
       - expo_node_modules:/app/node_modules
     environment:
-      EXPO_PUBLIC_API_URL: http://localhost:8000
+      EXPO_PUBLIC_API_URL: http://story.test/api
       CHOKIDAR_USEPOLLING: "1"
     stdin_open: true
     tty: true
     depends_on:
+      - backend
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/routes:/etc/nginx/conf.d/routes:ro
+    depends_on:
+      - frontend
       - backend
 
 volumes:

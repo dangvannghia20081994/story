@@ -39,8 +39,6 @@
                     <tr>
                         <th>ID</th>
                         <th>Tên</th>
-                        <th>Giọng (mã TTS)</th>
-                        <th>Pitch / Rate</th>
                         <th class="th-actions">Thao tác</th>
                     </tr>
                 </thead>
@@ -49,8 +47,6 @@
                         <tr>
                             <td>{{ $character->id }}</td>
                             <td><strong style="font-weight: 500;">{{ $character->name }}</strong></td>
-                            <td title="{{ $character->voice_id }}">{{ \App\Support\TtsConfig::labelFor($character->voice_id) }}</td>
-                            <td>{{ $character->pitch }} / {{ $character->rate }}</td>
                             <td class="cms-story-row-actions">
                                 <a class="icon-btn" href="{{ route('cms.stories.characters.edit', [$story, $character]) }}" title="Sửa" aria-label="Sửa nhân vật">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -65,7 +61,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có nhân vật. Dùng <strong>Thêm nhân vật</strong> ở trên (một hoặc nhiều).</td></tr>
+                        <tr><td colspan="3" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có nhân vật. Dùng <strong>Thêm nhân vật</strong> ở trên (một hoặc nhiều).</td></tr>
                     @endforelse
                 </tbody>
             </table>

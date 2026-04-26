@@ -17,7 +17,6 @@ type Chapter = {
   content: string;
   audio_path: string | null;
   audio_url?: string | null;
-  status: string;
   duration: number;
 };
 
@@ -433,31 +432,27 @@ function ReadStoryPageContent() {
 
       <div className="sticky bottom-0 z-[40] mt-auto border-t border-indigo-200/35 bg-gradient-to-t from-white/97 via-indigo-50/40 to-violet-50/35 shadow-[0_-10px_44px_-10px_rgba(79,70,229,0.18)] backdrop-blur-xl dark:border-indigo-900/40 dark:from-zinc-950/97 dark:via-indigo-950/25 dark:to-violet-950/20">
         <div className="relative isolate mx-auto max-w-3xl space-y-0 px-3 pb-3 pt-2 md:px-6 md:pb-4">
-          {audioUrl ? (
-            <AudioPlayer
-              layout="read"
-              src={audioUrl}
-              storyTitle={story.title}
-              title={currentChapter.title}
-              initialChapterId={currentChapter.id}
-              chapters={chapters.map((c) => ({
-                id: c.id,
-                title: c.title,
-                audio_url: chapterAudioUrl(c),
-              }))}
-              onChapterChange={(id) => {
-                const idx = chapters.findIndex((c) => c.id === id);
-                if (idx >= 0) setCurrentChapterIndex(idx);
-              }}
-              onPlaybackProgress={onPlaybackProgress}
-              onSeekComplete={onSeekComplete}
-              durationHintSec={currentChapter.duration > 0 ? currentChapter.duration : null}
-            />
-          ) : (
-            <p className="border-b border-dashed border-zinc-200/90 pb-3 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-              Chương này chưa có audio — render TTS từ trang truyện.
-            </p>
-          )}
+          <AudioPlayer
+            layout="read"
+            src={audioUrl ?? ""}
+            speechText={currentChapter.content}
+            storyTitle={story.title}
+            title={currentChapter.title}
+            initialChapterId={currentChapter.id}
+            chapters={chapters.map((c) => ({
+              id: c.id,
+              title: c.title,
+              audio_url: chapterAudioUrl(c),
+              speech_text: c.content,
+            }))}
+            onChapterChange={(id) => {
+              const idx = chapters.findIndex((c) => c.id === id);
+              if (idx >= 0) setCurrentChapterIndex(idx);
+            }}
+            onPlaybackProgress={onPlaybackProgress}
+            onSeekComplete={onSeekComplete}
+            durationHintSec={currentChapter.duration > 0 ? currentChapter.duration : null}
+          />
           <div className="flex items-center justify-between gap-3 border-t border-white/60 pt-3 dark:border-zinc-800/80">
             <button
               type="button"

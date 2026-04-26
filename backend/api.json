@@ -191,15 +191,6 @@
                                     },
                                     "content": {
                                         "type": "string"
-                                    },
-                                    "status": {
-                                        "type": "string",
-                                        "enum": [
-                                            "pending",
-                                            "processing",
-                                            "completed",
-                                            "failed"
-                                        ]
                                     }
                                 },
                                 "required": [
@@ -288,17 +279,8 @@
                                                         "null"
                                                     ]
                                                 },
-                                                "status": {
-                                                    "type": "string"
-                                                },
                                                 "duration": {
                                                     "type": "integer"
-                                                },
-                                                "error_message": {
-                                                    "type": [
-                                                        "string",
-                                                        "null"
-                                                    ]
                                                 },
                                                 "created_at": {
                                                     "type": [
@@ -327,9 +309,7 @@
                                                 "title",
                                                 "content",
                                                 "audio_path",
-                                                "status",
                                                 "duration",
-                                                "error_message",
                                                 "created_at",
                                                 "updated_at",
                                                 "audio_url"
@@ -389,25 +369,9 @@
                                     "content": {
                                         "type": "string"
                                     },
-                                    "status": {
-                                        "type": "string",
-                                        "enum": [
-                                            "pending",
-                                            "processing",
-                                            "completed",
-                                            "failed"
-                                        ]
-                                    },
                                     "duration": {
                                         "type": "integer",
                                         "minimum": 0
-                                    },
-                                    "error_message": {
-                                        "type": [
-                                            "string",
-                                            "null"
-                                        ],
-                                        "maxLength": 5000
                                     }
                                 }
                             }
@@ -473,103 +437,6 @@
                 "responses": {
                     "204": {
                         "description": "No content"
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
-                    }
-                }
-            }
-        },
-        "/stories/{story}/chapters/{chapter}/queue-tts": {
-            "post": {
-                "operationId": "chapter.queueTts",
-                "tags": [
-                    "Chapter"
-                ],
-                "parameters": [
-                    {
-                        "name": "story",
-                        "in": "path",
-                        "required": true,
-                        "description": "The story slug",
-                        "schema": {
-                            "type": [
-                                "string",
-                                "null"
-                            ]
-                        }
-                    },
-                    {
-                        "name": "chapter",
-                        "in": "path",
-                        "required": true,
-                        "description": "The chapter ID",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "regenerate": {
-                                        "type": "boolean",
-                                        "description": "If true, allow queue-tts while chapter status is still processing (stuck worker / no callback). Risk of duplicate jobs if worker is actually running."
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "202": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "const": "\u0110\u00e3 x\u1ebfp h\u00e0ng TTS."
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {}
-                                        }
-                                    },
-                                    "required": [
-                                        "message",
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Ch\u01b0\u01a1ng \u0111ang \u0111\u01b0\u1ee3c x\u1eed l\u00fd TTS."
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
@@ -755,25 +622,10 @@
                                     "name": {
                                         "type": "string",
                                         "maxLength": 255
-                                    },
-                                    "voice_id": {
-                                        "type": "string",
-                                        "maxLength": 255
-                                    },
-                                    "pitch": {
-                                        "type": "number",
-                                        "minimum": 0.1,
-                                        "maximum": 3
-                                    },
-                                    "rate": {
-                                        "type": "number",
-                                        "minimum": 0.1,
-                                        "maximum": 3
                                     }
                                 },
                                 "required": [
-                                    "name",
-                                    "voice_id"
+                                    "name"
                                 ]
                             }
                         }
@@ -889,20 +741,6 @@
                                     "name": {
                                         "type": "string",
                                         "maxLength": 255
-                                    },
-                                    "voice_id": {
-                                        "type": "string",
-                                        "maxLength": 255
-                                    },
-                                    "pitch": {
-                                        "type": "number",
-                                        "minimum": 0.1,
-                                        "maximum": 3
-                                    },
-                                    "rate": {
-                                        "type": "number",
-                                        "minimum": 0.1,
-                                        "maximum": 3
                                     }
                                 }
                             }
@@ -977,124 +815,6 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
-                    }
-                }
-            }
-        },
-        "/internal/tts-complete": {
-            "post": {
-                "operationId": "internalTts.complete",
-                "tags": [
-                    "InternalTts"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Updated."
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {}
-                                        }
-                                    },
-                                    "required": [
-                                        "message",
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "anyOf": [
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "message": {
-                                                    "type": "string",
-                                                    "const": "Audio file not found on storage disk `public`."
-                                                },
-                                                "hint": {
-                                                    "type": "string",
-                                                    "const": "Worker c\u00f3 th\u1ec3 g\u1eedi multipart v\u1edbi field `audio` \u0111\u1ec3 Laravel l\u01b0u file; ho\u1eb7c ghi s\u1eb5n v\u00e0o `storage/app/public` r\u1ed3i g\u1eedi `audio_path` t\u01b0\u01a1ng \u0111\u1ed1i (v\u00ed d\u1ee5 `stories/1/chapters/2/audio.mp3`). Ch\u1ea1y `php artisan storage:link` cho URL `/storage/...`."
-                                                },
-                                                "normalized_path": {
-                                                    "type": "string"
-                                                },
-                                                "absolute_expected": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "message",
-                                                "hint",
-                                                "normalized_path",
-                                                "absolute_expected"
-                                            ]
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "message": {
-                                                    "type": "string",
-                                                    "const": "chapter_id does not belong to story_id."
-                                                }
-                                            },
-                                            "required": [
-                                                "message"
-                                            ]
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "message": {
-                                                    "type": "string",
-                                                    "const": "Invalid audio_path."
-                                                }
-                                            },
-                                            "required": [
-                                                "message"
-                                            ]
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "message": {
-                                                    "type": "string",
-                                                    "const": "audio_path is required when status is completed (or send multipart field `audio`)."
-                                                }
-                                            },
-                                            "required": [
-                                                "message"
-                                            ]
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "message": {
-                                                    "type": "string",
-                                                    "const": "Could not read uploaded audio."
-                                                }
-                                            },
-                                            "required": [
-                                                "message"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -1360,69 +1080,6 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
-                    }
-                }
-            }
-        },
-        "/preprocess-preview": {
-            "post": {
-                "operationId": "preprocess.preview",
-                "summary": "Xem tr\u01b0\u1edbc v\u0103n b\u1ea3n sau khi \u00e1p d\u1ee5ng lexicon (ROADMAP \u2014 l\u00e0m s\u1ea1ch tr\u01b0\u1edbc khi g\u1eedi worker)",
-                "tags": [
-                    "Preprocess"
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "text": {
-                                        "type": "string",
-                                        "maxLength": 500000
-                                    }
-                                },
-                                "required": [
-                                    "text"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "original": {
-                                                    "type": "string"
-                                                },
-                                                "processed": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "original",
-                                                "processed"
-                                            ]
-                                        }
-                                    },
-                                    "required": [
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -1742,17 +1399,8 @@
                                                                     "null"
                                                                 ]
                                                             },
-                                                            "status": {
-                                                                "type": "string"
-                                                            },
                                                             "duration": {
                                                                 "type": "integer"
-                                                            },
-                                                            "error_message": {
-                                                                "type": [
-                                                                    "string",
-                                                                    "null"
-                                                                ]
                                                             },
                                                             "created_at": {
                                                                 "type": [
@@ -1781,9 +1429,7 @@
                                                             "title",
                                                             "content",
                                                             "audio_path",
-                                                            "status",
                                                             "duration",
-                                                            "error_message",
                                                             "created_at",
                                                             "updated_at",
                                                             "audio_url"
@@ -1966,17 +1612,8 @@
                             "null"
                         ]
                     },
-                    "status": {
-                        "type": "string"
-                    },
                     "duration": {
                         "type": "integer"
-                    },
-                    "error_message": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
                     },
                     "created_at": {
                         "type": [
@@ -1999,9 +1636,7 @@
                     "title",
                     "content",
                     "audio_path",
-                    "status",
                     "duration",
-                    "error_message",
                     "created_at",
                     "updated_at"
                 ],
@@ -2018,15 +1653,6 @@
                     },
                     "name": {
                         "type": "string"
-                    },
-                    "voice_id": {
-                        "type": "string"
-                    },
-                    "pitch": {
-                        "type": "number"
-                    },
-                    "rate": {
-                        "type": "number"
                     },
                     "created_at": {
                         "type": [
@@ -2047,9 +1673,6 @@
                     "id",
                     "story_id",
                     "name",
-                    "voice_id",
-                    "pitch",
-                    "rate",
                     "created_at",
                     "updated_at"
                 ],

@@ -1,6 +1,6 @@
 # Frontend (Next.js)
 
-Ứng web kết nối API Laravel: danh sách truyện, tạo truyện, chi tiết (phát audio / đọc chương; xếp hàng TTS qua CMS).
+Ứng web kết nối API Laravel: danh sách truyện, tạo truyện, chi tiết (phát audio nếu có / đọc chương bằng trình duyệt).
 
 Trang chủ hiển thị truyện theo khối thể loại (mỗi thể loại tối đa 4 truyện), đọc trực tiếp từ trường `genre` do backend trả về.
 

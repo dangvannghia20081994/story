@@ -38,23 +38,9 @@ export default async function MemberDetailPage({ params, searchParams }: MemberD
           </p>
         </section>
 
-        <section className="grid gap-4 rounded-2xl border border-white/70 bg-white/75 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75 sm:grid-cols-2">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">ID</p>
-            <p className="mt-1 text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.id}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Voice ID</p>
-            <p className="mt-1 text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.voice_id}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Pitch</p>
-            <p className="mt-1 text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.pitch.toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Rate</p>
-            <p className="mt-1 text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.rate.toFixed(2)}</p>
-          </div>
+        <section className="rounded-2xl border border-white/70 bg-white/75 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75">
+          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">ID</p>
+          <p className="mt-1 text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.id}</p>
         </section>
       </div>
     </FullWidthLayout>

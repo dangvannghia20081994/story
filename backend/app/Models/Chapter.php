@@ -8,22 +8,12 @@ use Illuminate\Support\Facades\Storage;
 
 class Chapter extends Model
 {
-    public const STATUS_PENDING = 'pending';
-
-    public const STATUS_PROCESSING = 'processing';
-
-    public const STATUS_COMPLETED = 'completed';
-
-    public const STATUS_FAILED = 'failed';
-
     protected $fillable = [
         'story_id',
         'title',
         'content',
         'audio_path',
-        'status',
         'duration',
-        'error_message',
     ];
 
     protected function casts(): array

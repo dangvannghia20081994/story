@@ -1,6 +1,0 @@
-# VieNeu-TTS — gói PyPI: https://pypi.org/project/vieneu/ (TTS tiếng Việt on-device).
-# Python >=3.10. Extra GPU: pip install "vieneu[gpu]==2.4.3" (xem README).
-#
-# Phụ thuộc llama-cpp-python==0.3.16: trên Windows nên cài qua install.ps1 / install.sh
-# (có --extra-index-url wheel CPU); nếu không, pip có thể build từ source và cần MSVC + CMake.
-vieneu==2.4.3

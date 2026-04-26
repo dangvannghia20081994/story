@@ -28,18 +28,9 @@ export default async function MembersPage() {
                 className="rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-indigo-600"
               >
                 <h2 className="text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.name}</h2>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Voice ID: {member.voice_id}</p>
                 <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
                   Truyện: <span className="font-medium">{member.story_title ?? `#${member.story_id}`}</span>
                 </p>
-                <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 dark:bg-zinc-800">
-                    Pitch {member.pitch.toFixed(2)}
-                  </span>
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 dark:bg-zinc-800">
-                    Rate {member.rate.toFixed(2)}
-                  </span>
-                </div>
               </Link>
             ))}
           </section>

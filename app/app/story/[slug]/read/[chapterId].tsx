@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import * as Speech from "expo-speech";
 import { ActivityIndicator, Button, ScrollView, StyleSheet } from "react-native";
 
 import { Text, View } from "@/components/Themed";
@@ -29,6 +30,7 @@ export default function ReadChapterScreen() {
   const [story, setStory] = useState<Story | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [speaking, setSpeaking] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -57,6 +59,13 @@ export default function ReadChapterScreen() {
     };
   }, [load]);
 
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+      setSpeaking(false);
+    };
+  }, [chapterId]);
+
   const chapters = useMemo(() => {
     const list = [...(story?.chapters ?? [])];
     list.sort((a, b) => a.id - b.id);
@@ -69,8 +78,30 @@ export default function ReadChapterScreen() {
   const next = index >= 0 && index < chapters.length - 1 ? chapters[index + 1] : null;
 
   const goChapter = (id: number) => {
+    Speech.stop();
+    setSpeaking(false);
     router.replace(`/story/${encodeURIComponent(slug)}/read/${id}`);
   };
+
+  const toggleSpeak = useCallback(() => {
+    if (!chapter?.content?.trim()) return;
+    if (speaking) {
+      Speech.stop();
+      setSpeaking(false);
+      return;
+    }
+    Speech.stop();
+    const text = chapter.content.replace(/\s+/g, " ").trim();
+    setSpeaking(true);
+    Speech.speak(text, {
+      language: "vi-VN",
+      pitch: 1.0,
+      rate: 0.95,
+      onDone: () => setSpeaking(false),
+      onStopped: () => setSpeaking(false),
+      onError: () => setSpeaking(false),
+    });
+  }, [chapter?.content, speaking]);
 
   if (loading) {
     return (
@@ -99,6 +130,9 @@ export default function ReadChapterScreen() {
         ) : null}
         <Text style={styles.storyTitle}>{story.title}</Text>
         <Text style={styles.chapterHeading}>{chapter.title}</Text>
+        <View style={styles.speakRow}>
+          <Button title={speaking ? "Dừng đọc" : "Đọc chương (máy)"} onPress={toggleSpeak} />
+        </View>
         <Text style={styles.body}>{chapter.content}</Text>
         <View style={styles.nav}>
           {prev ? (
@@ -122,6 +156,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 40, gap: 12 },
   storyTitle: { fontSize: 13, opacity: 0.55 },
   chapterHeading: { fontSize: 20, fontWeight: "700" },
+  speakRow: { marginTop: 4, marginBottom: 8 },
   body: { fontSize: 17, lineHeight: 28 },
   error: { color: "#b91c1c" },
   nav: { marginTop: 20, gap: 12 },

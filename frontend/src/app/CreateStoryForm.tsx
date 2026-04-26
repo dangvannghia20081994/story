@@ -44,7 +44,7 @@ export function CreateStoryForm() {
       />
       <textarea
         className="min-h-[120px] w-full rounded border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-        placeholder="Nội dung (sẽ đưa vào hàng đợi TTS)"
+        placeholder="Nội dung chương đầu tiên"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         required

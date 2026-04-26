@@ -1,5 +1,0 @@
-# CPU wheels — chạy native (không Docker). Python 3.10–3.12 khuyến nghị.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.2,<2.6
-torchaudio>=2.2,<2.6
-coqui-tts[server]>=0.24,<0.28

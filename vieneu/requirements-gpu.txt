@@ -1,2 +1,0 @@
-# Cài PyTorch + VieNeu chế độ GPU (Windows/Linux — đọc README trước khi dùng).
-vieneu[gpu]==2.4.3

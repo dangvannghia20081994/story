@@ -16,7 +16,7 @@ Bạn chịu trách nhiệm **`app/`**: Expo Router, tabs, màn hình truyện /
 ## Ranh giới
 
 - **Không** đổi schema DB/migration backend trừ khi task yêu cầu đồng bộ contract API.
-- **Không** triển khai ffmpeg/TTS trong app; chỉ gọi API (tạo chương / queue TTS / reload).
+- **Không** triển khai ffmpeg hay tạo audio server trong app; chỉ gọi API (truyện / chương / reload).
 - Tránh logic một nền tảng mà không có nhánh `Platform.OS === 'web'` khi cần.
 
 ## File thường chạm
@@ -39,4 +39,4 @@ Xem `app/README.md`: `npm start`, `npm run web`, `npm run android` / `ios`, EAS 
 ## Ghi nhớ
 
 - Thiết bị thật: `localhost` trỏ vào máy điện thoại — dùng IP máy dev hoặc tunnel cho `EXPO_PUBLIC_API_URL`.
-- Khi API backend đổi (chương, queue-tts): cập nhật màn hình + README/AGENT.
+- Khi API backend đổi (chương, truyện): cập nhật màn hình + README/AGENT.

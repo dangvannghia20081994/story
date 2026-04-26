@@ -37,9 +37,6 @@ class CharacterController extends Controller
 
         $story->characters()->create([
             'name' => $data['name'],
-            'voice_id' => $data['voice_id'],
-            'pitch' => $data['pitch'] ?? 1.0,
-            'rate' => $data['rate'] ?? 1.0,
         ]);
 
         return redirect()->route('cms.stories.characters.index', $story)->with('status', 'Đã tạo nhân vật.');
@@ -53,9 +50,6 @@ class CharacterController extends Controller
             foreach ($rows as $row) {
                 $story->characters()->create([
                     'name' => $row['name'],
-                    'voice_id' => $row['voice_id'],
-                    'pitch' => $row['pitch'] ?? 1.0,
-                    'rate' => $row['rate'] ?? 1.0,
                 ]);
             }
         });

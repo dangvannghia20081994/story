@@ -148,8 +148,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            // Phải trùng key thô với worker Python (`story:tts:queue`). Nếu đặt prefix,
-            // cần cùng prefix ở worker (QUEUE_NAME) hoặc để trống cả hai.
+            // Prefix áp dụng cho mọi key Redis Laravel (cache, queue, …). Để trống nếu không cần tách môi trường.
             'prefix' => env('REDIS_PREFIX', ''),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],

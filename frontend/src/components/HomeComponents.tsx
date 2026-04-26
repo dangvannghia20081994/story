@@ -125,7 +125,7 @@ export function FeaturedStories() {
                   : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
               }`}
             >
-              {story.tts_status === "completed" ? "✓ Đã render" : story.tts_status === "processing" ? "⏳ Đang xử lý" : "Chưa render"}
+              {story.tts_status === "completed" ? "✓ Đã có audio" : story.tts_status === "processing" ? "⏳ Đang xử lý" : "Chưa có audio"}
             </span>
             {story.audio_url && (
               <span className="text-xs text-indigo-600 dark:text-indigo-400">▶ Nghe</span>

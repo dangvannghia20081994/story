@@ -11,11 +11,13 @@ return new class extends Migration
         Schema::create('stories', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->text('content');
-            $table->string('audio_path')->nullable()->comment('Path relative to public disk, e.g. stories/1/audio.mp3');
-            $table->string('tts_status', 32)->default('pending');
-            $table->text('tts_error')->nullable();
+            $table->string('slug')->nullable()->unique();
+            $table->text('description')->nullable();
+            $table->string('genre', 64)->nullable();
+            $table->string('serial_status', 32)->default('ongoing');
             $table->timestamps();
+
+            $table->index('genre');
         });
     }
 

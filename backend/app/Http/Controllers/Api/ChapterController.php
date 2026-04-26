@@ -5,20 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
 use App\Models\Story;
-use App\Services\TextPreprocessService;
-use App\Services\VoiceSegmentBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Redis;
-use Illuminate\Validation\Rule;
 
 class ChapterController extends Controller
 {
-    public function __construct(
-        private TextPreprocessService $textPreprocess,
-        private VoiceSegmentBuilder $voiceSegments,
-    ) {}
-
     public function index(Story $story): JsonResponse
     {
         $paginator = $story->chapters()
@@ -39,12 +30,6 @@ class ChapterController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
-            'status' => ['sometimes', 'string', Rule::in([
-                Chapter::STATUS_PENDING,
-                Chapter::STATUS_PROCESSING,
-                Chapter::STATUS_COMPLETED,
-                Chapter::STATUS_FAILED,
-            ])],
         ]);
 
         $data['content'] = Story::stripExclusivePublishingNoticeLines($data['content']);
@@ -52,7 +37,6 @@ class ChapterController extends Controller
         $chapter = $story->chapters()->create([
             'title' => $data['title'],
             'content' => $data['content'],
-            'status' => $data['status'] ?? Chapter::STATUS_PENDING,
         ]);
 
         return response()->json($chapter, 201);
@@ -76,14 +60,7 @@ class ChapterController extends Controller
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'content' => ['sometimes', 'string'],
-            'status' => ['sometimes', 'string', Rule::in([
-                Chapter::STATUS_PENDING,
-                Chapter::STATUS_PROCESSING,
-                Chapter::STATUS_COMPLETED,
-                Chapter::STATUS_FAILED,
-            ])],
             'duration' => ['sometimes', 'integer', 'min:0'],
-            'error_message' => ['nullable', 'string', 'max:5000'],
         ]);
 
         if (array_key_exists('content', $data) && is_string($data['content']) && $data['content'] !== '') {
@@ -106,46 +83,6 @@ class ChapterController extends Controller
         $chapter->delete();
 
         return response()->json(null, 204);
-    }
-
-    public function queueTts(Request $request, Story $story, Chapter $chapter): JsonResponse
-    {
-        $this->assertBelongs($story, $chapter);
-
-        $request->validate([
-            'regenerate' => ['sometimes', 'boolean'],
-        ]);
-
-        if ($chapter->status === Chapter::STATUS_PROCESSING && ! $request->boolean('regenerate')) {
-            return response()->json([
-                'message' => 'Chương đang ở trạng thái processing. Gửi regenerate=true (CMS: xếp lại khi kẹt) nếu worker đã dừng/lỗi mà chưa callback.',
-            ], 409);
-        }
-
-        $raw = $chapter->content;
-        $processed = $this->textPreprocess->apply($raw);
-        $segments = $this->voiceSegments->build($story, $processed);
-
-        $payload = json_encode([
-            'chapter_id' => $chapter->id,
-            'story_id' => $story->id,
-            'text' => $processed,
-            'voice_segments' => $segments,
-        ], JSON_THROW_ON_ERROR);
-
-        Redis::connection()->lpush('story:tts:queue', [$payload]);
-
-        $chapter->forceFill([
-            'status' => Chapter::STATUS_PROCESSING,
-            'error_message' => null,
-        ])->save();
-
-        return response()->json([
-            'message' => 'Đã xếp hàng TTS.',
-            'data' => array_merge($chapter->fresh()->toArray(), [
-                'audio_url' => $chapter->publicAudioUrl(),
-            ]),
-        ], 202);
     }
 
     private function assertBelongs(Story $story, Chapter $chapter): void

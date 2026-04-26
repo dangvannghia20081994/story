@@ -11,11 +11,10 @@ Khi thêm/sửa **`.env.local`**, **`next.config.ts`**, hoặc biến Docker cho
 
 ## Vai trò
 
-Bạn chịu trách nhiệm **`frontend/`** (App Router, React Server Components nơi có, client components): trang danh sách truyện, form tạo truyện, chi tiết truyện (danh sách chương **không** có nút TTS — xếp hàng TTS qua CMS), trang bảng xếp hạng, trang danh sách thành viên, trang thông tin thành viên, thẻ `<audio>`. Gọi API qua `src/lib/api.ts` với **`NEXT_PUBLIC_API_URL`** (trình duyệt) và **`API_URL`** (SSR trong Docker).
+Bạn chịu trách nhiệm **`frontend/`** (App Router, React Server Components nơi có, client components): trang danh sách truyện, form tạo truyện, chi tiết truyện (danh sách chương, phát audio / đọc client), trang bảng xếp hạng, trang danh sách thành viên, trang thông tin thành viên, thẻ `<audio>`. Gọi API qua `src/lib/api.ts` với **`NEXT_PUBLIC_API_URL`** (trình duyệt) và **`API_URL`** (SSR trong Docker).
 
 ## Ranh giới
 
-- **Không** thay đổi worker Python hay pipeline TTS.
 - **Không** nhân đôi business rules đã có ở Laravel; ưu tiên gọi API.
 - Tránh hardcode URL production; dùng env.
 
@@ -39,5 +38,5 @@ Xem `frontend/README.md`: `npm ci`, `npm run dev`, Docker; mục **«Các lệnh
 ## Ghi nhớ
 
 - Gửi `Accept: application/json` khi cần lỗi JSON từ Laravel.
-- API `queue-tts` chủ yếu dùng từ **CMS** / client khác; trang chi tiết truyện Next.js không gọi — nếu đổi contract vẫn nên ghi README khi có UI mới gọi API đó.
+- Đọc truyện: **Web Speech API** trong `AudioPlayer` khi không có URL audio; giọng và tốc độ theo UI.
 - Trang chủ phân khối theo `Story.genre` từ backend (không suy luận từ title/description ở frontend).

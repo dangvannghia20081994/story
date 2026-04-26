@@ -1,6 +1,6 @@
 # Backend (Laravel 12)
 
-API quản lý **truyện (danh mục)**, **chương** (nội dung + trạng thái audio), **nhân vật / giọng**, **lexicon Tu Tiên** (tiền xử lý văn bản), queue Redis cho worker TTS, callback nội bộ. File MP3 lưu qua **Storage** disk `public`.
+API quản lý **truyện (danh mục)**, **chương** (nội dung + trạng thái audio), **nhân vật** (CMS — chỉ tên), **lexicon Tu Tiên** (tiền xử lý văn bản). File MP3 (nếu có) lưu qua **Storage** disk `public`; đọc trên web/app dùng **giọng đọc trên client** (Web Speech API / `expo-speech`).
 
 ## Yêu cầu
 
@@ -23,13 +23,15 @@ php artisan scramble:export
 php artisan serve
 ```
 
-Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS_PREFIX` (đồng bộ với worker, thường rỗng), `WORKER_INTERNAL_TOKEN`, `CORS_ALLOWED_ORIGINS`, `TTS_SERVICE`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME`, `API_VERSION`, `APP_URL`, `FRONTEND_URL`.
+Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS_PREFIX` (thường rỗng), `CORS_ALLOWED_ORIGINS`, `API_VERSION`, `APP_URL`, `FRONTEND_URL`.
+
+Migration **`2026_04_27_100000_drop_tts_related_columns`** (nếu chưa chạy): xoá cột `voice_id`, `pitch`, `rate` trên bảng `characters` và `status`, `error_message` trên `chapters` (DB cũ từ worker/TTS).
 
 **`php artisan storage:link` lỗi hoặc symlink hỏng:** dùng **`--force --relative`** để tạo lại link tương đối (`public/storage` → `storage/app/public`), tránh link tuyệt đối kiểu `/var/www/html/...` sau khi chạy trong Docker (trên host symlink đó không tồn tại). Nếu báo *link already exists* mà `public/storage` là **thư mục** (không phải symlink), xóa thư mục đó rồi chạy lại lệnh (không commit `public/storage`). Trên Windows, symlink đôi khi cần quyền Administrator hoặc Developer Mode.
 
 ## CMS (quản trị dữ liệu)
 
-Giao diện web trong Laravel (Blade + session), **không** dùng Filament. Quản lý truyện, chương (có nút **TTS** đẩy Redis giống API), nhân vật/giọng, lexicon.
+Giao diện web trong Laravel (Blade + session), **không** dùng Filament. Quản lý truyện, chương, nhân vật, lexicon.
 
 | URL | Mô tả |
 |-----|--------|
@@ -53,8 +55,6 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 | `config/queue.php` / Redis | Queue (Redis) |
 | `config/filesystems.php` | Disk `public` / Storage |
 | `config/cors.php` | `CORS_ALLOWED_ORIGINS`, đường `api/*` |
-| `config/services.php` | `worker.internal_token` |
-| `config/tts.php` | `TTS_SERVICE` (vd. `vieneu`, sau này `coqui`), `voices.*`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — `App\Support\TtsConfig` |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
 
 **Quy ước:** mỗi lần thêm/sửa config hoặc biến env liên quan backend → cập nhật **`backend/README.md`** và **`.cursor/agents/backend/AGENT.md`**.
@@ -74,27 +74,18 @@ Gửi header `Accept: application/json` khi gọi từ curl.
 
 | Phương thức | Đường dẫn | Mô tả |
 |-------------|-----------|--------|
-| POST | `/api/preprocess-preview` | Body `{ "text": "..." }` — xem văn bản sau áp dụng lexicon |
 | GET/POST/PATCH/DELETE | `/api/stories` … | CRUD truyện; `GET/PATCH/DELETE /api/stories/{story}` dùng **slug** (khuyến nghị) hoặc **id** số; `POST/PATCH` hỗ trợ thêm `genre?` (`tu-tien` \| `huyen-huyen` \| `kiem-hiep` \| `do-thi` \| `khac`), cùng `title`, `slug?`, `description?`, `first_chapter?` `{ title, content }` |
 | GET/POST/PATCH/DELETE | `/api/stories/{story}/chapters` … | CRUD chương; `{story}` = **slug** truyện (URL thân thiện) hoặc **id** số (tương thích cũ) |
-| POST | `/api/stories/{story}/chapters/{chapter}/queue-tts` | Đẩy job Redis (text đã preprocess + `voice_segments`). Có thể gọi lại cho chương **đã lỗi** hoặc **đã hoàn thành** (TTS lại / chỉnh nội dung rồi render lại). Khi `status` là **`processing`** nhưng job thật ra đã kẹt (worker tắt, không callback): gửi **`{ "regenerate": true }`** (CMS danh sách chương gửi kèm khi bấm xếp lại + xác nhận) để xếp hàng lại; không gửi thì **409**. CMS: nút trên danh sách chương. |
-| GET/POST/PATCH/DELETE | `/api/stories/{story}/characters` … | CRUD nhân vật / `voice_id` |
+| GET/POST/PATCH/DELETE | `/api/stories/{story}/characters` … | CRUD nhân vật (body: `name`; API JSON không trả cột giọng legacy) |
 | GET/POST/PATCH/DELETE | `/api/lexicons` … | CRUD lexicon (`type`: `pronunciation` \| `name` \| `filter`, `priority`) |
-| POST | `/api/internal/tts-complete` | Worker: Bearer `WORKER_INTERNAL_TOKEN`. **Hoàn thành (khuyến nghị):** `multipart/form-data` — `audio` (file MP3), `chapter_id`, `story_id`, `status` (`completed`\|`ready`), `duration?`. Laravel lưu `stories/{story_id}/chapters/{chapter_id}/audio.mp3` bằng `Storage::disk('public')`. **Thất bại:** JSON — `status=failed`, `chapter_id`, `story_id`, `error?`. **Tương thích:** JSON `status=completed` + `audio_path` (đường dẫn tương đối trên disk `public`) nếu file đã có sẵn trên server. Upload lớn: chỉnh `upload_max_filesize` / `post_max_size` của PHP nếu cần (mặc định image CLI có thể thấp). **`php artisan storage:link`**: cho URL `/storage/...`. |
 
-**Log `tts-complete`:** Laravel ghi `storage/logs/laravel.log` (mặc định) các dòng `tts-complete incoming` (`has_file_audio`, `content_type`, `multipart_file_keys`), `tts-complete multipart: audio saved` (`stored_bytes`, `upload_reported_bytes`), hoặc nhánh JSON (`failed` / `completed using existing path`). Docker: `docker compose exec backend tail -f storage/logs/laravel.log | grep tts-complete`.
-
-**Docker — file audio ở đâu:** với `docker-compose.yml` hiện tại, `./backend` được mount vào container nên MP3 nằm trên máy bạn tại **`backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/audio.mp3`** (không dùng named volume che `storage/app/public` nữa). Nếu trước đây bạn dùng volume `backend_public_audio`, file cũ có thể còn trong volume Docker cũ: `docker volume ls` / `docker volume inspect story_backend_public_audio` (tên có tiền tố project).
-
-**Hợp đồng queue Redis** (`story:tts:queue`): JSON gồm tối thiểu `chapter_id`, `story_id`, `text` (đã preprocess), `voice_segments` (mảng `{ voice_id, text, pitch, rate }`). Laravel tách theo **`VoiceSegmentBuilder`**: chuẩn hoá dấu ngoặc “ ” → `"`; nếu **cả chương** có số `"` chẵn (≥2) thì tách thoại trên toàn bộ nội dung (không bắt buộc `\n\n`); không thì tách theo đoạn trống + quy tắc `Tên:` đầu đoạn. Giọng thoại: tên trên dòng trước mở ngoặc. Worker VieNeu **ghép** nhiều segment thành một MP3.
-
-**Queue TTS “đã xếp hàng” nhưng worker không chạy:** Laravel mặc định từng thêm **prefix** vào mọi key Redis; worker Python lại `BRPOP` đúng tên `story:tts:queue` — nếu `.env` không có `REDIS_PREFIX=` (rỗng), job bị đẩy sang key khác. Cấu hình hiện tại: `config/database.php` mặc định prefix rỗng; Compose ghi đè `REDIS_PREFIX=""`. Sau khi sửa: `php artisan config:clear`. Kiểm tra: service **`worker`** đang chạy, `docker compose logs -f worker`, và trên Redis `LLEN story:tts:queue` (job đang chờ) / log consumer có nhận job không.
+**Docker — file audio ở đâu:** với `docker-compose.yml` hiện tại, `./backend` được mount vào container nên MP3 (nếu bạn tự đặt qua Storage) nằm tại **`backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/audio.mp3`**. **`php artisan storage:link`**: cho URL `/storage/...`.
 
 ## Docker
 
 Từ gốc repo: tạo **`backend/.env`** từ `.env.example`, chạy `php artisan key:generate` nếu chưa có `APP_KEY`, rồi `docker compose up` — xem `../README.md`.
 
-Compose **không** nhân đôi toàn bộ biến Laravel: container đọc `backend/.env` trên volume; `docker-compose.yml` ghi đè **`DB_HOST=db`**, **`REDIS_HOST=redis`**, **`REDIS_CLIENT=predis`** (image PHP không cài extension `phpredis`; dùng package `predis/predis`), và `WORKER_INTERNAL_TOKEN` từ biến compose.
+Compose **không** nhân đôi toàn bộ biến Laravel: container đọc `backend/.env` trên volume; `docker-compose.yml` ghi đè **`DB_HOST=db`**, **`REDIS_HOST=redis`**, **`REDIS_CLIENT=predis`** (image PHP không cài extension `phpredis`; dùng package `predis/predis`).
 
 Chạy **ngoài Docker** mà không cài extension Redis: trong `.env` đặt **`REDIS_CLIENT=predis`** (mặc định trong `config/database.php` và `.env.example`).
 

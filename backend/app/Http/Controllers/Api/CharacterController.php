@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\Story;
-use App\Support\TtsConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,16 +22,10 @@ class CharacterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'voice_id' => ['required', 'string', 'max:255', Rule::in(array_keys(TtsConfig::voices()))],
-            'pitch' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
-            'rate' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
         ]);
 
         $character = $story->characters()->create([
             'name' => $data['name'],
-            'voice_id' => $data['voice_id'],
-            'pitch' => $data['pitch'] ?? 1.0,
-            'rate' => $data['rate'] ?? 1.0,
         ]);
 
         return response()->json($character, 201);
@@ -58,14 +51,6 @@ class CharacterController extends Controller
                     ->where('story_id', $story->id)
                     ->ignore($character->id),
             ],
-            'voice_id' => [
-                'sometimes',
-                'string',
-                'max:255',
-                Rule::in(TtsConfig::allowedVoiceIdsWithLegacy($character->voice_id)),
-            ],
-            'pitch' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
-            'rate' => ['sometimes', 'numeric', 'min:0.1', 'max:3'],
         ]);
 
         $character->fill($data)->save();

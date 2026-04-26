@@ -5,11 +5,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REDIS_DIR="$ROOT_DIR/redis"
 REDIS_SERVER="$REDIS_DIR/redis-server.exe"
-WITH_WORKER=false
-
-if [[ "${1:-}" == "--with-worker" ]]; then
-  WITH_WORKER=true
-fi
 
 PIDS=()
 
@@ -49,10 +44,6 @@ fi
 
 start_service "backend" "$ROOT_DIR/backend" "php artisan serve --host=localhost --port=8000"
 start_service "frontend" "$ROOT_DIR/frontend" "npm run dev"
-
-if [[ "$WITH_WORKER" == "true" ]]; then
-  start_service "worker" "$ROOT_DIR/worker" "uvicorn app.main:app --reload --port 8080"
-fi
 
 echo "All selected services started."
 echo "Press Ctrl+C to stop."

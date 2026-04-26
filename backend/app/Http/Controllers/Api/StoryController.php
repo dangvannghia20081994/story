@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Chapter;
 use App\Models\Story;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +15,11 @@ class StoryController extends Controller
     public function index(): JsonResponse
     {
         $paginator = Story::query()
-            ->withCount('chapters')
+            ->with(['firstAudibleChapter' => fn ($q) => $q->select(['id', 'story_id', 'audio_path'])])
+            ->withCount([
+                'chapters',
+                'chapters as chapters_with_audio_count' => fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
+            ])
             ->orderByDesc('id')
             ->paginate(20);
 
@@ -60,7 +63,6 @@ class StoryController extends Controller
                 $story->chapters()->create([
                     'title' => $data['first_chapter']['title'],
                     'content' => $data['first_chapter']['content'],
-                    'status' => Chapter::STATUS_PENDING,
                 ]);
             }
 

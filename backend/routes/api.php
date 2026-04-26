@@ -2,13 +2,9 @@
 
 use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\CharacterController;
-use App\Http\Controllers\Api\InternalTtsController;
 use App\Http\Controllers\Api\LexiconController;
-use App\Http\Controllers\Api\PreprocessController;
 use App\Http\Controllers\Api\StoryController;
 use Illuminate\Support\Facades\Route;
-
-Route::post('/preprocess-preview', [PreprocessController::class, 'preview']);
 
 Route::get('/stories', [StoryController::class, 'index']);
 Route::post('/stories', [StoryController::class, 'store']);
@@ -21,8 +17,6 @@ Route::post('/stories/{story}/chapters', [ChapterController::class, 'store']);
 Route::get('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'show']);
 Route::patch('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'update']);
 Route::delete('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'destroy']);
-Route::post('/stories/{story}/chapters/{chapter}/queue-tts', [ChapterController::class, 'queueTts']);
-
 Route::get('/stories/{story}/characters', [CharacterController::class, 'index']);
 Route::post('/stories/{story}/characters', [CharacterController::class, 'store']);
 Route::get('/stories/{story}/characters/{character}', [CharacterController::class, 'show']);
@@ -35,5 +29,3 @@ Route::get('/lexicons/{lexicon}', [LexiconController::class, 'show']);
 Route::patch('/lexicons/{lexicon}', [LexiconController::class, 'update']);
 Route::delete('/lexicons/{lexicon}', [LexiconController::class, 'destroy']);
 
-Route::post('/internal/tts-complete', [InternalTtsController::class, 'complete'])
-    ->middleware('worker.token');

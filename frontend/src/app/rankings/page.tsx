@@ -26,9 +26,9 @@ function scoreStory(story: Story): number {
 }
 
 function statusLabel(status: string): string {
-  if (status === "completed") return "Đã render";
+  if (status === "completed") return "Đã có audio";
   if (status === "processing") return "Đang xử lý";
-  return "Chưa render";
+  return "Chưa có audio";
 }
 
 async function loadRankings(): Promise<Array<Story & { score: number }>> {
@@ -52,7 +52,7 @@ export default async function RankingsPage() {
         <header className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/70">
           <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Bảng xếp hạng truyện</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Xếp hạng dựa trên tiến độ TTS, tình trạng audio và độ đầy đủ nội dung.
+            Xếp hạng dựa trên tiến độ audio (trạng thái tổng hợp), có file nghe và độ đầy đủ mô tả.
           </p>
         </header>
 

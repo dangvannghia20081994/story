@@ -15,9 +15,6 @@ export type Member = {
   id: number;
   story_id: number;
   name: string;
-  voice_id: string;
-  pitch: number;
-  rate: number;
   created_at: string | null;
   updated_at: string | null;
   story_title?: string;

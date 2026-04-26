@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Story extends Model
@@ -81,6 +82,17 @@ class Story extends Model
         'serial_status',
     ];
 
+    /** Tổng hợp từ chương — không còn cột DB; giữ key `tts_status` cho client cũ. */
+    protected $appends = [
+        'tts_status',
+        'audio_url',
+    ];
+
+    /** Không lộ relation phụ trong JSON (chỉ dùng cho accessor `audio_url`). */
+    protected $hidden = [
+        'first_audible_chapter',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -115,6 +127,63 @@ class Story extends Model
     public function characters(): HasMany
     {
         return $this->hasMany(Character::class);
+    }
+
+    /** Chương đầu tiên có file audio (cho danh sách truyện). */
+    public function firstAudibleChapter(): HasOne
+    {
+        return $this->hasOne(Chapter::class)
+            ->whereNotNull('audio_path')
+            ->where('audio_path', '<>', '')
+            ->orderBy('id');
+    }
+
+    public function getTtsStatusAttribute(): string
+    {
+        if ($this->relationLoaded('chapters')) {
+            $chapters = $this->chapters;
+            $total = $chapters->count();
+            if ($total === 0) {
+                return 'pending';
+            }
+            $with = $chapters->filter(fn (Chapter $c) => $c->audio_path !== null && $c->audio_path !== '')->count();
+            if ($with >= $total) {
+                return 'completed';
+            }
+            if ($with > 0) {
+                return 'processing';
+            }
+
+            return 'pending';
+        }
+
+        $total = (int) ($this->chapters_count ?? 0);
+        if ($total === 0) {
+            return 'pending';
+        }
+        $with = (int) ($this->chapters_with_audio_count ?? 0);
+        if ($with >= $total) {
+            return 'completed';
+        }
+        if ($with > 0) {
+            return 'processing';
+        }
+
+        return 'pending';
+    }
+
+    public function getAudioUrlAttribute(): ?string
+    {
+        if ($this->relationLoaded('firstAudibleChapter') && $this->firstAudibleChapter) {
+            return $this->firstAudibleChapter->publicAudioUrl();
+        }
+        if ($this->relationLoaded('chapters')) {
+            $first = $this->chapters->first(fn (Chapter $c) => $c->audio_path !== null && $c->audio_path !== '');
+
+            return $first ? $first->publicAudioUrl() : null;
+        }
+
+        return null;
     }
 
     public function getRouteKeyName(): string

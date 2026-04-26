@@ -11,23 +11,13 @@ import {
 } from "react-native";
 
 import { Text, View } from "@/components/Themed";
-import {
-  apiFetch,
-  chapterAudioUrl,
-  parseApiErrorMessage,
-  queueChapterTts,
-  type Chapter,
-  type Story,
-} from "@/lib/api";
+import { apiFetch, chapterAudioUrl, type Chapter, type Story } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
 
 type StoryShowResponse = { data: Story };
 
-function statusLabel(status: string): string {
-  if (status === "completed") return "Hoàn thành";
-  if (status === "processing") return "Đang xử lý";
-  if (status === "failed") return "Lỗi";
-  return "Chờ render";
+function audioStatusLabel(hasFile: boolean): string {
+  return hasFile ? "Đã có file audio" : "Chưa có file";
 }
 
 function slugParam(raw: string | string[] | undefined): string {
@@ -42,7 +32,6 @@ export default function StoryDetailScreen() {
   const [story, setStory] = useState<Story | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [queueBusyId, setQueueBusyId] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playChapterId, setPlayChapterId] = useState<number | null>(null);
@@ -95,7 +84,7 @@ export default function StoryDetailScreen() {
 
   const defaultPlayId = useMemo(() => {
     if (chapters.length === 0) return null;
-    const withAudio = chapters.find((c) => chapterAudioUrl(c) && c.status === "completed");
+    const withAudio = chapters.find((c) => chapterAudioUrl(c));
     return (withAudio ?? chapters[0]).id;
   }, [chapters]);
 
@@ -139,20 +128,6 @@ export default function StoryDetailScreen() {
     });
   }
 
-  async function onQueueTts(chapterId: number) {
-    if (!slug) return;
-    setQueueBusyId(chapterId);
-    setError(null);
-    try {
-      await queueChapterTts(slug, chapterId, { regenerate: false });
-      await load();
-    } catch (e) {
-      setError(parseApiErrorMessage((e as Error).message));
-    } finally {
-      setQueueBusyId(null);
-    }
-  }
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -171,8 +146,6 @@ export default function StoryDetailScreen() {
 
   const genre = genreLabel(story.genre);
   const withAudioCount = chapters.filter((c) => chapterAudioUrl(c)).length;
-  const failedChapter = chapters.find((c) => c.status === "failed" && c.error_message);
-
   return (
     <>
       <Stack.Screen options={{ title: story.title }} />
@@ -200,17 +173,13 @@ export default function StoryDetailScreen() {
             {withAudioCount} / {chapters.length} chương đã có file audio.
           </Text>
         ) : null}
-        {failedChapter?.error_message ? (
-          <Text style={styles.error}>{failedChapter.error_message}</Text>
-        ) : null}
-
         {chapters.length > 0 && playUrl ? (
           <View style={styles.player}>
             <Text style={styles.playerLabel}>Đang phát: {playChapter?.title ?? ""}</Text>
             <Button title={playing ? "Tạm dừng" : "Phát audio"} onPress={togglePlay} />
           </View>
         ) : chapters.length > 0 ? (
-          <Text style={styles.muted}>Chọn chương có audio bên dưới (hoặc xếp hàng TTS).</Text>
+          <Text style={styles.muted}>Chọn chương có audio bên dưới, hoặc mở Đọc để nghe bằng máy.</Text>
         ) : null}
 
         <Text style={styles.sectionTitle}>Danh sách chương</Text>
@@ -219,9 +188,8 @@ export default function StoryDetailScreen() {
         ) : (
           chapters.map((chapter, index) => {
             const audio = chapterAudioUrl(chapter);
-            const hideTts = chapter.status === "completed" || chapter.status === "failed";
-            const isProcessing = chapter.status === "processing";
             const isSelected = chapter.id === playChapterId;
+            const hasFile = Boolean(audio);
             return (
               <View
                 key={chapter.id}
@@ -232,12 +200,10 @@ export default function StoryDetailScreen() {
                   <View style={styles.chapterMeta}>
                     <Text style={styles.chapterTitle}>{chapter.title}</Text>
                     <Text style={styles.muted}>
-                      {statusLabel(chapter.status)}
+                      {audioStatusLabel(hasFile)}
                       {chapter.duration > 0
                         ? ` · ${Math.floor(chapter.duration / 60)} phút ${chapter.duration % 60}s`
-                        : audio
-                          ? " · Đã có file"
-                          : " · Chưa có audio"}
+                        : ""}
                     </Text>
                   </View>
                 </View>
@@ -256,25 +222,6 @@ export default function StoryDetailScreen() {
                       onPress={() => setPlayChapterId(chapter.id)}
                     >
                       <Text style={styles.btnOutlineText}>Chọn để phát</Text>
-                    </Pressable>
-                  ) : null}
-                  {!hideTts ? (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.btnPrimary,
-                        (pressed || queueBusyId === chapter.id || isProcessing) && styles.pressed,
-                        (queueBusyId === chapter.id || isProcessing) && styles.btnDisabled,
-                      ]}
-                      disabled={queueBusyId === chapter.id || isProcessing}
-                      onPress={() => void onQueueTts(chapter.id)}
-                    >
-                      <Text style={styles.btnPrimaryText}>
-                        {isProcessing
-                          ? "Đang TTS…"
-                          : queueBusyId === chapter.id
-                            ? "Đang gửi…"
-                            : "Xếp hàng TTS"}
-                      </Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -345,13 +292,5 @@ const styles = StyleSheet.create({
     borderColor: "#999",
   },
   btnOutlineText: { fontSize: 13, fontWeight: "600" },
-  btnPrimary: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: "#4f46e5",
-  },
-  btnPrimaryText: { fontSize: 13, fontWeight: "600", color: "#fff" },
-  btnDisabled: { opacity: 0.55 },
   pressed: { opacity: 0.75 },
 });

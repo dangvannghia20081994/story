@@ -18,9 +18,8 @@ Agent (hoặc người) chỉnh code **phải** làm đủ bước 1–2 trong c
 
 | Thư mục | Vai trò |
 |---------|---------|
-| [backend](./backend/AGENT.md) | API Laravel, DB, Storage, queue, CORS |
+| [backend](./backend/AGENT.md) | API Laravel, DB, Storage, CORS |
 | [frontend](./frontend/AGENT.md) | Next.js web |
-| [worker](./worker/AGENT.md) | Python worker, Redis, TTS pipeline |
 | [mobile](./mobile/AGENT.md) | Expo / React Native + web |
 
-Hướng dẫn chạy chi tiết: `README.md` trong từng app (`backend/`, `frontend/`, `worker/`, `app/`) và `docker/README.md`.
+Hướng dẫn chạy chi tiết: `README.md` trong từng app (`backend/`, `frontend/`, `app/`) và `docker/README.md`.

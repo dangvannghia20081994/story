@@ -1,8 +1,8 @@
 # Chạy Story trên VPS không Docker
 
-Cài từng thành phần trên **một máy Linux** (Ubuntu 22.04/24.04 LTS): PostgreSQL, Redis, PHP 8.4 + Composer, web server (Nginx khuyến nghị), Node.js 20+, Python 3.12+, **ffmpeg**. Phù hợp khi không dùng Docker hoặc chỉ một phần stack chạy container.
+Cài từng thành phần trên **một máy Linux** (Ubuntu 22.04/24.04 LTS): PostgreSQL, Redis, PHP 8.4 + Composer, web server (Nginx khuyến nghị), Node.js 20+. Phù hợp khi không dùng Docker hoặc chỉ một phần stack chạy container.
 
-Luồng dữ liệu: **Nginx** → PHP-FPM (Laravel) cổng socket; **Next.js** build tĩnh + `npm start` hoặc Node behind Nginx; **Worker** Python consumer Redis gọi `BACKEND_URL` tới Laravel.
+Luồng dữ liệu: **Nginx** → PHP-FPM (Laravel) cổng socket; **Next.js** build tĩnh + `npm start` hoặc Node behind Nginx.
 
 ---
 
@@ -21,7 +21,7 @@ sudo -u postgres psql -c "CREATE USER story WITH PASSWORD 'your-secure-password'
 sudo -u postgres psql -c "CREATE DATABASE story OWNER story;"
 ```
 
-Trong `backend/.env`: `DB_CONNECTION=pgsql`, `DB_HOST=localhost`, `DB_DATABASE=story`, `DB_USERNAME=story`, `DB_PASSWORD=...`, `REDIS_HOST=localhost`, `REDIS_PREFIX=` (rỗng nếu cần đồng bộ tên queue với worker), `REDIS_CLIENT=predis` nếu không cài `phpredis`.
+Trong `backend/.env`: `DB_CONNECTION=pgsql`, `DB_HOST=localhost`, `DB_DATABASE=story`, `DB_USERNAME=story`, `DB_PASSWORD=...`, `REDIS_HOST=localhost`, `REDIS_PREFIX=` (thường rỗng), `REDIS_CLIENT=predis` nếu không cài `phpredis`.
 
 ---
 
@@ -46,7 +46,7 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Chỉnh `.env`: `APP_URL`, `APP_ENV=production`, `APP_DEBUG=false`, DB, Redis, `WORKER_INTERNAL_TOKEN`, `CORS_ALLOWED_ORIGINS`.
+Chỉnh `.env`: `APP_URL`, `APP_ENV=production`, `APP_DEBUG=false`, DB, Redis, `CORS_ALLOWED_ORIGINS`.
 
 ```bash
 php artisan migrate --force
@@ -56,7 +56,7 @@ php artisan config:cache
 php artisan route:cache
 ```
 
-**Upload MP3 từ worker:** tăng `upload_max_filesize` / `post_max_size` trong pool PHP-FPM nếu chương dài (xem `backend/README.md`).
+**Upload MP3 lớn (nếu tự tải file audio):** tăng `upload_max_filesize` / `post_max_size` trong pool PHP-FPM nếu cần (xem `backend/README.md`).
 
 ---
 
@@ -114,66 +114,15 @@ Hoặc dùng **systemd** / **PM2** để giữ tiến trình. Nginx `proxy_pass`
 
 ---
 
-## 5. Worker Python (TTS)
-
-```bash
-cd /var/www/story/worker
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-`worker/.env` tối thiểu:
-
-- `REDIS_URL=redis://localhost:6379/0`
-- `QUEUE_NAME=story:tts:queue`
-- `BACKEND_URL=https://api.example.com` (URL mà worker gọi được — cùng máy có thể `http://localhost:8000` nếu chỉ nội bộ)
-- `WORKER_TOKEN` = `WORKER_INTERNAL_TOKEN` của Laravel
-- `TTS_PROVIDER=vieneu` (mặc định) hoặc `ffmpeg`; tuỳ chọn `VIENEU_PRESET_VOICE_ID` — xem `worker/README.md`
-
-Chạy thủ công kiểm tra:
-
-```bash
-source .venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8080
-```
-
-**systemd** (ví dụ `/etc/systemd/system/story-worker.service`):
-
-```ini
-[Unit]
-Description=Story TTS worker
-After=network.target redis-server.service
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/var/www/story/worker
-Environment=PATH=/var/www/story/worker/.venv/bin
-ExecStart=/var/www/story/worker/.venv/bin/uvicorn app.main:app --host localhost --port 8080
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-`sudo systemctl daemon-reload && sudo systemctl enable --now story-worker`.
-
-Cần **ffmpeg** trên PATH: `sudo apt install -y ffmpeg`.
-
----
-
-## 6. Expo / mobile (`app/`)
+## 5. Expo / mobile (`app/`)
 
 Tùy chọn; development thường trên máy cục bộ. Production web có thể chỉ dùng Next.js — xem `app/README.md`.
 
 ---
 
-## 7. Kiểm tra
+## 6. Kiểm tra
 
 - API: `curl -sS -H "Accept: application/json" https://api.example.com/docs/api.json | head`
-- Redis queue: đảm bảo Laravel đẩy đúng tên list (không bị prefix lệch) — `backend/README.md` mục queue TTS
-- Worker: log consumer, job TTS hoàn thành và file MP3 dưới `backend/storage/app/public/...`
+- File audio (nếu có): `backend/storage/app/public/...` — xem `backend/README.md`
 
-Tài liệu tham chiếu: [README.md](README.md), [backend/README.md](backend/README.md), [worker/README.md](worker/README.md).
+Tài liệu tham chiếu: [README.md](README.md), [backend/README.md](backend/README.md).

@@ -14,12 +14,8 @@ return new class extends Migration
             $table->string('title');
             $table->longText('content');
             $table->string('audio_path')->nullable();
-            $table->string('status', 32)->default('pending');
             $table->unsignedInteger('duration')->default(0);
-            $table->text('error_message')->nullable();
             $table->timestamps();
-
-            $table->index(['story_id', 'status']);
         });
     }
 

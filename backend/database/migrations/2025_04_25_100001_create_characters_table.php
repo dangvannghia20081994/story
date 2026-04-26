@@ -12,9 +12,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('story_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->string('voice_id');
-            $table->float('pitch')->default(1.0);
-            $table->float('rate')->default(1.0);
             $table->timestamps();
 
             $table->unique(['story_id', 'name']);

@@ -1,6 +1,6 @@
 @extends('cms.layout')
 
-@section('title', 'Thêm nhiều chương')
+@section('title', e($story->title).' — Thêm nhiều chương')
 @section('content_class', 'app-content--wide')
 
 @push('head')

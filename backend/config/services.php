@@ -35,8 +35,4 @@ return [
         ],
     ],
 
-    'worker' => [
-        'internal_token' => env('WORKER_INTERNAL_TOKEN'),
-    ],
-
 ];

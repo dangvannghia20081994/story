@@ -2,10 +2,8 @@
 
 namespace App\Http\Requests\Cms;
 
-use App\Models\Chapter;
 use App\Models\Story;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreChapterRequest extends FormRequest
 {
@@ -30,12 +28,6 @@ class StoreChapterRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
-            'status' => ['sometimes', 'string', Rule::in([
-                Chapter::STATUS_PENDING,
-                Chapter::STATUS_PROCESSING,
-                Chapter::STATUS_COMPLETED,
-                Chapter::STATUS_FAILED,
-            ])],
         ];
     }
 }

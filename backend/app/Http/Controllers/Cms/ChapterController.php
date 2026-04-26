@@ -2,15 +2,12 @@
 
 namespace App\Http\Controllers\Cms;
 
-use App\Http\Controllers\Api\ChapterController as ApiChapterController;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cms\StoreBulkChaptersRequest;
 use App\Http\Requests\Cms\StoreChapterRequest;
 use App\Http\Requests\Cms\UpdateChapterRequest;
-use App\Models\Chapter;
 use App\Models\Story;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -43,7 +40,6 @@ class ChapterController extends Controller
         $story->chapters()->create([
             'title' => $data['title'],
             'content' => $data['content'],
-            'status' => $data['status'] ?? Chapter::STATUS_PENDING,
         ]);
 
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã tạo chương.');
@@ -58,7 +54,6 @@ class ChapterController extends Controller
                 $story->chapters()->create([
                     'title' => $row['title'],
                     'content' => $row['content'],
-                    'status' => Chapter::STATUS_PENDING,
                 ]);
             }
         });
@@ -90,25 +85,6 @@ class ChapterController extends Controller
         $chapter->delete();
 
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã xóa chương.');
-    }
-
-    public function queueTts(Request $request, Story $story, Chapter $chapter): RedirectResponse
-    {
-        $this->assertBelongs($story, $chapter);
-
-        /** @var ApiChapterController $api */
-        $api = app(ApiChapterController::class);
-        $response = $api->queueTts($request, $story, $chapter);
-
-        if ($response->getStatusCode() === 202) {
-            return redirect()->back()->with('status', 'Đã xếp hàng TTS.');
-        }
-
-        $payload = json_decode($response->getContent(), true);
-
-        return redirect()->back()->withErrors([
-            'queue' => is_array($payload) && isset($payload['message']) ? (string) $payload['message'] : 'Không thể xếp hàng TTS.',
-        ]);
     }
 
     private function assertBelongs(Story $story, Chapter $chapter): void

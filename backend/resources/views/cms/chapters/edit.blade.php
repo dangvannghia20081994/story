@@ -1,6 +1,6 @@
 @extends('cms.layout')
 
-@section('title', 'Sửa chương')
+@section('title', e($story->title).' — Sửa chương')
 
 @section('content')
     <h1>Sửa chương — {{ $story->title }}</h1>

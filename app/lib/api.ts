@@ -64,9 +64,7 @@ export interface Chapter {
   content: string;
   audio_path: string | null;
   audio_url?: string | null;
-  status: string;
   duration: number;
-  error_message?: string | null;
 }
 
 export interface CreateStoryData {
@@ -98,14 +96,3 @@ export async function createStory(data: CreateStoryData): Promise<Story> {
   });
 }
 
-export async function queueChapterTts(
-  storySlug: string,
-  chapterId: number,
-  body: { regenerate?: boolean } = {},
-): Promise<void> {
-  const key = encodeURIComponent(storySlug);
-  await apiFetch(`/api/stories/${key}/chapters/${chapterId}/queue-tts`, {
-    method: "POST",
-    body: JSON.stringify({ regenerate: false, ...body }),
-  });
-}

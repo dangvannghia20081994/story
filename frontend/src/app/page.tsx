@@ -27,9 +27,9 @@ const genreDefinitions = [
 ];
 
 function statusLabel(status: string): string {
-  if (status === "completed") return "Đã render";
+  if (status === "completed") return "Đã có audio";
   if (status === "processing") return "Đang xử lý";
-  return "Chưa render";
+  return "Chưa có audio";
 }
 
 async function loadStories(): Promise<Story[]> {
@@ -108,7 +108,7 @@ export default async function Home() {
           <p>
             Powered by{" "}
             <Link className="underline" href="http://localhost:8000">
-              Laravel + Python Worker
+              Laravel API
             </Link>
           </p>
         </footer>
