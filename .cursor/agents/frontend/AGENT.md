@@ -29,7 +29,7 @@ Bạn chịu trách nhiệm **`frontend/`** (App Router, React Server Components
 
 | Biến | Khi nào |
 |--------|---------|
-| `NEXT_PUBLIC_API_URL` | Client + URL tuyệt đối cho `<audio src>` từ API |
+| `NEXT_PUBLIC_API_URL` | Client + `apiFetch`; URL file audio thường **chuẩn qua** `resolvePlayableAudioUrl` + rewrite `/storage` trong `next.config.ts` (tránh lỗi “no supported sources” khi API trả `/storage/...` hoặc `audio_path` tương đối) |
 | `API_URL` | SSR trong container — trỏ `http://backend:8000` (Compose) |
 
 ## Lệnh tham chiếu

@@ -7,6 +7,7 @@ import { SidebarLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
 import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
+import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { storyKey, storyReadHref } from "@/lib/storyPath";
 
 type ChapterRow = {
@@ -33,7 +34,7 @@ type StoryShowData = {
 };
 
 function chapterAudioUrl(c: ChapterRow): string | null {
-  return c.audio_url ?? (c.audio_path ? c.audio_path : null);
+  return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
 }
 
 function statusBadgeClass(status: string): string {

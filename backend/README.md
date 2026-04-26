@@ -18,7 +18,7 @@ php artisan key:generate
 composer install
 php artisan migrate
 php artisan db:seed
-php artisan storage:link --force --relative
+php artisan storage:link --force
 php artisan scramble:export
 php artisan serve
 ```

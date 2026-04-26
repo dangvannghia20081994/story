@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { storyDetailHref } from "@/lib/storyPath";
 
 type StoryRow = {
@@ -40,7 +41,9 @@ export async function StoriesList() {
 
   return (
     <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-      {payload.data.map((s) => (
+      {payload.data.map((s) => {
+        const sampleSrc = resolvePlayableAudioUrl(s.audio_url, null);
+        return (
         <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
           <div>
             <Link
@@ -51,15 +54,16 @@ export async function StoriesList() {
             </Link>
             <p className="text-xs text-zinc-500">TTS: {s.tts_status}</p>
           </div>
-          {s.audio_url ? (
+          {sampleSrc ? (
             <audio controls preload="none" className="h-8 max-w-full">
-              <source src={s.audio_url} type="audio/mpeg" />
+              <source src={sampleSrc} type="audio/mpeg" />
             </audio>
           ) : (
             <span className="text-xs text-zinc-400">Chưa có audio</span>
           )}
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

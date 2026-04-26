@@ -3,10 +3,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+logging.basicConfig(level=logging.INFO)
+
 from app.config import settings
+from app.pydub_ffmpeg import ensure_pydub_ffmpeg
 from app.consumer import start_consumer_thread
 
-logging.basicConfig(level=logging.INFO)
+ensure_pydub_ffmpeg()
 logger = logging.getLogger(__name__)
 
 

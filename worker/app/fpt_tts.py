@@ -12,6 +12,11 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+from app.config import settings
+from app.pydub_ffmpeg import ensure_pydub_ffmpeg
+
+ensure_pydub_ffmpeg()
+
 import httpx
 from pydub import AudioSegment
 
@@ -21,7 +26,6 @@ except ImportError:  # pragma: no cover — pydub cũ
     CouldntDecodeError = Exception  # type: ignore[misc,assignment]
 
 from app.audio_stitcher import DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 

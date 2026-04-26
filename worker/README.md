@@ -5,7 +5,7 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 ## Yêu cầu
 
 - Python **3.12+**
-- `ffmpeg` trên PATH (luôn cần cho nhánh `ffmpeg`; nhánh `fpt` dùng thêm **pydub** đo duration)
+- `ffmpeg` và `ffprobe` (cùng bộ; nhánh `ffmpeg` cần `ffmpeg`; **fpt** dùng **pydub** → pydub gọi cả `ffprobe`). Trên **Windows** nếu chưa thêm `bin` vào PATH, đặt `FFMPEG_PATH` trỏ tới `ffmpeg.exe` (worker sẽ thêm thư mục đó vào `PATH` — xem `app/pydub_ffmpeg.py`).
 
 ## Nguồn cấu hình (`.env`)
 
@@ -22,6 +22,7 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 | `BACKEND_URL` | Base URL Laravel |
 | `WORKER_TOKEN` | Trùng `WORKER_INTERNAL_TOKEN` của Laravel |
 | **`TTS_PROVIDER`** | `ffmpeg` (mặc định) hoặc **`fpt`** |
+| **`FFMPEG_PATH`** | Đường dẫn tới binary `ffmpeg` (mặc định: tìm theo tên trên `PATH`). **Tùy chọn trên Linux/Docker** nếu `ffmpeg`+`ffprobe` đã có trong `/usr/bin`. **Thường cần trên Windows** (Laragon: `…\bin\ffmpeg.exe`) để pydub gọi được `ffprobe` cùng thư mục. |
 | **`FPT_API_KEY`** | Bắt buộc khi `TTS_PROVIDER=fpt` — lấy từ [console.fpt.ai](https://console.fpt.ai/) |
 | `FPT_TTS_URL` | Mặc định `https://api.fpt.ai/hmi/tts/v5` |
 | `FPT_TTS_VOICE` | `banmai`, `lannhi`, … (xem tài liệu FPT) |

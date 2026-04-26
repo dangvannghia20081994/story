@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { AudioPlayer } from "@/components/AudioPlayer";
 
 function readProgressStorageKey(storyId: string): string {
@@ -47,9 +48,7 @@ function resolveInitialChapterIndex(storyId: string, list: Chapter[]): number {
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
   if (!c) return null;
-  if (c.audio_url) return c.audio_url;
-  if (c.audio_path?.startsWith("http")) return c.audio_path;
-  return null;
+  return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
 }
 
 type Story = {
