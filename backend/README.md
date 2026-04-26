@@ -23,7 +23,7 @@ php artisan scramble:export
 php artisan serve
 ```
 
-Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS_PREFIX` (đồng bộ với worker, thường rỗng), `WORKER_INTERNAL_TOKEN`, `CORS_ALLOWED_ORIGINS`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME`, `API_VERSION`, `APP_URL`, `FRONTEND_URL`.
+Biến quan trọng trong **`.env` / `.env.example`**: `DB_*`, `REDIS_*`, `REDIS_PREFIX` (đồng bộ với worker, thường rỗng), `WORKER_INTERNAL_TOKEN`, `CORS_ALLOWED_ORIGINS`, `TTS_SERVICE`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME`, `API_VERSION`, `APP_URL`, `FRONTEND_URL`.
 
 **`php artisan storage:link` lỗi hoặc symlink hỏng:** dùng **`--force --relative`** để tạo lại link tương đối (`public/storage` → `storage/app/public`), tránh link tuyệt đối kiểu `/var/www/html/...` sau khi chạy trong Docker (trên host symlink đó không tồn tại). Nếu báo *link already exists* mà `public/storage` là **thư mục** (không phải symlink), xóa thư mục đó rồi chạy lại lệnh (không commit `public/storage`). Trên Windows, symlink đôi khi cần quyền Administrator hoặc Developer Mode.
 
@@ -54,7 +54,7 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 | `config/filesystems.php` | Disk `public` / Storage |
 | `config/cors.php` | `CORS_ALLOWED_ORIGINS`, đường `api/*` |
 | `config/services.php` | `worker.internal_token` |
-| `config/tts.php` | `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME`, mảng `voices` (CMS chọn voice nhân vật) |
+| `config/tts.php` | `TTS_SERVICE` (azure\|fpt), `voices.azure` / `voices.fpt`, `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — đọc qua `App\Support\TtsConfig` |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
 
 **Quy ước:** mỗi lần thêm/sửa config hoặc biến env liên quan backend → cập nhật **`backend/README.md`** và **`.cursor/agents/backend/AGENT.md`**.

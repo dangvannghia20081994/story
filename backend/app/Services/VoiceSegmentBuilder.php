@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Models\Story;
-use Illuminate\Support\Facades\Config;
+use App\Support\TtsConfig;
 
 class VoiceSegmentBuilder
 {
@@ -16,8 +16,8 @@ class VoiceSegmentBuilder
      */
     public function build(Story $story, string $preprocessedText): array
     {
-        $narratorName = (string) Config::get('tts.narrator_character_name');
-        $defaultVoice = (string) Config::get('tts.default_voice_id');
+        $narratorName = TtsConfig::narratorCharacterName();
+        $defaultVoice = TtsConfig::defaultVoiceId();
 
         $narrator = Character::query()
             ->where('story_id', $story->id)

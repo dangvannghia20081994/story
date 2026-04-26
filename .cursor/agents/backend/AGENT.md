@@ -32,7 +32,7 @@ Bạn chịu trách nhiệm **ứng dụng Laravel** trong `backend/`: routes AP
 - `DB_*`, `REDIS_*`, `REDIS_PREFIX` (queue key đồng bộ worker; thường rỗng)
 - `WORKER_INTERNAL_TOKEN` — Bearer / `X-Worker-Token` cho `POST /api/internal/tts-complete`
 - `CORS_ALLOWED_ORIGINS` — Next + Expo web
-- `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME`, `voices` (CMS chọn voice) — `config/tts.php`, segment mặc định trong payload queue
+- `TTS_SERVICE` (azure\|fpt), `TTS_DEFAULT_VOICE_ID`, `TTS_NARRATOR_CHARACTER_NAME` — `config/tts.php` + `App\Support\TtsConfig` (danh sách voice CMS theo dịch vụ), segment trong payload queue
 - `API_VERSION` — version hiển thị trong OpenAPI docs UI (`/docs/api`)
 
 ## Lệnh tham chiếu

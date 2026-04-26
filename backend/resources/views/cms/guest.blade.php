@@ -28,22 +28,24 @@
             padding: 1.6rem 1.5rem 1.5rem;
             box-shadow: 0 20px 50px -12px rgba(0,0,0,0.25);
         }
-        @media (prefers-color-scheme: dark) {
-            .box { background: #0f172a; border-color: #334155; }
-            body { color: #f1f5f9; }
-            label { color: #e2e8f0; }
-        }
         label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; color: #0f172a; }
         input { width: 100%; padding: 0.5rem 0.6rem; border-radius: 0.45rem; border: 1px solid #cbd5e1; box-sizing: border-box; font-size: 0.9rem; }
-        @media (prefers-color-scheme: dark) { input { background: #020617; border-color: #475569; color: #f8fafc; } }
         .field { margin-bottom: 0.9rem; }
         .btn { width: 100%; padding: 0.5rem; border-radius: 0.45rem; border: none; background: #6366f1; color: #fff; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.9rem; }
         .btn:hover { background: #4f46e5; }
         .error { color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; }
-        h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 1.1rem; letter-spacing: -0.02em; }
-        @media (prefers-color-scheme: dark) { h1 { color: #f8fafc; } }
-        .chk { display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; }
+        h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 1.1rem; letter-spacing: -0.02em; color: #0f172a; }
+        .chk { display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; color: #334155; }
+        .chk label { display: inline; margin-bottom: 0; font-weight: 500; }
         .chk input { width: auto; }
+        @media (prefers-color-scheme: dark) {
+            .box { background: #0f172a; border-color: #334155; }
+            body { color: #f1f5f9; }
+            label { color: #e2e8f0; }
+            input { background: #020617; border-color: #475569; color: #f8fafc; }
+            h1 { color: #f8fafc; }
+            .chk { color: #cbd5e1; }
+        }
     </style>
 </head>
 <body>

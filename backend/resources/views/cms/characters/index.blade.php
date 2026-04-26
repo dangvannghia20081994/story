@@ -39,7 +39,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Tên</th>
-                        <th>Voice ID</th>
+                        <th>Giọng (mã TTS)</th>
                         <th>Pitch / Rate</th>
                         <th class="th-actions">Thao tác</th>
                     </tr>
@@ -49,7 +49,7 @@
                         <tr>
                             <td>{{ $character->id }}</td>
                             <td><strong style="font-weight: 500;">{{ $character->name }}</strong></td>
-                            <td>{{ $character->voice_id }}</td>
+                            <td title="{{ $character->voice_id }}">{{ \App\Support\TtsConfig::labelFor($character->voice_id) }}</td>
                             <td>{{ $character->pitch }} / {{ $character->rate }}</td>
                             <td class="cms-story-row-actions">
                                 <a class="icon-btn" href="{{ route('cms.stories.characters.edit', [$story, $character]) }}" title="Sửa" aria-label="Sửa nhân vật">

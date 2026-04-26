@@ -64,6 +64,13 @@ class Settings(BaseSettings):
         default=0.35,
         validation_alias=AliasChoices("FPT_INTER_CHUNK_DELAY_SEC"),
     )
+    # Chia văn bản trước mỗi request FPT (tối đa API 5000 ký tự). Ví dụ 2000 = nhiều request nhỏ hơn, vẫn ghép MP3 pydub.
+    fpt_chunk_max_chars: int = Field(
+        default=5000,
+        ge=3,
+        le=5000,
+        validation_alias=AliasChoices("FPT_CHUNK_MAX_CHARS"),
+    )
 
 
 settings = Settings()

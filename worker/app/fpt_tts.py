@@ -221,7 +221,9 @@ def _split_text_into_chunks(text: str, max_chars: int = FPT_MAX_BODY_CHARS) -> l
     return chunks
 
 
-def synthesize_to_file(*, text: str, out_path: Path, job_label: str = "") -> int:
+def synthesize_to_file(
+    *, text: str, out_path: Path, job_label: str = "", fpt_voice: str | None = None
+) -> int:
     """
     Gọi FPT TTS, chờ file tại URL async, ghi ra out_path.
     Trả về độ dài giây (làm tròn), ước lượng qua pydub nếu có.
@@ -232,17 +234,22 @@ def synthesize_to_file(*, text: str, out_path: Path, job_label: str = "") -> int
     if not key:
         raise RuntimeError("FPT_API_KEY is not set (worker environment).")
 
+    effective_voice = (fpt_voice or settings.fpt_voice or "").strip() or settings.fpt_voice
+
     t = text.strip()
     if len(t) < MIN_FPT_CHARS:
         raise ValueError("FPT TTS requires at least 3 characters in the body.")
 
-    chunks = _split_text_into_chunks(t, FPT_MAX_BODY_CHARS)
+    chunk_max = min(int(settings.fpt_chunk_max_chars), FPT_MAX_BODY_CHARS)
+    chunk_max = max(chunk_max, MIN_FPT_CHARS)
+    chunks = _split_text_into_chunks(t, chunk_max)
     logger.info(
-        "%sFPT TTS start: total_chars=%d chunks=%d voice=%s url=%s",
+        "%sFPT TTS start: total_chars=%d chunks=%d chunk_max_chars=%d voice=%s url=%s",
         prefix,
         len(t),
         len(chunks),
-        settings.fpt_voice,
+        chunk_max,
+        effective_voice,
         settings.fpt_tts_url,
     )
     if len(chunks) > 1:
@@ -250,12 +257,12 @@ def synthesize_to_file(*, text: str, out_path: Path, job_label: str = "") -> int
             "%sFPT TTS: text split into %d API requests (max %d chars per request)",
             prefix,
             len(chunks),
-            FPT_MAX_BODY_CHARS,
+            chunk_max,
         )
 
     headers = {
         "api_key": key,
-        "voice": settings.fpt_voice,
+        "voice": effective_voice,
         "speed": settings.fpt_speed,
         "format": settings.fpt_format,
         "Cache-Control": "no-cache",

@@ -5,7 +5,7 @@
 
 @php
     $bulkVoiceOptions = [];
-    foreach (config('tts.voices', []) as $id => $label) {
+    foreach (\App\Support\TtsConfig::voices() as $id => $label) {
         $bulkVoiceOptions[] = ['value' => $id, 'label' => $label];
     }
 @endphp

@@ -12,11 +12,32 @@ from app.fpt_tts import synthesize_to_file
 logger = logging.getLogger(__name__)
 
 
+def _fpt_voice_from_queue_payload(data: dict) -> str | None:
+    """
+    Laravel gửi voice_segments: segment đầu = giọng người kể (TTS_NARRATOR_CHARACTER_NAME).
+    Mã vi-VN-* = Azure Speech (worker FPT không dùng) → bỏ qua, dùng FPT_TTS_VOICE.
+    Tên FPT (banmai, lannhi, …) → dùng cho request FPT.
+    """
+    if not isinstance(data, dict):
+        return None
+    segs = data.get("voice_segments")
+    if not isinstance(segs, list) or not segs:
+        return None
+    first = segs[0]
+    if not isinstance(first, dict):
+        return None
+    vid = (first.get("voice_id") or "").strip()
+    if not vid or vid.startswith("vi-VN-"):
+        return None
+    return vid
+
+
 def render_audio_mp3_bytes(
     *,
     story_id: int,
     chapter_id: int,
     text: str,
+    fpt_voice: str | None = None,
 ) -> tuple[bytes, int]:
     """
     Sinh MP3 theo TTS_PROVIDER vào file tạm; trả về (nội dung bytes, duration giây).
@@ -27,7 +48,12 @@ def render_audio_mp3_bytes(
 
     try:
         if settings.tts_provider == "fpt":
-            duration = synthesize_to_file(text=text, out_path=tmp_path, job_label=job_label)
+            duration = synthesize_to_file(
+                text=text,
+                out_path=tmp_path,
+                job_label=job_label,
+                fpt_voice=fpt_voice,
+            )
         else:
             _ = text
             logger.info(
@@ -184,10 +210,17 @@ def handle_job(raw: bytes) -> None:
             len(text),
             settings.tts_provider,
         )
+        fpt_v = _fpt_voice_from_queue_payload(data) if settings.tts_provider == "fpt" else None
+        if fpt_v:
+            logger.info(
+                "TTS FPT voice from queue (narrator segment): %s (override FPT_TTS_VOICE)",
+                fpt_v,
+            )
         audio_bytes, duration = render_audio_mp3_bytes(
             story_id=story_id,
             chapter_id=cid,
             text=text,
+            fpt_voice=fpt_v,
         )
         logger.info(
             "TTS job render ok: story_id=%s chapter_id=%s duration_s=%s mp3_bytes=%d",

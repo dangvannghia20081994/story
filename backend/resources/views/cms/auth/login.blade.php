@@ -17,7 +17,7 @@
         </div>
         <div class="field chk">
             <input id="remember" type="checkbox" name="remember" value="1">
-            <label for="remember" style="margin: 0;">Ghi nhớ</label>
+            <label for="remember">Ghi nhớ mật khẩu</label>
         </div>
         <button type="submit" class="btn">Đăng nhập</button>
     </form>

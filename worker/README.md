@@ -33,6 +33,7 @@ Consumer Redis (`story:tts:queue`), TTS (**ffmpeg** placeholder hoặc **FPT.AI*
 | `FPT_ASYNC_FIRST_POLL_DELAY_SEC` | Sau JSON async, chờ bấy nhiêu giây rồi mới GET file mp3 (mặc định `10`) |
 | `FPT_ASYNC_FIRST_POLL_FLOOR_SEC` | Sàn: thực tế chờ trước GET đầu = `max(DELAY, FLOOR)` (mặc định `2`) — nếu `.env` đặt `DELAY=0`, vẫn chờ ít nhất 2s trừ khi `FLOOR=0` |
 | `FPT_INTER_CHUNK_DELAY_SEC` | Nghỉ sau khi tải xong một chunk, trước POST chunk tiếp (mặc định `0.35`) |
+| `FPT_CHUNK_MAX_CHARS` | Giới hạn ký tự mỗi request FPT trước khi chia (3–5000, mặc định `5000`). Có thể đặt `2000` để chunk nhỏ hơn; các MP3 vẫn được ghép bằng pydub. |
 
 Sao chép `cp .env.example .env` rồi điền giá trị.
 

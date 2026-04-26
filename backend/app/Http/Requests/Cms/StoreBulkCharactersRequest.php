@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Cms;
 
+use App\Support\TtsConfig;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +18,7 @@ class StoreBulkCharactersRequest extends FormRequest
      */
     public function rules(): array
     {
-        $voiceKeys = array_keys(config('tts.voices', []));
+        $voiceKeys = array_keys(TtsConfig::voices());
 
         return [
             'characters' => ['required', 'array', 'min:1', 'max:200'],
@@ -38,7 +39,7 @@ class StoreBulkCharactersRequest extends FormRequest
         if (! is_array($characters)) {
             $characters = [];
         }
-        $voiceKeys = array_keys(config('tts.voices', []));
+        $voiceKeys = array_keys(TtsConfig::voices());
         $filtered = [];
         foreach ($characters as $row) {
             if (! is_array($row)) {
