@@ -1,0 +1,6 @@
+# llama-cpp-python bản CPU có sẵn (tránh phải compile trên một số máy)
+--extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/
+
+vieneu
+redis>=5
+requests>=2.31

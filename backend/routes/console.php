@@ -21,3 +21,17 @@ Artisan::command('crawler:internal-token {--show : Chỉ in giá trị token (kh
     $this->line('CRAWLER_INTERNAL_TOKEN='.$token);
     $this->newLine();
 })->purpose('Sinh CRAWLER_INTERNAL_TOKEN cho API nội bộ crawler và worker Python');
+
+Artisan::command('worker-tts:internal-token {--show : Chỉ in giá trị token (không kèm tên biến)}', function (): void {
+    $token = Str::random(48);
+    if ($this->option('show')) {
+        $this->line($token);
+
+        return;
+    }
+
+    $this->warn('Chưa ghi file .env tự động — copy dòng dưới vào backend/.env và worker-tts/.env (cùng giá trị).');
+    $this->newLine();
+    $this->line('WORKER_TTS_INTERNAL_TOKEN='.$token);
+    $this->newLine();
+})->purpose('Sinh WORKER_TTS_INTERNAL_TOKEN cho API nội bộ TTS và worker-tts');

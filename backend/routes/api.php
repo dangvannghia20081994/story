@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\CharacterController;
 use App\Http\Controllers\Api\Internal\CrawlerInternalController;
+use App\Http\Controllers\Api\Internal\TtsInternalController;
 use App\Http\Controllers\Api\LexiconController;
 use App\Http\Controllers\Api\StoryController;
 use Illuminate\Support\Facades\Route;
@@ -34,4 +35,8 @@ Route::prefix('internal/crawler')->middleware('crawler.internal')->group(functio
     Route::get('/jobs/{crawlerJob}', [CrawlerInternalController::class, 'show']);
     Route::post('/jobs/{crawlerJob}/chapters', [CrawlerInternalController::class, 'storeChapter']);
     Route::patch('/jobs/{crawlerJob}/status', [CrawlerInternalController::class, 'updateStatus']);
+});
+
+Route::prefix('internal/tts')->middleware('worker.tts.internal')->group(function (): void {
+    Route::post('/chapters/{chapter}/audio', [TtsInternalController::class, 'storeChapterAudio']);
 });

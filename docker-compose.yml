@@ -93,6 +93,29 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # Cần `worker-tts/.env` (WORKER_TTS_INTERNAL_TOKEN trùng backend) + file giọng mẫu mount `input.mp3`.
+  # Bật: docker compose --profile worker-tts up -d
+  worker-tts:
+    profiles: ["worker-tts"]
+    build:
+      context: ./worker-tts
+      dockerfile: ../docker/worker-tts.Dockerfile
+    env_file:
+      - ./worker-tts/.env
+    environment:
+      REDIS_HOST: redis
+      BACKEND_API_BASE_URL: http://backend:8000
+      REFERENCE_AUDIO_PATH: /app/input.wav
+    # Mount file giọng mẫu (bắt buộc khi chạy), ví dụ:
+    volumes:
+      - ./worker-tts/input.wav:/app/input.wav:ro
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
   nginx:
     image: nginx:1.27-alpine
     ports:

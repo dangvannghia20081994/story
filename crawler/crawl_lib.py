@@ -40,6 +40,62 @@ def selector_timeout_ms() -> int:
     return _env_int_ms("CRAWLER_SELECTOR_TIMEOUT_MS", 60_000)
 
 
+# Lấy toàn bộ text tiêu đề: nếu selector trúng <a> hoặc span con, inner_text() chỉ còn "Chương 1"
+# thay vì "Chương 1: Mười năm sau". Leo lên h1–h6 hoặc khối .chapter-title rồi innerText.
+_TITLE_CONTAINER_JS = """(el) => {
+    const head = el.closest("h1, h2, h3, h4, h5, h6");
+    const box = head || el.closest('[class*="chapter-title"]') || el;
+    return (box.innerText || "").replace(/\\s+/g, " ").trim();
+}"""
+
+
+def normalize_crawler_chapter_title(raw: str) -> str:
+    """Gộp khoảng trắng.
+
+    - tvtruyen / nhiều site: «#1. Giới thiệu» trong DOM → chuẩn hóa thành «Chương 1: Giới thiệu».
+    - Các dạng «# 12) …» không khớp mẫu trên thì chỉ bỏ tiền tố số ở đầu.
+    """
+    t = re.sub(r"\s+", " ", (raw or "").strip())
+    if not t:
+        return ""
+    m = re.match(r"^#\s*(\d+)\s*\.\s*(.+)$", t)
+    if m:
+        num_s, rest = m.group(1), m.group(2).strip()
+        try:
+            num = int(num_s)
+        except ValueError:
+            num = num_s
+        return f"Chương {num}: {rest}".strip()
+    t = re.sub(r"^#\s*\d+\s*[\.\):：]\s*", "", t)
+    return t.strip()
+
+
+def chapter_title_from_element(title_el) -> str:
+    if title_el is None:
+        return ""
+    try:
+        raw = title_el.evaluate(_TITLE_CONTAINER_JS)
+    except Exception:  # noqa: BLE001
+        try:
+            raw = title_el.inner_text()
+        except Exception:  # noqa: BLE001
+            return ""
+    return normalize_crawler_chapter_title(str(raw or ""))
+
+
+async def chapter_title_from_element_async(title_el) -> str:
+    if title_el is None:
+        return ""
+    try:
+        raw = await title_el.evaluate(_TITLE_CONTAINER_JS)
+    except Exception:  # noqa: BLE001
+        try:
+            raw = await title_el.inner_text()
+        except Exception:  # noqa: BLE001
+            return ""
+    return normalize_crawler_chapter_title(str(raw or ""))
+
+
 def clean_content(html_content: str) -> str:
     soup = BeautifulSoup(html_content, "html.parser")
     for tag in soup(["script", "style", "iframe", "noscript"]):
@@ -154,7 +210,7 @@ def crawl_chapter(page: Page, url: str, title_sel: str, body_sel: str) -> dict:
     page.goto(url, wait_until="domcontentloaded", timeout=goto_timeout_ms())
     page.wait_for_selector(body_sel, timeout=selector_timeout_ms())
     title_el = page.query_selector(title_sel)
-    title = title_el.inner_text().strip() if title_el else ""
+    title = chapter_title_from_element(title_el)
     raw_html = page.inner_html(body_sel)
     clean_text = clean_content(raw_html)
     return {"title": title, "content": clean_text, "url": url}
@@ -172,7 +228,7 @@ async def crawl_chapter_async(page: AsyncPage, url: str, title_sel: str, body_se
         )
         raise
     title_el = await page.query_selector(title_sel)
-    title = (await title_el.inner_text()).strip() if title_el is not None else ""
+    title = await chapter_title_from_element_async(title_el) if title_el is not None else ""
     raw_html = await page.inner_html(body_sel)
     clean_text = clean_content(raw_html)
     return {"title": title, "content": clean_text, "url": url}

@@ -46,9 +46,24 @@ Tải và cài đặt eSpeak NG từ trang chính thức: https://github.com/esp
 Cài đặt thư viện vieneu:
 Mở Command Prompt (cmd) hoặc PowerShell và chạy lệnh:
 
-bash
+```bash
 pip install vieneu --extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/
+```
+
 Lệnh này sẽ cài đặt thư viện cùng với llama-cpp-python đã được biên dịch sẵn, tránh các lỗi thường gặp trên Windows.
+
+**Linux / macOS (trong repo, thư mục `worker-tts`):** dùng virtualenv và file `requirements.txt` (đã gồm `--extra-index-url` ở trên):
+
+```bash
+cd worker-tts
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -U pip
+pip install -r requirements.txt
+python check_install.py
+```
+
+Trên Linux, cài **eSpeak NG** hệ thống trước khi chạy TTS: `sudo apt install espeak-ng` (Debian/Ubuntu). Sau đó: `python synth_vieneu.py --text "Câu thử."` — xem [README.md](README.md).
 
 4. Hướng dẫn sử dụng Voice Cloning
 Sau khi cài đặt xong, bạn có thể sử dụng tính năng voice cloning. VieNeu-TTS sử dụng công nghệ Zero-shot Voice Cloning, nghĩa là bạn có thể nhân bản bất kỳ giọng nói nào chỉ với một đoạn âm thanh mẫu ngắn mà không cần phải huấn luyện lại (fine-tune) model.

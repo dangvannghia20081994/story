@@ -5,3 +5,6 @@ __pycache__/
 *.mp3
 .pytest_cache/
 .mypy_cache/
+# Weight viXTTS (~GB) — tải bằng install_vi_model.py
+models/ntdgo-ttsvi/
+models/yukiakai-viXTTS/
