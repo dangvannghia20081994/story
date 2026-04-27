@@ -11,9 +11,15 @@ use Illuminate\Validation\Rule;
 
 class CharacterController extends Controller
 {
-    public function index(Story $story): JsonResponse
+    public function index(Request $request, Story $story): JsonResponse
     {
-        $items = $story->characters()->orderBy('name')->paginate(50);
+        $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+        $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
+
+        $items = $story->characters()->orderBy('name')->paginate($perPage);
 
         return response()->json($items);
     }

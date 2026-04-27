@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
+/**
+ * @property list<string> $genres Slug thể loại (cột JSON). Key `genre` trong JSON API là phần tử đầu (accessor).
+ */
 class Story extends Model
 {
     public const GENRES = [

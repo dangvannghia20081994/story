@@ -6,10 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Chapter;
 use App\Models\CrawlerJob;
 use App\Models\Story;
+use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\HeaderParameter;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+#[Group('Internal · Crawler', weight: 5)]
+#[HeaderParameter('X-Crawler-Token', 'Token khớp biến môi trường CRAWLER_INTERNAL_TOKEN.', required: true, type: 'string')]
 class CrawlerInternalController extends Controller
 {
     public function show(CrawlerJob $crawlerJob): JsonResponse
@@ -36,6 +41,8 @@ class CrawlerInternalController extends Controller
         ]);
     }
 
+    #[Response(201, description: 'Chương mới được ghi nhận (tăng chapters_imported nếu tạo mới).', type: 'array<string, mixed>')]
+    #[Response(200, description: 'Chương trùng tiêu đề — chỉ cập nhật nội dung, không tăng chapters_imported.', type: 'array<string, mixed>')]
     public function storeChapter(Request $request, CrawlerJob $crawlerJob): JsonResponse
     {
         if (in_array($crawlerJob->status, [CrawlerJob::STATUS_COMPLETED, CrawlerJob::STATUS_FAILED], true)) {

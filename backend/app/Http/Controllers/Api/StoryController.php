@@ -13,8 +13,16 @@ use Illuminate\Validation\Rule;
 
 class StoryController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = (int) $request->input('per_page', 20);
+        $perPage = min(100, max(1, $perPage));
+
         $paginator = Story::query()
             ->with(['firstAudibleChapter' => fn ($q) => $q->select(['id', 'story_id', 'audio_path'])])
             ->withCount([
@@ -22,7 +30,7 @@ class StoryController extends Controller
                 'chapters as chapters_with_audio_count' => fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
             ])
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate($perPage);
 
         return response()->json($paginator);
     }
@@ -82,9 +90,10 @@ class StoryController extends Controller
     {
         $data = $request->validate([
             'chapters_order' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
+            'chapters_full' => ['sometimes', 'boolean'],
         ]);
         $chaptersOrder = ($data['chapters_order'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
-        $fullChapters = $request->boolean('chapters_full');
+        $fullChapters = (bool) ($data['chapters_full'] ?? false);
 
         $chaptersTotal = $story->chapters()->count();
         $chaptersWithAudioTotal = $story->chapters()

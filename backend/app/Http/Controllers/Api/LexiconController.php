@@ -11,12 +11,18 @@ use Illuminate\Validation\Rule;
 
 class LexiconController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+        $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
+
         $items = Lexicon::query()
             ->orderByDesc('priority')
             ->orderBy('word')
-            ->paginate(50);
+            ->paginate($perPage);
 
         return response()->json($items);
     }

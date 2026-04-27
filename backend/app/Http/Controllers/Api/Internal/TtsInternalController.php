@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Api\Internal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
+use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\HeaderParameter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
+#[Group('Internal · TTS', weight: 6)]
+#[HeaderParameter('X-Worker-Tts-Token', 'Token khớp biến môi trường WORKER_TTS_INTERNAL_TOKEN.', required: true, type: 'string')]
 class TtsInternalController extends Controller
 {
     /**

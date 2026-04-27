@@ -5,14 +5,21 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
 use App\Models\Story;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ChapterController extends Controller
 {
-    public function index(Story $story): JsonResponse
+    public function index(Request $request, Story $story): JsonResponse
     {
-        $paginator = $story->chapters()->paginate(30);
+        $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+        $perPage = min(100, max(1, (int) $request->input('per_page', 30)));
+
+        $paginator = $story->chapters()->paginate($perPage);
 
         $paginator->getCollection()->transform(function (Chapter $chapter) {
             return array_merge($chapter->toArray(), [
@@ -23,6 +30,8 @@ class ChapterController extends Controller
         return response()->json($paginator);
     }
 
+    #[Response(201, description: 'Chương mới được tạo.', type: 'array<string, mixed>')]
+    #[Response(200, description: 'Chương đã tồn tại theo tiêu đề — nội dung được cập nhật.', type: 'array<string, mixed>')]
     public function store(Request $request, Story $story): JsonResponse
     {
         $data = $request->validate([

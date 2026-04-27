@@ -2,14 +2,416 @@
     "openapi": "3.1.0",
     "info": {
         "title": "Laravel",
-        "version": "0.1.0"
+        "version": "0.0.1"
     },
     "servers": [
         {
-            "url": "http://localhost:8000/api"
+            "url": "http://story.test/api"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Internal \u00b7 Crawler"
+        },
+        {
+            "name": "Internal \u00b7 TTS"
         }
     ],
     "paths": {
+        "/internal/crawler/jobs/{crawlerJob}": {
+            "get": {
+                "operationId": "crawlerInternal.show",
+                "tags": [
+                    "Internal \u00b7 Crawler"
+                ],
+                "parameters": [
+                    {
+                        "name": "crawlerJob",
+                        "in": "path",
+                        "required": true,
+                        "description": "The crawler job ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "source_url": {
+                                                    "type": "string"
+                                                },
+                                                "chapter_links_selector": {
+                                                    "type": "string"
+                                                },
+                                                "chapter_list_next_page_selector": {
+                                                    "type": "string"
+                                                },
+                                                "chapter_title_selector": {
+                                                    "type": "string"
+                                                },
+                                                "chapter_content_selector": {
+                                                    "type": "string"
+                                                },
+                                                "story_id": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "new_story_title": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "chapter_start": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "max_chapters": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "delay_seconds": {
+                                                    "type": "number"
+                                                },
+                                                "chapter_fetch_concurrency": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "chapters_imported": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "source_url",
+                                                "chapter_links_selector",
+                                                "chapter_list_next_page_selector",
+                                                "chapter_title_selector",
+                                                "chapter_content_selector",
+                                                "story_id",
+                                                "new_story_title",
+                                                "chapter_start",
+                                                "max_chapters",
+                                                "delay_seconds",
+                                                "chapter_fetch_concurrency",
+                                                "status",
+                                                "chapters_imported"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
+        },
+        "/internal/crawler/jobs/{crawlerJob}/chapters": {
+            "post": {
+                "operationId": "crawlerInternal.storeChapter",
+                "tags": [
+                    "Internal \u00b7 Crawler"
+                ],
+                "parameters": [
+                    {
+                        "name": "crawlerJob",
+                        "in": "path",
+                        "required": true,
+                        "description": "The crawler job ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "content": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "title",
+                                    "content"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Ch\u01b0\u01a1ng tr\u00f9ng ti\u00eau \u0111\u1ec1 \u2014 ch\u1ec9 c\u1eadp nh\u1eadt n\u1ed9i dung, kh\u00f4ng t\u0103ng chapters_imported.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "500": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "example": "Crawler chapter outcome missing."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "201": {
+                        "description": "Ch\u01b0\u01a1ng m\u1edbi \u0111\u01b0\u1ee3c ghi nh\u1eadn (t\u0103ng chapters_imported n\u1ebfu t\u1ea1o m\u1edbi).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/internal/crawler/jobs/{crawlerJob}/status": {
+            "patch": {
+                "operationId": "crawlerInternal.updateStatus",
+                "tags": [
+                    "Internal \u00b7 Crawler"
+                ],
+                "parameters": [
+                    {
+                        "name": "crawlerJob",
+                        "in": "path",
+                        "required": true,
+                        "description": "The crawler job ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "processing",
+                                            "completed",
+                                            "failed"
+                                        ]
+                                    },
+                                    "message": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 10000
+                                    }
+                                },
+                                "required": [
+                                    "status"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "last_error": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "status",
+                                                "last_error"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
+        },
+        "/internal/tts/chapters/{chapter}/audio": {
+            "post": {
+                "operationId": "ttsInternal.storeChapterAudio",
+                "summary": "Worker TTS upload file \u00e2m thanh ch\u01b0\u01a1ng (WAV/MP3), l\u01b0u disk public v\u00e0 c\u1eadp nh\u1eadt DB",
+                "tags": [
+                    "Internal \u00b7 TTS"
+                ],
+                "parameters": [
+                    {
+                        "name": "chapter",
+                        "in": "path",
+                        "required": true,
+                        "description": "The chapter ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "audio": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "contentMediaType": "application/octet-stream",
+                                        "maxLength": 102400
+                                    },
+                                    "duration": {
+                                        "type": [
+                                            "integer",
+                                            "null"
+                                        ],
+                                        "minimum": 0,
+                                        "maximum": 2147483647
+                                    }
+                                },
+                                "required": [
+                                    "audio"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "chapter_id": {
+                                                    "type": "string"
+                                                },
+                                                "audio_path": {
+                                                    "type": "string"
+                                                },
+                                                "audio_url": {
+                                                    "type": "string"
+                                                },
+                                                "duration": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "chapter_id",
+                                                "audio_path",
+                                                "audio_url",
+                                                "duration"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
+        },
         "/stories/{story}/chapters": {
             "get": {
                 "operationId": "chapter.index",
@@ -28,6 +430,23 @@
                                 "null"
                             ]
                         }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
                     }
                 ],
                 "responses": {
@@ -36,123 +455,13 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "current_page": {
-                                            "type": "integer",
-                                            "minimum": 1
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/components/schemas/Chapter"
-                                            }
-                                        },
-                                        "first_page_url": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "from": {
-                                            "type": [
-                                                "integer",
-                                                "null"
-                                            ],
-                                            "minimum": 1
-                                        },
-                                        "last_page_url": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "last_page": {
-                                            "type": "integer",
-                                            "minimum": 1
-                                        },
-                                        "links": {
-                                            "type": "array",
-                                            "description": "Generated paginator links.",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "url": {
-                                                        "type": [
-                                                            "string",
-                                                            "null"
-                                                        ]
-                                                    },
-                                                    "label": {
-                                                        "type": "string"
-                                                    },
-                                                    "active": {
-                                                        "type": "boolean"
-                                                    }
-                                                },
-                                                "required": [
-                                                    "url",
-                                                    "label",
-                                                    "active"
-                                                ]
-                                            }
-                                        },
-                                        "next_page_url": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "path": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ],
-                                            "description": "Base path for paginator generated URLs."
-                                        },
-                                        "per_page": {
-                                            "type": "integer",
-                                            "description": "Number of items shown per page.",
-                                            "minimum": 0
-                                        },
-                                        "prev_page_url": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "to": {
-                                            "type": [
-                                                "integer",
-                                                "null"
-                                            ],
-                                            "description": "Number of the last item in the slice.",
-                                            "minimum": 1
-                                        },
-                                        "total": {
-                                            "type": "integer",
-                                            "description": "Total number of items being paginated.",
-                                            "minimum": 0
-                                        }
-                                    },
-                                    "required": [
-                                        "current_page",
-                                        "data",
-                                        "first_page_url",
-                                        "from",
-                                        "last_page_url",
-                                        "last_page",
-                                        "links",
-                                        "next_page_url",
-                                        "path",
-                                        "per_page",
-                                        "prev_page_url",
-                                        "to",
-                                        "total"
-                                    ]
+                                    "$ref": "#/components/schemas/LengthAwarePaginator"
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
@@ -202,12 +511,13 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "",
+                    "200": {
+                        "description": "Ch\u01b0\u01a1ng \u0111\u00e3 t\u1ed3n t\u1ea1i theo ti\u00eau \u0111\u1ec1 \u2014 n\u1ed9i dung \u0111\u01b0\u1ee3c c\u1eadp nh\u1eadt.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Chapter"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         }
@@ -217,6 +527,17 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "201": {
+                        "description": "Ch\u01b0\u01a1ng m\u1edbi \u0111\u01b0\u1ee3c t\u1ea1o.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -296,6 +617,12 @@
                                                     ],
                                                     "format": "date-time"
                                                 },
+                                                "chuong": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "audio_url": {
                                                     "type": [
                                                         "string",
@@ -312,6 +639,7 @@
                                                 "duration",
                                                 "created_at",
                                                 "updated_at",
+                                                "chuong",
                                                 "audio_url"
                                             ]
                                         }
@@ -370,7 +698,7 @@
                                         "type": "string"
                                     },
                                     "duration": {
-                                        "type": "integer",
+                                        "type": "number",
                                         "minimum": 0
                                     }
                                 }
@@ -461,6 +789,23 @@
                                 "string",
                                 "null"
                             ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
                         }
                     }
                 ],
@@ -587,6 +932,9 @@
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
@@ -825,6 +1173,25 @@
                 "tags": [
                     "Lexicon"
                 ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -948,6 +1315,9 @@
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             },
@@ -1090,6 +1460,25 @@
                 "tags": [
                     "Story"
                 ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -1213,6 +1602,9 @@
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             },
@@ -1267,8 +1659,23 @@
                                         "enum": [
                                             "ongoing",
                                             "completed"
+                                        ]
+                                    },
+                                    "genres": {
+                                        "type": [
+                                            "array",
+                                            "null"
                                         ],
-                                        "description": "Mặc định ongoing (đang ra) nếu bỏ qua."
+                                        "items": {
+                                            "type": "string",
+                                            "enum": [
+                                                "tu-tien",
+                                                "huyen-huyen",
+                                                "kiem-hiep",
+                                                "do-thi",
+                                                "khac"
+                                            ]
+                                        }
                                     },
                                     "first_chapter": {
                                         "type": "object",
@@ -1325,6 +1732,27 @@
                                 "null"
                             ]
                         }
+                    },
+                    {
+                        "name": "chapters_order",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "chapters_full",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ],
                 "responses": {
@@ -1344,6 +1772,21 @@
                                                 "title": {
                                                     "type": "string"
                                                 },
+                                                "slug": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "description": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "serial_status": {
+                                                    "type": "string"
+                                                },
                                                 "created_at": {
                                                     "type": [
                                                         "string",
@@ -1358,23 +1801,20 @@
                                                     ],
                                                     "format": "date-time"
                                                 },
-                                                "slug": {
-                                                    "type": [
-                                                        "string",
-                                                        "null"
-                                                    ]
-                                                },
-                                                "description": {
+                                                "genres": {
                                                     "type": [
                                                         "string",
                                                         "null"
                                                     ]
                                                 },
                                                 "genre": {
-                                                    "type": [
-                                                        "string",
-                                                        "null"
-                                                    ]
+                                                    "type": "string"
+                                                },
+                                                "tts_status": {
+                                                    "type": "string"
+                                                },
+                                                "audio_url": {
+                                                    "type": "string"
                                                 },
                                                 "chapters": {
                                                     "type": "array",
@@ -1416,6 +1856,12 @@
                                                                 ],
                                                                 "format": "date-time"
                                                             },
+                                                            "chuong": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "audio_url": {
                                                                 "type": [
                                                                     "string",
@@ -1432,20 +1878,35 @@
                                                             "duration",
                                                             "created_at",
                                                             "updated_at",
+                                                            "chuong",
                                                             "audio_url"
                                                         ]
                                                     }
+                                                },
+                                                "chapters_total": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "chapters_with_audio_total": {
+                                                    "type": "integer",
+                                                    "minimum": 0
                                                 }
                                             },
                                             "required": [
                                                 "id",
                                                 "title",
-                                                "created_at",
-                                                "updated_at",
                                                 "slug",
                                                 "description",
+                                                "serial_status",
+                                                "created_at",
+                                                "updated_at",
+                                                "genres",
                                                 "genre",
-                                                "chapters"
+                                                "tts_status",
+                                                "audio_url",
+                                                "chapters",
+                                                "chapters_total",
+                                                "chapters_with_audio_total"
                                             ]
                                         }
                                     },
@@ -1455,6 +1916,9 @@
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
@@ -1526,6 +1990,22 @@
                                             "ongoing",
                                             "completed"
                                         ]
+                                    },
+                                    "genres": {
+                                        "type": [
+                                            "array",
+                                            "null"
+                                        ],
+                                        "items": {
+                                            "type": "string",
+                                            "enum": [
+                                                "tu-tien",
+                                                "huyen-huyen",
+                                                "kiem-hiep",
+                                                "do-thi",
+                                                "khac"
+                                            ]
+                                        }
                                     }
                                 }
                             }
@@ -1591,57 +2071,6 @@
     },
     "components": {
         "schemas": {
-            "Chapter": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer"
-                    },
-                    "story_id": {
-                        "type": "integer"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "content": {
-                        "type": "string"
-                    },
-                    "audio_path": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "duration": {
-                        "type": "integer"
-                    },
-                    "created_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "updated_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    }
-                },
-                "required": [
-                    "id",
-                    "story_id",
-                    "title",
-                    "content",
-                    "audio_path",
-                    "duration",
-                    "created_at",
-                    "updated_at"
-                ],
-                "title": "Chapter"
-            },
             "Character": {
                 "type": "object",
                 "properties": {
@@ -1677,6 +2106,79 @@
                     "updated_at"
                 ],
                 "title": "Character"
+            },
+            "LengthAwarePaginator": {
+                "type": "object",
+                "properties": {
+                    "current_page": {
+                        "type": "integer"
+                    },
+                    "data": {
+                        "type": "string"
+                    },
+                    "first_page_url": {
+                        "type": "string"
+                    },
+                    "from": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "last_page": {
+                        "type": "integer"
+                    },
+                    "last_page_url": {
+                        "type": "string"
+                    },
+                    "links": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "next_page_url": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "per_page": {
+                        "type": "integer"
+                    },
+                    "prev_page_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "to": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "total": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "current_page",
+                    "data",
+                    "first_page_url",
+                    "from",
+                    "last_page",
+                    "last_page_url",
+                    "links",
+                    "next_page_url",
+                    "path",
+                    "per_page",
+                    "prev_page_url",
+                    "to",
+                    "total"
+                ],
+                "title": "LengthAwarePaginator"
             },
             "Lexicon": {
                 "type": "object",
@@ -1731,6 +2233,21 @@
                     "title": {
                         "type": "string"
                     },
+                    "slug": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "serial_status": {
+                        "type": "string"
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -1745,42 +2262,34 @@
                         ],
                         "format": "date-time"
                     },
-                    "slug": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "description": {
+                    "genres": {
                         "type": [
                             "string",
                             "null"
                         ]
                     },
                     "genre": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                        "type": "string"
                     },
-                    "serial_status": {
-                        "type": "string",
-                        "description": "ongoing = đang ra, completed = hoàn thành",
-                        "enum": [
-                            "ongoing",
-                            "completed"
-                        ]
+                    "tts_status": {
+                        "type": "string"
+                    },
+                    "audio_url": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "id",
                     "title",
-                    "created_at",
-                    "updated_at",
                     "slug",
                     "description",
+                    "serial_status",
+                    "created_at",
+                    "updated_at",
+                    "genres",
                     "genre",
-                    "serial_status"
+                    "tts_status",
+                    "audio_url"
                 ],
                 "title": "Story"
             }
