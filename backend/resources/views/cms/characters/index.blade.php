@@ -37,7 +37,6 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Tên</th>
                         <th class="th-actions">Thao tác</th>
                     </tr>
@@ -45,7 +44,6 @@
                 <tbody>
                     @forelse ($characters as $character)
                         <tr>
-                            <td>{{ $character->id }}</td>
                             <td><strong style="font-weight: 500;">{{ $character->name }}</strong></td>
                             <td class="cms-story-row-actions">
                                 <a class="icon-btn" href="{{ route('cms.stories.characters.edit', [$story, $character]) }}" title="Sửa" aria-label="Sửa nhân vật">
@@ -61,7 +59,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="3" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có nhân vật. Dùng <strong>Thêm nhân vật</strong> ở trên (một hoặc nhiều).</td></tr>
+                        <tr><td colspan="2" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có nhân vật. Dùng <strong>Thêm nhân vật</strong> ở trên (một hoặc nhiều).</td></tr>
                     @endforelse
                 </tbody>
             </table>

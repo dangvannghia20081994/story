@@ -37,7 +37,6 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Tiêu đề</th>
                         <th>Audio</th>
                         <th class="th-actions">Thao tác</th>
@@ -46,7 +45,6 @@
                 <tbody>
                     @forelse ($chapters as $chapter)
                         <tr>
-                            <td>{{ $chapter->id }}</td>
                             <td><strong style="font-weight: 500;">{{ $chapter->title }}</strong></td>
                             <td>{{ $chapter->audio_path ? 'Có đường dẫn' : '—' }}</td>
                             <td class="cms-story-row-actions">
@@ -63,7 +61,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có chương. Dùng <strong>Thêm chương</strong> ở trên.</td></tr>
+                        <tr><td colspan="3" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có chương. Dùng <strong>Thêm chương</strong> ở trên.</td></tr>
                     @endforelse
                 </tbody>
             </table>

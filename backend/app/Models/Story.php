@@ -155,7 +155,7 @@ class Story extends Model
 
     public function chapters(): HasMany
     {
-        return $this->hasMany(Chapter::class);
+        return $this->hasMany(Chapter::class)->chuongSort('asc');
     }
 
     public function characters(): HasMany
@@ -169,7 +169,7 @@ class Story extends Model
         return $this->hasOne(Chapter::class)
             ->whereNotNull('audio_path')
             ->where('audio_path', '<>', '')
-            ->orderBy('id');
+            ->chuongSort('asc');
     }
 
     public function getTtsStatusAttribute(): string

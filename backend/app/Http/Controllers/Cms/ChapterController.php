@@ -17,7 +17,6 @@ class ChapterController extends Controller
     public function index(Story $story): View
     {
         $chapters = $story->chapters()
-            ->orderBy('id')
             ->paginate(30)
             ->withQueryString();
 

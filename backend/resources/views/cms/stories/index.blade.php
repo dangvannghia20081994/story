@@ -50,7 +50,6 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Tiêu đề</th>
                         <th>Thể loại</th>
                         <th>Ra truyện</th>
@@ -61,10 +60,32 @@
                 <tbody>
                     @forelse ($stories as $story)
                         <tr>
-                            <td>{{ $story->id }}</td>
                             <td><strong style="font-weight: 500;">{{ $story->title }}</strong></td>
-                            <td>{{ \App\Models\Story::genreLabel($story->genre) }}</td>
-                            <td>{{ \App\Models\Story::serialStatusLabel($story->serial_status) }}</td>
+                            <td>
+                                @php
+                                    $genreSlug = $story->genre;
+                                    $genreBadge = match ($genreSlug) {
+                                        'tu-tien' => 'cms-badge--genre-tu-tien',
+                                        'huyen-huyen' => 'cms-badge--genre-huyen-huyen',
+                                        'kiem-hiep' => 'cms-badge--genre-kiem-hiep',
+                                        'do-thi' => 'cms-badge--genre-do-thi',
+                                        'khac' => 'cms-badge--genre-khac',
+                                        default => 'cms-badge--genre',
+                                    };
+                                @endphp
+                                <span class="cms-badge {{ $genreBadge }}">{{ \App\Models\Story::genreLabel($genreSlug) }}</span>
+                            </td>
+                            <td>
+                                @php
+                                    $serial = $story->serial_status;
+                                    $serialBadge = match ($serial) {
+                                        'ongoing' => 'cms-badge--serial-ongoing',
+                                        'completed' => 'cms-badge--serial-completed',
+                                        default => 'cms-badge--serial-unknown',
+                                    };
+                                @endphp
+                                <span class="cms-badge {{ $serialBadge }}">{{ \App\Models\Story::serialStatusLabel($serial) }}</span>
+                            </td>
                             <td>{{ $story->chapters_count }} / {{ $story->characters_count }}</td>
                             <td class="cms-story-row-actions">
                                 <a class="icon-btn" href="{{ $story->frontendDetailUrl() }}" target="_blank" rel="noopener noreferrer" title="Mở truyện trên web" aria-label="Mở truyện trên web">
@@ -79,6 +100,18 @@
                                 <a class="icon-btn" href="{{ route('cms.stories.edit', $story) }}" title="Sửa truyện" aria-label="Sửa truyện">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 </a>
+                                <form action="{{ route('cms.stories.reindex-chapters', $story) }}" method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Gán lại số chương (chuong) từ tiêu đề cho mọi chương của truyện này?');">
+                                    @csrf
+                                    <button type="submit" class="icon-btn" title="Re-index: gán chuong từ tiêu đề chương" aria-label="Re-index chương theo tiêu đề">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M10 2h4"/>
+                                            <path d="M12 2v3"/>
+                                            <circle cx="12" cy="14" r="8"/>
+                                            <path d="M12 14V10"/>
+                                            <path d="M12 14l3.5 2"/>
+                                        </svg>
+                                    </button>
+                                </form>
                                 <form action="{{ route('cms.stories.destroy', $story) }}" method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Xóa truyện này?');">
                                     @csrf
                                     @method('DELETE')
@@ -89,7 +122,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có truyện. Dùng <strong>Thêm mới</strong> ở trên.</td></tr>
+                        <tr><td colspan="5" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có truyện. Dùng <strong>Thêm mới</strong> ở trên.</td></tr>
                     @endforelse
                 </tbody>
             </table>

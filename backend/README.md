@@ -38,6 +38,7 @@ Giao diện web trong Laravel (Blade + session), **không** dùng Filament. Qu�
 | `http://localhost:8000/admin/login` | Đăng nhập CMS |
 | `http://localhost:8000/admin` | Bảng điều khiển (sau khi đăng nhập) |
 | `http://localhost:8000/admin/crawler-jobs` | Crawler: tạo job crawl (lưu DB + RPUSH Redis cho worker Python) |
+| `http://localhost:8000/admin/lexicons/from-chapter` | Lexicon: trích từ từ nội dung một chương (dán HTML hoặc chọn chương) → lưu hàng loạt |
 | `http://localhost:8000/login` | Chuyển hướng tới `/admin/login` (alias cho trang welcome) |
 
 **Quyền:** cột `users.is_admin` (migration `2026_04_26_120000_add_is_admin_to_users_table`). Middleware `cms.admin` chặn user thường.

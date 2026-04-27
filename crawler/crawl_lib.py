@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import os
 import re
-import sys
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from playwright.async_api import Page as AsyncPage
-from playwright.async_api import TimeoutError as PlaywrightAsyncTimeout
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
@@ -48,11 +46,80 @@ _TITLE_CONTAINER_JS = """(el) => {
     return (box.innerText || "").replace(/\\s+/g, " ").trim();
 }"""
 
+# Khi selector tiêu đề job không khớp / trả rỗng: thử khối chương chính (tránh modal trùng class).
+_FALLBACK_CHAPTER_TITLE_JS = """() => {
+    function norm(s) {
+        return (s || "").replace(/\\s+/g, " ").trim();
+    }
+    const root =
+        document.querySelector("#chapter-big-container") ||
+        document.querySelector(".container.chapter") ||
+        document.body;
+    const sels = [
+        "h2",
+        "a.chapter-title",
+        "span.chapter-text-info",
+        "div.comic-info-chapter-doc",
+    ];
+    for (const sel of sels) {
+        const el = root.querySelector(sel);
+        if (!el) continue;
+        const t = norm(el.innerText);
+        if (t.length >= 3) return t;
+    }
+    const h1 = root.querySelector("h1");
+    if (!h1) return "";
+    const t = norm(h1.innerText);
+    const parts = t.split(/\\s*\\/\\s*/);
+    for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i].trim();
+        if (/Chương\\s*\\d+/i.test(p) || /#\\s*\\d+\\s*[\\.)]/i.test(p)) return p;
+    }
+    return t.length >= 3 ? t : "";
+}"""
+
+
+def _fallback_chapter_title_from_page(page: Page) -> str:
+    try:
+        raw = page.evaluate(_FALLBACK_CHAPTER_TITLE_JS)
+    except Exception:  # noqa: BLE001
+        return ""
+    return normalize_crawler_chapter_title(str(raw or ""))
+
+
+async def _fallback_chapter_title_from_page_async(page: AsyncPage) -> str:
+    try:
+        raw = await page.evaluate(_FALLBACK_CHAPTER_TITLE_JS)
+    except Exception:  # noqa: BLE001
+        return ""
+    return normalize_crawler_chapter_title(str(raw or ""))
+
+
+def _apply_title_fallback_if_empty(page: Page, title: str, title_sel: str) -> str:
+    t = (title or "").strip()
+    if t:
+        return title
+    fb = _fallback_chapter_title_from_page(page)
+    if fb.strip():
+        return fb
+    return title
+
+
+async def _apply_title_fallback_if_empty_async(page: AsyncPage, title: str, title_sel: str) -> str:
+    t = (title or "").strip()
+    if t:
+        return title
+    fb = await _fallback_chapter_title_from_page_async(page)
+    if fb.strip():
+        return fb
+    return title
+
 
 def normalize_crawler_chapter_title(raw: str) -> str:
     """Gộp khoảng trắng.
 
     - tvtruyen / nhiều site: «#1. Giới thiệu» trong DOM → chuẩn hóa thành «Chương 1: Giới thiệu».
+    - «#50. Chương 50: Thu phục…» — phần sau dấu # đã có «Chương 50:» thì giữ nguyên, không nhân đôi tiền tố.
     - Các dạng «# 12) …» không khớp mẫu trên thì chỉ bỏ tiền tố số ở đầu.
     """
     t = re.sub(r"\s+", " ", (raw or "").strip())
@@ -61,6 +128,8 @@ def normalize_crawler_chapter_title(raw: str) -> str:
     m = re.match(r"^#\s*(\d+)\s*\.\s*(.+)$", t)
     if m:
         num_s, rest = m.group(1), m.group(2).strip()
+        if re.match(r"^Chương\s*\d+", rest, re.IGNORECASE):
+            return rest
         try:
             num = int(num_s)
         except ValueError:
@@ -141,10 +210,6 @@ def collect_chapter_urls(
         try:
             page.wait_for_selector(links_selector, timeout=selector_timeout_ms())
         except PlaywrightTimeout:
-            print(
-                f"[warn] Không thấy selector danh sách chương: {links_selector!r}.",
-                file=sys.stderr,
-            )
             return []
         base = page.url or start_url
         return _extract_chapter_urls_from_open_page(page, base, links_selector)
@@ -156,7 +221,6 @@ def collect_chapter_urls(
 
     while current:
         if current in toc_pages_seen:
-            print("[crawler] Phân trang mục lục: gặp lại URL trang đã mở — dừng.", file=sys.stderr)
             break
         toc_pages_seen.add(current)
 
@@ -164,10 +228,6 @@ def collect_chapter_urls(
         try:
             page.wait_for_selector(links_selector, timeout=selector_timeout_ms())
         except PlaywrightTimeout:
-            print(
-                f"[warn] Trang mục lục {current!r} không có selector {links_selector!r}.",
-                file=sys.stderr,
-            )
             break
 
         base = page.url or current
@@ -211,6 +271,7 @@ def crawl_chapter(page: Page, url: str, title_sel: str, body_sel: str) -> dict:
     page.wait_for_selector(body_sel, timeout=selector_timeout_ms())
     title_el = page.query_selector(title_sel)
     title = chapter_title_from_element(title_el)
+    title = _apply_title_fallback_if_empty(page, title, title_sel)
     raw_html = page.inner_html(body_sel)
     clean_text = clean_content(raw_html)
     return {"title": title, "content": clean_text, "url": url}
@@ -219,16 +280,10 @@ def crawl_chapter(page: Page, url: str, title_sel: str, body_sel: str) -> dict:
 async def crawl_chapter_async(page: AsyncPage, url: str, title_sel: str, body_sel: str) -> dict:
     """Giống crawl_chapter nhưng async — dùng với page riêng trong context (song song nhiều chương)."""
     await page.goto(url, wait_until="domcontentloaded", timeout=goto_timeout_ms())
-    try:
-        await page.wait_for_selector(body_sel, timeout=selector_timeout_ms())
-    except PlaywrightAsyncTimeout:
-        print(
-            f"[warn] Timeout chờ selector nội dung chương: {body_sel!r} — {url!r}.",
-            file=sys.stderr,
-        )
-        raise
+    await page.wait_for_selector(body_sel, timeout=selector_timeout_ms())
     title_el = await page.query_selector(title_sel)
-    title = await chapter_title_from_element_async(title_el) if title_el is not None else ""
+    title = await chapter_title_from_element_async(title_el)
+    title = await _apply_title_fallback_if_empty_async(page, title, title_sel)
     raw_html = await page.inner_html(body_sel)
     clean_text = clean_content(raw_html)
     return {"title": title, "content": clean_text, "url": url}

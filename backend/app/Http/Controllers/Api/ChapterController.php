@@ -12,9 +12,7 @@ class ChapterController extends Controller
 {
     public function index(Story $story): JsonResponse
     {
-        $paginator = $story->chapters()
-            ->orderBy('id')
-            ->paginate(30);
+        $paginator = $story->chapters()->paginate(30);
 
         $paginator->getCollection()->transform(function (Chapter $chapter) {
             return array_merge($chapter->toArray(), [

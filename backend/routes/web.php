@@ -28,6 +28,7 @@ Route::prefix('admin')->name('cms.')->group(function (): void {
         Route::post('stories/bulk', [CmsStoryController::class, 'storeBulk'])->name('stories.bulk.store');
 
         Route::resource('stories', CmsStoryController::class)->except(['show']);
+        Route::post('stories/{story}/reindex-chapters', [CmsStoryController::class, 'reindexChapters'])->name('stories.reindex-chapters');
 
         Route::get('stories/{story}/chapters/bulk', [CmsChapterController::class, 'createBulk'])->name('stories.chapters.bulk');
         Route::post('stories/{story}/chapters/bulk', [CmsChapterController::class, 'storeBulk'])->name('stories.chapters.bulk.store');
@@ -39,11 +40,17 @@ Route::prefix('admin')->name('cms.')->group(function (): void {
 
         Route::get('lexicons/bulk', [CmsLexiconController::class, 'createBulk'])->name('lexicons.bulk');
         Route::post('lexicons/bulk', [CmsLexiconController::class, 'storeBulk'])->name('lexicons.bulk.store');
+        Route::get('lexicons/from-chapter', [CmsLexiconController::class, 'createFromChapter'])->name('lexicons.from-chapter');
+        Route::post('lexicons/from-chapter/extract', [CmsLexiconController::class, 'extractFromChapter'])->name('lexicons.from-chapter.extract');
+        Route::get('lexicons/from-chapter/stories/{story}/chapters', [CmsLexiconController::class, 'jsonChaptersForStory'])->name('lexicons.from-chapter.chapters');
+        Route::get('lexicons/from-chapter/stories/{story}/chapters/{chapter}/content', [CmsLexiconController::class, 'jsonChapterContent'])->name('lexicons.from-chapter.content');
         Route::resource('lexicons', CmsLexiconController::class)->except(['show']);
 
         Route::get('crawler-jobs', [CrawlerJobController::class, 'index'])->name('crawler-jobs.index');
         Route::get('crawler-jobs/create', [CrawlerJobController::class, 'create'])->name('crawler-jobs.create');
         Route::post('crawler-jobs', [CrawlerJobController::class, 'store'])->name('crawler-jobs.store');
+        Route::get('crawler-jobs/{crawlerJob}/edit', [CrawlerJobController::class, 'edit'])->name('crawler-jobs.edit');
+        Route::put('crawler-jobs/{crawlerJob}', [CrawlerJobController::class, 'update'])->name('crawler-jobs.update');
         Route::post('crawler-jobs/{crawlerJob}/resend', [CrawlerJobController::class, 'resend'])->name('crawler-jobs.resend');
     });
 });

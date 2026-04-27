@@ -33,7 +33,7 @@ class StoreCrawlerJobRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'source_url' => ['required', 'string', 'url', 'max:2048'],
+            'source_url' => ['required', 'string', 'max:10000'],
             'chapter_links_selector' => ['nullable', 'string', 'max:2000'],
             'chapter_list_next_page_selector' => ['nullable', 'string', 'max:2000'],
             'chapter_title_selector' => ['required', 'string', 'max:2000'],

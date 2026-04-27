@@ -68,12 +68,25 @@ def main() -> int:
         default="",
         help="CSS nút/link sang trang mục lục kế (vd: .custom-page-item.nav-next .custom-page-link). Để trống = chỉ một trang.",
     )
+    parser.add_argument(
+        "--title-selector",
+        default="",
+        help="Ghi đè selector tiêu đề (mặc định SELECTORS chapter_title).",
+    )
+    parser.add_argument(
+        "--body-selector",
+        default="",
+        help="Ghi đè selector nội dung chờ load (mặc định SELECTORS chapter_body).",
+    )
     args = parser.parse_args()
 
     story_url = args.url.strip()
     if not story_url.startswith("http"):
         print("URL phải bắt đầu bằng http(s)://", file=sys.stderr)
         return 1
+
+    title_sel = (args.title_selector or "").strip() or SELECTORS["chapter_title"]
+    body_sel = (args.body_selector or "").strip() or SELECTORS["chapter_body"]
 
     results: list[dict] = []
 
@@ -104,8 +117,8 @@ def main() -> int:
                     data = crawl_chapter(
                         page,
                         chapter_url,
-                        SELECTORS["chapter_title"],
-                        SELECTORS["chapter_body"],
+                        title_sel,
+                        body_sel,
                     )
                     results.append(
                         {

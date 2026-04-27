@@ -190,6 +190,44 @@
         .table-scroll { overflow-x: auto; }
         .table-scroll table { margin: 0; }
         .muted { color: var(--muted); font-size: 0.875rem; }
+        .cms-badge {
+            display: inline-block;
+            padding: 0.15rem 0.55rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            line-height: 1.35;
+            border-radius: 9999px;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+        .cms-badge--genre { background: #e2e8f0; color: #334155; }
+        html.theme-dark .cms-badge--genre { background: #334155; color: #e2e8f0; }
+        .cms-badge--genre-tu-tien { background: #dbeafe; color: #1e3a8a; }
+        html.theme-dark .cms-badge--genre-tu-tien { background: #1e3a8a; color: #bfdbfe; }
+        .cms-badge--genre-huyen-huyen { background: #ede9fe; color: #5b21b6; }
+        html.theme-dark .cms-badge--genre-huyen-huyen { background: #4c1d95; color: #ddd6fe; }
+        .cms-badge--genre-kiem-hiep { background: #ffedd5; color: #9a3412; }
+        html.theme-dark .cms-badge--genre-kiem-hiep { background: #7c2d12; color: #fed7aa; }
+        .cms-badge--genre-do-thi { background: #cffafe; color: #0e7490; }
+        html.theme-dark .cms-badge--genre-do-thi { background: #155e75; color: #a5f3fc; }
+        .cms-badge--genre-khac { background: #f1f5f9; color: #475569; }
+        html.theme-dark .cms-badge--genre-khac { background: #334155; color: #cbd5e1; }
+        .cms-badge--serial-ongoing { background: #d1fae5; color: #065f46; }
+        html.theme-dark .cms-badge--serial-ongoing { background: #064e3b; color: #a7f3d0; }
+        .cms-badge--serial-completed { background: #e0e7ff; color: #3730a3; }
+        html.theme-dark .cms-badge--serial-completed { background: #312e81; color: #c7d2fe; }
+        .cms-badge--serial-unknown { background: #f1f5f9; color: #64748b; }
+        html.theme-dark .cms-badge--serial-unknown { background: #334155; color: #94a3b8; }
+        .cms-badge--job-pending { background: #f1f5f9; color: #475569; }
+        .cms-badge--job-queued { background: #dbeafe; color: #1e40af; }
+        .cms-badge--job-processing { background: #fef3c7; color: #92400e; }
+        .cms-badge--job-completed { background: #d1fae5; color: #065f46; }
+        .cms-badge--job-failed { background: #fee2e2; color: #991b1b; }
+        html.theme-dark .cms-badge--job-pending { background: #334155; color: #cbd5e1; }
+        html.theme-dark .cms-badge--job-queued { background: #1e3a8a; color: #93c5fd; }
+        html.theme-dark .cms-badge--job-processing { background: #78350f; color: #fde68a; }
+        html.theme-dark .cms-badge--job-completed { background: #064e3b; color: #a7f3d0; }
+        html.theme-dark .cms-badge--job-failed { background: #7f1d1d; color: #fecaca; }
         .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
             padding: 0.45rem 0.9rem; border-radius: 0.45rem; border: 1px solid var(--surface-border);
@@ -208,12 +246,22 @@
             width: 100%; max-width: 100%; padding: 0.5rem 0.6rem; border-radius: 0.45rem;
             border: 1px solid var(--surface-border); background: var(--surface); color: var(--text); box-sizing: border-box; font-family: inherit; font-size: 0.9rem;
         }
+        /* Checkbox/radio must not inherit full width — otherwise flex row labels collapse the text into a narrow strip. */
+        input[type="checkbox"], input[type="radio"] {
+            width: auto;
+            max-width: none;
+            flex-shrink: 0;
+            padding: 0;
+            vertical-align: 0.15em;
+            background: transparent;
+            border: none;
+        }
         /* Bỏ outline mặc định (chồng lên border); chỉ đổi 1 lớp border khi focus */
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--accent);
         }
-        html.theme-dark input, html.theme-dark select, html.theme-dark textarea { background: #020617; border-color: #334155; }
+        html.theme-dark input:not([type="checkbox"]):not([type="radio"]), html.theme-dark select, html.theme-dark textarea { background: #020617; border-color: #334155; }
         html.theme-dark input:focus, html.theme-dark select:focus, html.theme-dark textarea:focus { border-color: #818cf8; }
         textarea { min-height: 10rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.85rem; }
         .field { margin-bottom: 0.9rem; }

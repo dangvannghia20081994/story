@@ -33,5 +33,7 @@ class DatabaseSeeder extends Seeder
                 'is_admin' => false,
             ],
         );
+
+        $this->call(CrawlerJobSeeder::class);
     }
 }

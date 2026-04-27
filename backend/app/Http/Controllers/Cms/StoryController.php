@@ -137,4 +137,13 @@ class StoryController extends Controller
 
         return redirect()->route('cms.stories.index')->with('status', 'Đã xóa truyện.');
     }
+
+    public function reindexChapters(Story $story): RedirectResponse
+    {
+        Chapter::reindexChuongFromTitlesForStory($story);
+
+        return redirect()
+            ->back()
+            ->with('status', 'Đánh lại thứ tự các chương');
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Cms;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cms\StoreCrawlerJobRequest;
+use App\Http\Requests\Cms\UpdateCrawlerJobRequest;
 use App\Models\CrawlerJob;
 use App\Models\Story;
 use Illuminate\Http\RedirectResponse;
@@ -39,19 +40,7 @@ class CrawlerJobController extends Controller
             $fromJob = CrawlerJob::query()->find((int) $request->query('from'));
             if ($fromJob !== null) {
                 $copyFromId = $fromJob->id;
-                $prefill = [
-                    'source_url' => '',
-                    'chapter_links_selector' => $fromJob->chapter_links_selector,
-                    'chapter_list_next_page_selector' => $fromJob->chapter_list_next_page_selector,
-                    'chapter_title_selector' => $fromJob->chapter_title_selector,
-                    'chapter_content_selector' => $fromJob->chapter_content_selector,
-                    'story_id' => $fromJob->story_id,
-                    'new_story_title' => $fromJob->new_story_title ?? '',
-                    'max_chapters' => $fromJob->max_chapters,
-                    'chapter_start' => $fromJob->chapter_start ?? 1,
-                    'delay_seconds' => (string) $fromJob->delay_seconds,
-                    'chapter_fetch_concurrency' => $fromJob->chapter_fetch_concurrency,
-                ];
+                $prefill = self::prefillFromJob($fromJob, blankSourceUrl: true);
             }
         }
 
@@ -69,7 +58,110 @@ class CrawlerJobController extends Controller
         $storyId = $validated['story_id'] ?? null;
         $newTitle = $storyId ? null : ($validated['new_story_title'] ?? null);
 
-        $job = CrawlerJob::query()->create([
+        // Parse multiple URLs (one per line)
+        $sourceUrls = array_filter(
+            array_map('trim', explode("\n", $validated['source_url'])),
+            fn($url) => $url !== '' && filter_var($url, FILTER_VALIDATE_URL) !== false
+        );
+
+        if (empty($sourceUrls)) {
+            return redirect()
+                ->route('cms.crawler-jobs.create')
+                ->withErrors(['source_url' => 'Cần nhập ít nhất một URL hợp lệ.'])
+                ->withInput();
+        }
+
+        $jobsCreated = 0;
+        $jobsQueued = 0;
+        $errors = [];
+
+        foreach ($sourceUrls as $sourceUrl) {
+            $job = CrawlerJob::query()->create([
+                'story_id' => $storyId,
+                'new_story_title' => $newTitle,
+                'source_url' => $sourceUrl,
+                'chapter_links_selector' => trim((string) ($validated['chapter_links_selector'] ?? '')),
+                'chapter_list_next_page_selector' => trim((string) ($validated['chapter_list_next_page_selector'] ?? '')),
+                'chapter_title_selector' => $validated['chapter_title_selector'],
+                'chapter_content_selector' => $validated['chapter_content_selector'],
+                'max_chapters' => array_key_exists('max_chapters', $validated) && $validated['max_chapters'] !== null
+                    ? (int) $validated['max_chapters']
+                    : null,
+                'chapter_start' => max(1, (int) ($validated['chapter_start'] ?? 1)),
+                'delay_seconds' => isset($validated['delay_seconds']) ? (float) $validated['delay_seconds'] : 1.5,
+                'chapter_fetch_concurrency' => array_key_exists('chapter_fetch_concurrency', $validated) && $validated['chapter_fetch_concurrency'] !== null
+                    ? (int) $validated['chapter_fetch_concurrency']
+                    : null,
+                'status' => CrawlerJob::STATUS_PENDING,
+                'chapters_imported' => 0,
+                'last_error' => null,
+            ]);
+
+            $jobsCreated++;
+
+            try {
+                $this->pushCrawlerJobToRedis($job);
+                $job->update(['status' => CrawlerJob::STATUS_QUEUED]);
+                $jobsQueued++;
+            } catch (Throwable $e) {
+                $job->update([
+                    'status' => CrawlerJob::STATUS_FAILED,
+                    'last_error' => 'Redis: '.$e->getMessage(),
+                ]);
+                $errors[] = "Job #{$job->id}: {$e->getMessage()}";
+            }
+        }
+
+        $message = "Đã tạo {$jobsCreated} job";
+        if ($jobsQueued > 0) {
+            $message .= ", {$jobsQueued} đẩy lên Redis";
+        }
+        if (! empty($errors)) {
+            $message .= '. Lỗi: '.implode('; ', $errors);
+        } else {
+            $message .= '.';
+        }
+
+        $statusType = $jobsQueued > 0 ? 'status' : 'error';
+
+        return redirect()
+            ->route('cms.crawler-jobs.index')
+            ->with($statusType, $message);
+    }
+
+    public function edit(CrawlerJob $crawlerJob): View|RedirectResponse
+    {
+        if ($crawlerJob->status === CrawlerJob::STATUS_PROCESSING) {
+            return redirect()
+                ->route('cms.crawler-jobs.index')
+                ->withErrors(['edit' => 'Không sửa job đang processing (đợi worker xong hoặc đánh dấu failed).']);
+        }
+
+        $stories = Story::query()
+            ->orderBy('title')
+            ->get(['id', 'title', 'slug']);
+
+        return view('cms.crawler_jobs.edit', [
+            'job' => $crawlerJob,
+            'stories' => $stories,
+            'd' => self::prefillFromJob($crawlerJob, blankSourceUrl: false),
+            'crawlerTokenConfigured' => (string) config('crawler.internal_token') !== '',
+        ]);
+    }
+
+    public function update(UpdateCrawlerJobRequest $request, CrawlerJob $crawlerJob): RedirectResponse
+    {
+        if ($crawlerJob->status === CrawlerJob::STATUS_PROCESSING) {
+            return redirect()
+                ->route('cms.crawler-jobs.index')
+                ->withErrors(['edit' => 'Không sửa job đang processing (đợi worker xong hoặc đánh dấu failed).']);
+        }
+
+        $validated = $request->validated();
+        $storyId = $validated['story_id'] ?? null;
+        $newTitle = $storyId ? null : ($validated['new_story_title'] ?? null);
+
+        $crawlerJob->update([
             'story_id' => $storyId,
             'new_story_title' => $newTitle,
             'source_url' => $validated['source_url'],
@@ -85,29 +177,12 @@ class CrawlerJobController extends Controller
             'chapter_fetch_concurrency' => array_key_exists('chapter_fetch_concurrency', $validated) && $validated['chapter_fetch_concurrency'] !== null
                 ? (int) $validated['chapter_fetch_concurrency']
                 : null,
-            'status' => CrawlerJob::STATUS_PENDING,
-            'chapters_imported' => 0,
             'last_error' => null,
         ]);
 
-        try {
-            $this->pushCrawlerJobToRedis($job);
-            $job->update(['status' => CrawlerJob::STATUS_QUEUED]);
-        } catch (Throwable $e) {
-            $job->update([
-                'status' => CrawlerJob::STATUS_FAILED,
-                'last_error' => 'Redis: '.$e->getMessage(),
-            ]);
-
-            return redirect()
-                ->route('cms.crawler-jobs.create')
-                ->withErrors(['redis' => 'Không đẩy được job lên Redis: '.$e->getMessage()])
-                ->withInput();
-        }
-
         return redirect()
             ->route('cms.crawler-jobs.index')
-            ->with('status', 'Đã tạo job #'.$job->id.' và đưa vào hàng đợi Redis.');
+            ->with('status', 'Đã cập nhật job #'.$crawlerJob->id.'. Dùng «Gửi lại Redis» nếu muốn chạy lại với cấu hình mới.');
     }
 
     public function resend(CrawlerJob $crawlerJob): RedirectResponse
@@ -150,5 +225,25 @@ class CrawlerJobController extends Controller
     {
         $payload = json_encode(['crawler_job_id' => $job->id], JSON_THROW_ON_ERROR);
         Redis::rPush(config('crawler.redis_queue_list'), $payload);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function prefillFromJob(CrawlerJob $job, bool $blankSourceUrl): array
+    {
+        return [
+            'source_url' => $blankSourceUrl ? '' : $job->source_url,
+            'chapter_links_selector' => $job->chapter_links_selector,
+            'chapter_list_next_page_selector' => $job->chapter_list_next_page_selector,
+            'chapter_title_selector' => $job->chapter_title_selector,
+            'chapter_content_selector' => $job->chapter_content_selector,
+            'story_id' => $job->story_id,
+            'new_story_title' => $job->new_story_title ?? '',
+            'max_chapters' => $job->max_chapters,
+            'chapter_start' => $job->chapter_start ?? 1,
+            'delay_seconds' => (string) $job->delay_seconds,
+            'chapter_fetch_concurrency' => $job->chapter_fetch_concurrency,
+        ];
     }
 }

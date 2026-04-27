@@ -20,7 +20,7 @@ class StoreBulkLexiconsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lexicons' => ['required', 'array', 'min:1', 'max:200'],
+            'lexicons' => ['required', 'array', 'min:1', 'max:1000'],
             'lexicons.*.word' => ['required', 'string', 'max:255'],
             'lexicons.*.replacement' => ['required', 'string', 'max:255'],
             'lexicons.*.type' => ['required', 'string', Rule::in(LexiconType::values())],
@@ -108,7 +108,7 @@ class StoreBulkLexiconsRequest extends FormRequest
         return [
             'lexicons.required' => 'Chưa có dòng hợp lệ (cần từ, thay thế, loại).',
             'lexicons.min' => 'Chưa có dòng hợp lệ (cần từ, thay thế, loại).',
-            'lexicons.max' => 'Tối đa 200 dòng mỗi lần.',
+            'lexicons.max' => 'Tối đa 1000 dòng mỗi lần.',
         ];
     }
 }

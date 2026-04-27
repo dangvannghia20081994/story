@@ -17,6 +17,7 @@
                 <div class="add-dropdown__menu">
                     <a href="{{ route('cms.lexicons.create') }}">Thêm một mục</a>
                     <a href="{{ route('cms.lexicons.bulk') }}">Thêm nhiều mục</a>
+                    <a href="{{ route('cms.lexicons.from-chapter') }}">Từ một chương</a>
                 </div>
             </details>
         </div>
@@ -51,7 +52,6 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Từ</th>
                         <th>Thay thế</th>
                         <th>Loại</th>
@@ -62,7 +62,6 @@
                 <tbody>
                     @forelse ($lexicons as $lex)
                         <tr>
-                            <td>{{ $lex->id }}</td>
                             <td><strong style="font-weight: 500;">{{ $lex->word }}</strong></td>
                             <td>{{ $lex->replacement }}</td>
                             <td>{{ \App\Enums\LexiconType::tryFrom($lex->type)?->label() ?? $lex->type }}</td>
@@ -81,7 +80,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có lexicon. Dùng <strong>Mục mới</strong> ở trên (một hoặc nhiều).</td></tr>
+                        <tr><td colspan="5" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có lexicon. Dùng <strong>Mục mới</strong> ở trên (một hoặc nhiều).</td></tr>
                     @endforelse
                 </tbody>
             </table>

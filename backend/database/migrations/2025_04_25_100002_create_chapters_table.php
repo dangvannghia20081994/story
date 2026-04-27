@@ -15,6 +15,8 @@ return new class extends Migration
             $table->longText('content');
             $table->string('audio_path')->nullable();
             $table->unsignedInteger('duration')->default(0);
+            $table->unsignedInteger('chuong')->nullable()->after('title');
+            $table->index(['story_id', 'chuong', 'updated_at']);
             $table->timestamps();
         });
     }
