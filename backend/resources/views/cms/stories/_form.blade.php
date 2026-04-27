@@ -17,15 +17,22 @@
         <label for="slug">{{ $isEdit ? 'Slug' : 'Slug (tùy chọn)' }}</label>
         <input id="slug" name="slug" value="{{ old('slug', $story?->slug ?? '') }}">
     </div>
-    <div class="field">
-        <label for="genre">Thể loại</label>
-        <select id="genre" name="genre">
-            <option value="">—</option>
+    @php
+        $selGenres = old('genres', $story?->genres ?? []);
+        $selGenres = is_array($selGenres) ? $selGenres : [];
+    @endphp
+    <input type="hidden" name="_genres_form" value="1">
+    <fieldset class="field" style="border: none; padding: 0; margin: 0;">
+        <legend style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text);">Thể loại (chọn nhiều)</legend>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;">
             @foreach (\App\Models\Story::GENRES as $g)
-                <option value="{{ $g }}" @selected(old('genre', $story?->genre) === $g)>{{ \App\Models\Story::genreLabel($g) }}</option>
+                <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 400; cursor: pointer;">
+                    <input type="checkbox" name="genres[]" value="{{ $g }}" @checked(in_array($g, $selGenres, true))>
+                    <span>{{ \App\Models\Story::genreLabel($g) }}</span>
+                </label>
             @endforeach
-        </select>
-    </div>
+        </div>
+    </fieldset>
     <div class="field">
         <label for="serial_status">Trạng thái ra truyện</label>
         <select id="serial_status" name="serial_status">

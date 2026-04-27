@@ -64,7 +64,7 @@ class CrawlerInternalController extends Controller
                 $story = Story::query()->create([
                     'title' => $title,
                     'description' => null,
-                    'genre' => null,
+                    'genres' => [],
                     'serial_status' => 'ongoing',
                 ]);
                 $locked->forceFill(['story_id' => $story->id])->save();

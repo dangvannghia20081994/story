@@ -32,7 +32,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
     title: "",
     slug: "",
     description: "",
-    genre: "",
+    genres: [] as string[],
     serial_status: "ongoing",
     firstChapterTitle: "",
     firstChapterContent: "",
@@ -44,7 +44,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
         title: "",
         slug: "",
         description: "",
-        genre: "",
+        genres: [],
         serial_status: "ongoing",
         firstChapterTitle: "",
         firstChapterContent: "",
@@ -73,7 +73,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
         title: formData.title.trim(),
         slug: formData.slug.trim() || undefined,
         description: formData.description.trim() || undefined,
-        genre: formData.genre || undefined,
+        genres: formData.genres.length > 0 ? formData.genres : undefined,
         serial_status: formData.serial_status || undefined,
       };
 
@@ -159,23 +159,34 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Thể loại
-            </label>
-            <select
-              value={formData.genre}
-              onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-            >
-              <option value="">Chọn thể loại</option>
+          <fieldset>
+            <legend className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Thể loại (chọn nhiều)
+            </legend>
+            <div className="flex flex-col gap-2">
               {GENRES.map((g) => (
-                <option key={g.value} value={g.value}>
+                <label key={g.value} className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={formData.genres.includes(g.value)}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setFormData((prev) => ({
+                        ...prev,
+                        genres: on
+                          ? prev.genres.includes(g.value)
+                            ? prev.genres
+                            : [...prev.genres, g.value]
+                          : prev.genres.filter((x) => x !== g.value),
+                      }));
+                    }}
+                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600"
+                  />
                   {g.label}
-                </option>
+                </label>
               ))}
-            </select>
-          </div>
+            </div>
+          </fieldset>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">

@@ -29,7 +29,7 @@
     <p class="bulk-hero"><a href="{{ route('cms.stories.index') }}">← Quay lại danh sách truyện</a></p>
     <div class="card" style="padding: 0.9rem 1.1rem;">
         <div class="bulk-tbar">
-            <p class="muted" style="margin:0;">Chọn vùng trong Excel rồi dán. Cột <strong>thể loại</strong> dùng menu hoặc dán tên / mã thể loại. Chuột phải trên dòng: thêm / xóa dòng (theo Handsontable).</p>
+            <p class="muted" style="margin:0;">Chọn vùng trong Excel rồi dán. Cột <strong>thể loại</strong>: một hoặc nhiều mã / tên, cách nhau bằng dấu phẩy, chấm phẩy hoặc | (vd. <code>tu-tien, đô thị</code>). Menu vẫn chọn được một thể loại.</p>
             <div class="row-actions">
                 <button type="button" class="btn" id="add-rows-bulk">+ 10 dòng</button>
             </div>
@@ -75,6 +75,19 @@
         const initial = Array.from({ length: 24 }, emptyRow);
         const el = document.getElementById('bulk-hot');
         const rowHint = document.getElementById('row-hint');
+        function mapGenresFromCell(cell) {
+            if (cell == null) { return []; }
+            const s = String(cell).trim();
+            if (s === '') { return []; }
+            const parts = s.split(/[,;|]+/).map(function (p) { return p.trim(); }).filter(Boolean);
+            const out = [];
+            const seen = {};
+            parts.forEach(function (p) {
+                const slug = mapGenreToSlug(p);
+                if (slug && !seen[slug]) { seen[slug] = true; out.push(slug); }
+            });
+            return out;
+        }
         function mapGenreToSlug(cell) {
             if (cell == null) { return null; }
             const s = String(cell).trim();
@@ -162,7 +175,7 @@
                 out.push({
                     title: title,
                     slug: (row.slug != null && String(row.slug).trim() !== '') ? String(row.slug).trim() : null,
-                    genre: mapGenreToSlug(row.genre),
+                    genres: mapGenresFromCell(row.genre),
                     serial_status: mapSerialToSlug(row.serial_status),
                     description: (row.description != null && String(row.description).trim() !== '') ? String(row.description).trim() : null
                 });

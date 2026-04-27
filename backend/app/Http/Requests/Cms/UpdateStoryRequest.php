@@ -20,6 +20,22 @@ class UpdateStoryRequest extends FormRequest
             $clean = Story::stripExclusivePublishingNoticeLines($desc);
             $this->merge(['description' => trim($clean) === '' ? null : $clean]);
         }
+
+        if ($this->boolean('_genres_form') && ! $this->has('genres')) {
+            $this->merge(['genres' => []]);
+        }
+        if ($this->has('genres') || $this->has('genre')) {
+            $g = $this->input('genre');
+            $legacy = is_string($g) && $g !== '' ? $g : null;
+            $this->merge([
+                'genres' => Story::sanitizeGenresList(
+                    is_array($this->input('genres')) ? $this->input('genres') : [],
+                    $legacy,
+                ),
+            ]);
+        }
+        $this->request->remove('genre');
+        $this->request->remove('_genres_form');
     }
 
     /**
@@ -34,7 +50,8 @@ class UpdateStoryRequest extends FormRequest
             'title' => ['sometimes', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')->ignore($story->id)],
             'description' => ['nullable', 'string', 'max:10000'],
-            'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
+            'genres' => ['sometimes', 'array'],
+            'genres.*' => ['string', Rule::in(Story::GENRES)],
             'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
         ];
     }

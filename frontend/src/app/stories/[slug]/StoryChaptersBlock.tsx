@@ -21,7 +21,8 @@ type StoryShowData = {
   title: string;
   slug: string;
   description: string | null;
-  genre: string | null;
+  genre?: string | null;
+  genres?: string[] | null;
   serial_status?: string | null;
   chapters?: ChapterRow[];
   chapters_count?: number;

@@ -40,7 +40,7 @@ class StoryController extends Controller
             )
             ->when(
                 $genre !== '',
-                static fn ($query) => $query->where('genre', $genre)
+                static fn ($query) => $query->whereJsonContains('genres', $genre)
             )
             ->orderByDesc('id')
             ->paginate(20)
@@ -72,7 +72,7 @@ class StoryController extends Controller
                 'title' => $data['title'],
                 'slug' => $slug,
                 'description' => $data['description'] ?? null,
-                'genre' => $data['genre'] ?? null,
+                'genres' => Story::sanitizeGenresList($data['genres'] ?? null, $data['genre'] ?? null),
                 'serial_status' => $data['serial_status'] ?? 'ongoing',
             ]);
 
@@ -102,7 +102,7 @@ class StoryController extends Controller
                     'title' => $row['title'],
                     'slug' => $slug,
                     'description' => $row['description'] ?? null,
-                    'genre' => $row['genre'] ?? null,
+                    'genres' => $row['genres'] ?? [],
                     'serial_status' => $row['serial_status'] ?? 'ongoing',
                 ]);
             }

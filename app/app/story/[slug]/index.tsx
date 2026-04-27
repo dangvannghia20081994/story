@@ -13,6 +13,7 @@ import {
 import { Text, View } from "@/components/Themed";
 import { apiFetch, chapterAudioUrl, type Chapter, type Story } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
+import { storyGenreSlugs } from "@/lib/storyGenres";
 
 type StoryShowResponse = { data: Story };
 
@@ -144,7 +145,7 @@ export default function StoryDetailScreen() {
     );
   }
 
-  const genre = genreLabel(story.genre);
+  const genreSlugs = storyGenreSlugs(story);
   const withAudioCount = chapters.filter((c) => chapterAudioUrl(c)).length;
   return (
     <>
@@ -156,9 +157,14 @@ export default function StoryDetailScreen() {
           </Text>
         ) : null}
         <View style={styles.badges}>
-          {genre ? (
-            <Text style={styles.badge}>{genre}</Text>
-          ) : null}
+          {genreSlugs.map((slug) => {
+            const lab = genreLabel(slug);
+            return lab ? (
+              <Text key={slug} style={styles.badge}>
+                {lab}
+              </Text>
+            ) : null;
+          })}
           {typeof story.chapters_count === "number" ? (
             <Text style={styles.badgeMuted}>{story.chapters_count} chương</Text>
           ) : null}

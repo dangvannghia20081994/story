@@ -28,6 +28,22 @@ class StoreStoryRequest extends FormRequest
         if (is_string($content) && $content !== '') {
             $this->merge(['first_chapter_content' => Story::sanitizeChapterContent($content)]);
         }
+
+        if ($this->boolean('_genres_form') && ! $this->has('genres')) {
+            $this->merge(['genres' => []]);
+        }
+        if ($this->has('genres') || $this->has('genre')) {
+            $g = $this->input('genre');
+            $legacy = is_string($g) && $g !== '' ? $g : null;
+            $this->merge([
+                'genres' => Story::sanitizeGenresList(
+                    is_array($this->input('genres')) ? $this->input('genres') : [],
+                    $legacy,
+                ),
+            ]);
+        }
+        $this->request->remove('genre');
+        $this->request->remove('_genres_form');
     }
 
     public function rules(): array
@@ -36,7 +52,8 @@ class StoreStoryRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')],
             'description' => ['nullable', 'string', 'max:10000'],
-            'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
+            'genres' => ['sometimes', 'array'],
+            'genres.*' => ['string', Rule::in(Story::GENRES)],
             'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
             'first_chapter_title' => ['nullable', 'string', 'max:255'],
             'first_chapter_content' => ['nullable', 'string'],

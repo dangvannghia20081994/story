@@ -13,11 +13,9 @@ return new class extends Migration
             $table->string('title');
             $table->string('slug')->nullable()->unique();
             $table->text('description')->nullable();
-            $table->string('genre', 64)->nullable();
+            $table->json('genres')->nullable();
             $table->string('serial_status', 32)->default('ongoing');
             $table->timestamps();
-
-            $table->index('genre');
         });
     }
 

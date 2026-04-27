@@ -45,6 +45,33 @@ class Story extends Model
         return self::GENRE_LABELS[$slug] ?? $slug;
     }
 
+    /**
+     * Gộp danh sách slug hợp lệ, không trùng, thứ tự theo GENRES.
+     *
+     * @param  list<string>|null  $genres
+     * @return list<string>
+     */
+    public static function sanitizeGenresList(?array $genres, ?string $legacyGenre = null): array
+    {
+        $out = [];
+        if (is_string($legacyGenre) && $legacyGenre !== '' && in_array($legacyGenre, self::GENRES, true)) {
+            $out[] = $legacyGenre;
+        }
+        if (is_array($genres)) {
+            foreach ($genres as $g) {
+                if (is_string($g) && in_array($g, self::GENRES, true) && ! in_array($g, $out, true)) {
+                    $out[] = $g;
+                }
+            }
+        }
+        usort(
+            $out,
+            static fn (string $a, string $b): int => (int) (array_search($a, self::GENRES, true) <=> array_search($b, self::GENRES, true)),
+        );
+
+        return array_values($out);
+    }
+
     public static function serialStatusLabel(?string $status): string
     {
         if ($status === null || $status === '') {
@@ -112,14 +139,15 @@ class Story extends Model
         'title',
         'slug',
         'description',
-        'genre',
+        'genres',
         'serial_status',
     ];
 
-    /** Tổng hợp từ chương — không còn cột DB; giữ key `tts_status` cho client cũ. */
+    /** Tổng hợp từ chương — không còn cột DB; giữ key `tts_status` cho client cũ. `genre` = thể loại đầu (tương thích API cũ). */
     protected $appends = [
         'tts_status',
         'audio_url',
+        'genre',
     ];
 
     /** Không lộ relation phụ trong JSON (chỉ dùng cho accessor `audio_url`). */
@@ -130,13 +158,38 @@ class Story extends Model
     protected function casts(): array
     {
         return [
+            'genres' => 'array',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
     }
 
+    public function setGenresAttribute(mixed $value): void
+    {
+        $arr = is_array($value) ? $value : [];
+        $clean = self::sanitizeGenresList($arr, null);
+        $this->attributes['genres'] = json_encode($clean);
+    }
+
+    /** Thể loại “chính” (đầu tiên) — client chỉ đọc một chuỗi vẫn hoạt động. */
+    public function getGenreAttribute(): ?string
+    {
+        $g = $this->genres;
+        if (! is_array($g) || $g === []) {
+            return null;
+        }
+
+        return $g[0];
+    }
+
     protected static function booted(): void
     {
+        static::creating(function (Story $story): void {
+            if (! array_key_exists('genres', $story->attributes)) {
+                $story->setAttribute('genres', []);
+            }
+        });
+
         static::saving(function (Story $story): void {
             if ($story->exists && ($story->slug === null || $story->slug === '')) {
                 $base = Str::slug($story->title) ?: 'story';

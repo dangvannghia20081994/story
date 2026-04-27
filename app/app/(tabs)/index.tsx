@@ -10,7 +10,7 @@ import { useRouter } from "expo-router";
 
 import { Text, View } from "@/components/Themed";
 import { apiFetch, type PaginatedStories, type Story } from "@/lib/api";
-import { genreLabel } from "@/lib/genreLabels";
+import { storyGenresLine } from "@/lib/storyGenres";
 
 export default function StoriesScreen() {
   const router = useRouter();
@@ -79,7 +79,7 @@ export default function StoriesScreen() {
         ListEmptyComponent={<Text style={styles.muted}>Chưa có truyện.</Text>}
         contentContainerStyle={items.length === 0 ? styles.centered : undefined}
         renderItem={({ item }) => {
-          const g = genreLabel(item.genre);
+          const gLine = storyGenresLine(item);
           const count = item.chapters_count;
           return (
             <Pressable
@@ -88,8 +88,9 @@ export default function StoriesScreen() {
             >
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.muted}>
-                {[g, typeof count === "number" ? `${count} chương` : null].filter(Boolean).join(" · ") ||
-                  "—"}
+                {[gLine !== "—" ? gLine : null, typeof count === "number" ? `${count} chương` : null]
+                  .filter(Boolean)
+                  .join(" · ") || "—"}
               </Text>
             </Pressable>
           );

@@ -23,6 +23,8 @@ class StoreBulkStoriesRequest extends FormRequest
             'stories.*.title' => ['required', 'string', 'max:255'],
             'stories.*.slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')],
             'stories.*.description' => ['nullable', 'string', 'max:10000'],
+            'stories.*.genres' => ['nullable', 'array'],
+            'stories.*.genres.*' => ['string', Rule::in(Story::GENRES)],
             'stories.*.genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
             'stories.*.serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
         ];
@@ -50,6 +52,10 @@ class StoreBulkStoriesRequest extends FormRequest
             if (is_string($g) && $g === '') {
                 $g = null;
             }
+            $genresList = Story::sanitizeGenresList(
+                isset($row['genres']) && is_array($row['genres']) ? $row['genres'] : null,
+                is_string($g) ? $g : null,
+            );
             $s = $row['slug'] ?? null;
             if (is_string($s) && $s === '') {
                 $s = null;
@@ -69,7 +75,7 @@ class StoreBulkStoriesRequest extends FormRequest
                 'title' => $row['title'],
                 'slug' => $s,
                 'description' => $d,
-                'genre' => $g,
+                'genres' => $genresList,
                 'serial_status' => $st,
             ]);
         }

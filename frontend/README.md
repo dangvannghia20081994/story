@@ -44,7 +44,7 @@ Mở http://localhost:3000
 
 ## Hợp đồng API dùng cho phân loại trang chủ
 
-- `Story.genre` là nguồn sự thật cho UI thể loại.
+- `Story.genres` (mảng slug) là nguồn sự thật; API vẫn có `genre` (slug đầu tiên) để tương thích.
 - Giá trị đang dùng: `tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`.
 
 ## Docker

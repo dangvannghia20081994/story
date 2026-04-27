@@ -5,6 +5,7 @@ import { SidebarLayout } from "@/components/layouts";
 import { StoryChaptersBlock } from "./StoryChaptersBlock";
 import { apiFetch } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
+import { storyGenreSlugs } from "@/lib/storyGenres";
 import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { storyReadHref } from "@/lib/storyPath";
@@ -25,7 +26,8 @@ type StoryShowData = {
   title: string;
   slug: string;
   description: string | null;
-  genre: string | null;
+  genre?: string | null;
+  genres?: string[] | null;
   serial_status?: string | null;
   chapters?: ChapterRow[];
   chapters_count?: number;
@@ -68,7 +70,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   }
   const { story: s, chapters } = loaded;
 
-  const genre = genreLabel(s.genre);
+  const genreSlugs = storyGenreSlugs(s);
   const serialLabel = serialStatusLabel(s.serial_status ?? undefined);
   const chaptersTotal = s.chapters_total ?? chapters.length;
   const withAudioTotal = s.chapters_with_audio_total ?? chapters.filter((c) => chapterAudioUrl(c)).length;
@@ -94,11 +96,17 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
           <div className="flex flex-col gap-6 p-6 md:flex-row md:items-start md:justify-between md:p-8">
             <div className="min-w-0 flex-1 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                {genre ? (
-                  <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-200">
-                    {genre}
-                  </span>
-                ) : null}
+                {genreSlugs.map((slug) => {
+                  const lab = genreLabel(slug);
+                  return lab ? (
+                    <span
+                      key={slug}
+                      className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-200"
+                    >
+                      {lab}
+                    </span>
+                  ) : null;
+                })}
                 {serialLabel ? (
                   <span
                     className={`rounded-full border px-3 py-0.5 text-xs font-semibold tracking-wide ${serialStatusBadgeClass(s.serial_status ?? undefined)}`}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FullWidthLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
+import { storyGenresDisplay } from "@/lib/storyGenres";
 import { storyDetailHref } from "@/lib/storyPath";
 
 type Story = {
@@ -8,7 +9,8 @@ type Story = {
   slug: string;
   title: string;
   description: string | null;
-  genre: string | null;
+  genre?: string | null;
+  genres?: string[] | null;
   tts_status: string;
   audio_url: string | null;
   created_at: string | null;
@@ -83,7 +85,7 @@ export default async function RankingsPage() {
                           {story.title}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{story.genre ?? "khac"}</td>
+                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{storyGenresDisplay(story)}</td>
                       <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{statusLabel(story.tts_status)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-zinc-800 dark:text-zinc-100">{story.score}</td>
                     </tr>

@@ -33,6 +33,8 @@ class StoryController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')],
             'description' => ['nullable', 'string', 'max:10000'],
+            'genres' => ['nullable', 'array'],
+            'genres.*' => ['string', Rule::in(Story::GENRES)],
             'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
             'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
             'first_chapter' => ['nullable', 'array'],
@@ -52,11 +54,13 @@ class StoryController extends Controller
 
         $story = DB::transaction(function () use ($data) {
             $slug = $data['slug'] ?? null;
+            $genres = Story::sanitizeGenresList($data['genres'] ?? null, $data['genre'] ?? null);
+            unset($data['genre'], $data['genres']);
             $story = Story::query()->create([
                 'title' => $data['title'],
                 'slug' => $slug,
                 'description' => $data['description'] ?? null,
-                'genre' => $data['genre'] ?? null,
+                'genres' => $genres,
                 'serial_status' => $data['serial_status'] ?? 'ongoing',
             ]);
 
@@ -115,6 +119,8 @@ class StoryController extends Controller
             'title' => ['sometimes', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')->ignore($story->id)],
             'description' => ['nullable', 'string', 'max:10000'],
+            'genres' => ['nullable', 'array'],
+            'genres.*' => ['string', Rule::in(Story::GENRES)],
             'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
             'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
         ]);
@@ -128,6 +134,11 @@ class StoryController extends Controller
             if (trim($data['description']) === '') {
                 $data['description'] = null;
             }
+        }
+
+        if (array_key_exists('genres', $data) || array_key_exists('genre', $data)) {
+            $data['genres'] = Story::sanitizeGenresList($data['genres'] ?? null, $data['genre'] ?? null);
+            unset($data['genre']);
         }
 
         $story->fill($data)->save();

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HeroBanner } from "@/components/HomeComponents";
 import { FullWidthLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
+import { storyBelongsToGenreSlug } from "@/lib/storyGenres";
 import { storyDetailHref } from "@/lib/storyPath";
 
 type Story = {
@@ -9,7 +10,8 @@ type Story = {
   slug: string;
   title: string;
   description: string | null;
-  genre: string | null;
+  genre?: string | null;
+  genres?: string[] | null;
   tts_status: string;
   audio_url: string | null;
 };
@@ -45,7 +47,7 @@ export default async function Home() {
   const stories = await loadStories();
   const grouped = genreDefinitions.map((genre) => ({
     ...genre,
-    stories: stories.filter((story) => (story.genre ?? "khac") === genre.key).slice(0, 4),
+    stories: stories.filter((story) => storyBelongsToGenreSlug(story, genre.key)).slice(0, 4),
   }));
 
   return (
