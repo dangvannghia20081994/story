@@ -31,9 +31,10 @@ type StoryShowData = {
   characters_count?: number;
 };
 
-function storyShowQuery(storyKey: string, order: "asc" | "desc", chaptersFull: boolean): string {
-  const full = chaptersFull ? "1" : "0";
-  return `/api/stories/${encodeURIComponent(storyKey)}?chapters_order=${order}&chapters_full=${full}`;
+const CHAPTER_PAGE_SIZE = 25;
+
+function storyShowQuery(storyKey: string, order: "asc" | "desc", offset: number): string {
+  return `/api/stories/${encodeURIComponent(storyKey)}?chapters_order=${order}&chapters_full=0&chapters_limit=${CHAPTER_PAGE_SIZE}&chapters_offset=${offset}&chapters_omit_content=1`;
 }
 
 type Props = {
@@ -57,15 +58,12 @@ export function StoryChaptersBlock({
   const [sortPending, setSortPending] = useState(false);
   const [expandMoreLoading, setExpandMoreLoading] = useState(false);
 
-  const requestFullChapters = chapters.length >= chaptersTotal && chaptersTotal > 0;
-
   const toggleSort = useCallback(async () => {
     const nextAsc = !createdAsc;
     const order = nextAsc ? "asc" : "desc";
-    const full = requestFullChapters;
     setSortPending(true);
     try {
-      const res = await apiFetch<{ data: StoryShowData }>(storyShowQuery(storyKey, order, full));
+      const res = await apiFetch<{ data: StoryShowData }>(storyShowQuery(storyKey, order, 0));
       const raw = res.data.chapters;
       setChapters(Array.isArray(raw) ? raw : []);
       setCreatedAsc(nextAsc);
@@ -75,22 +73,39 @@ export function StoryChaptersBlock({
     } finally {
       setSortPending(false);
     }
-  }, [createdAsc, storyKey, requestFullChapters]);
+  }, [createdAsc, storyKey]);
 
   const expandMore = useCallback(async () => {
     const order = createdAsc ? "asc" : "desc";
+    const have = chapters.length;
+    if (have >= chaptersTotal) {
+      return;
+    }
     setExpandMoreLoading(true);
     try {
-      const res = await apiFetch<{ data: StoryShowData }>(storyShowQuery(storyKey, order, true));
-      const raw = res.data.chapters;
-      setChapters(Array.isArray(raw) ? raw : []);
+      const res = await apiFetch<{ data: StoryShowData }>(storyShowQuery(storyKey, order, have));
+      const batch = res.data.chapters ?? [];
+      if (batch.length === 0) {
+        setChaptersTotal(have);
+        return;
+      }
+      setChapters((prev) => {
+        const byId = new Map<number, ChapterRow>();
+        for (const c of prev) {
+          byId.set(c.id, c);
+        }
+        for (const c of batch) {
+          byId.set(c.id, c);
+        }
+        return Array.from(byId.values());
+      });
       if (typeof res.data.chapters_total === "number") {
         setChaptersTotal(res.data.chapters_total);
       }
     } finally {
       setExpandMoreLoading(false);
     }
-  }, [createdAsc, storyKey]);
+  }, [createdAsc, storyKey, chapters.length, chaptersTotal]);
 
   const showExpandMore = chaptersTotal > 6 && chapters.length < chaptersTotal;
 

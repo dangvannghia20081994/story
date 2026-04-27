@@ -46,6 +46,11 @@ interface AudioPlayerProps {
   onSeekComplete?: (currentTime: number, duration: number) => void;
   /** Giây từ backend khi `audio.duration` chưa sẵn sàng (trang đọc). */
   durationHintSec?: number | null;
+  /**
+   * Chương kế tiếp khi phát hết file (layout read): tự chuyển `src` + gọi `onChapterChange` + phát tiếp.
+   * Không dùng khi đọc bằng giọng trình duyệt (`speechEnabled`).
+   */
+  autoAdvanceChapter?: AudioChapterItem | null;
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
@@ -71,6 +76,7 @@ export function AudioPlayer({
   onPlaybackProgress,
   onSeekComplete,
   durationHintSec = null,
+  autoAdvanceChapter = null,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const speedMenuRef = useRef<HTMLDivElement>(null);
@@ -97,6 +103,9 @@ export function AudioPlayer({
   const [sleepTimer, setSleepTimer] = useState(0);
   const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(null);
   const [currentChapterId, setCurrentChapterId] = useState<number | null>(initialChapterId);
+  const autoplayAfterSrcChangeRef = useRef(false);
+  const autoAdvanceChapterRef = useRef(autoAdvanceChapter);
+  autoAdvanceChapterRef.current = autoAdvanceChapter;
   const [showChapterList, setShowChapterList] = useState(false);
   const [speechVoiceUri, setSpeechVoiceUri] = useState("");
   const [speechVoices, setSpeechVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -209,16 +218,46 @@ export function AudioPlayer({
     const onDur = () => syncDurationFromAudio();
     const onLoadedData = () => syncDurationFromAudio();
 
+    const playWhenReady = () => {
+      if (!autoplayAfterSrcChangeRef.current) {
+        return;
+      }
+      autoplayAfterSrcChangeRef.current = false;
+      void el.play().catch(() => {});
+    };
+
     el.addEventListener("loadedmetadata", onMeta);
     el.addEventListener("durationchange", onDur);
     el.addEventListener("loadeddata", onLoadedData);
+    el.addEventListener("canplay", playWhenReady, { once: true });
 
     return () => {
       el.removeEventListener("loadedmetadata", onMeta);
       el.removeEventListener("durationchange", onDur);
       el.removeEventListener("loadeddata", onLoadedData);
+      el.removeEventListener("canplay", playWhenReady);
     };
   }, [activeSrc, syncDurationFromAudio]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || speechEnabled) {
+      return;
+    }
+    const onEnded = () => {
+      setIsPlaying(false);
+      const adv = autoAdvanceChapterRef.current;
+      const url = adv?.audio_url?.trim();
+      if (!adv || !url) {
+        return;
+      }
+      speech.stop();
+      autoplayAfterSrcChangeRef.current = true;
+      onChapterChange?.(adv.id);
+    };
+    el.addEventListener("ended", onEnded);
+    return () => el.removeEventListener("ended", onEnded);
+  }, [onChapterChange, speechEnabled]);
 
   useEffect(() => {
     if (sleepTimer <= 0) {

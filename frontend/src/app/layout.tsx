@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
 import "./globals.css";
@@ -19,6 +19,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Story Audio - Nghe Truyện Tiên Hiệp",
   description: "Nền tảng đọc truyện bằng âm thanh với AI",
+};
+
+/** Cho `env(safe-area-inset-*)` (home indicator / tai thỏ) — dock dưới không bị che. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

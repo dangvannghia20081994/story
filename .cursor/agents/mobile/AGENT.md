@@ -22,6 +22,8 @@ Bạn chịu trách nhiệm **`app/`**: Expo Router, tabs, màn hình truyện /
 ## File thường chạm
 
 - `app/(tabs)/`, `app/story/`, `app/_layout.tsx`
+- `constants/storyUi.ts` (palette truyện/chương đồng bộ màu frontend zinc + indigo)
+- `lib/webTitle.ts` — web: `document.title` (header native không đổi tab trình duyệt)
 - `lib/api.ts`, **`app.json`**, `.env.example`
 
 ## Biến & cấu hình
@@ -30,7 +32,7 @@ Bạn chịu trách nhiệm **`app/`**: Expo Router, tabs, màn hình truyện /
 |--------|--------|
 | `EXPO_PUBLIC_API_URL` | Base URL Laravel (ưu tiên) |
 | `app.json` → `expo.extra.apiUrl` | Fallback dev |
-| Compose `expo` | `EXPO_PUBLIC_API_URL`, `CHOKIDAR_USEPOLLING` |
+| Compose `expo` | `EXPO_PUBLIC_API_URL`, `CHOKIDAR_USEPOLLING`; không set `CI` (chuỗi rỗng gây lỗi GetEnv.NoBoolean); cổng **8090→8081**, `npm install` rồi `expo start --web --host lan` |
 
 ## Lệnh tham chiếu
 

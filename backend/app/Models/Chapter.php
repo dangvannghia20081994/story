@@ -46,6 +46,74 @@ class Chapter extends Model
     }
 
     /**
+     * Vị trí đọc + chương trước/sau theo cùng thứ tự {@see scopeChapterNumberSort} (một truy vấn window, không tải toàn bộ nội dung).
+     *
+     * @return array{
+     *     chapter: Chapter,
+     *     prev: array{id:int,title:string}|null,
+     *     next: array{id:int,title:string}|null,
+     *     chapter_index: int,
+     *     chapters_total: int
+     * }|null null khi không có chương khớp story
+     */
+    public static function readNavigationFor(Story $story, int $chapterId): ?array
+    {
+        $storyId = (int) $story->id;
+
+        $sql = <<<'SQL'
+WITH ordered AS (
+  SELECT
+    c.*,
+    COUNT(*) OVER (PARTITION BY c.story_id) AS nav_chapters_total,
+    LAG(c.id) OVER w AS nav_prev_id,
+    LAG(c.title) OVER w AS nav_prev_title,
+    LEAD(c.id) OVER w AS nav_next_id,
+    LEAD(c.title) OVER w AS nav_next_title,
+    ROW_NUMBER() OVER w AS nav_chapter_index
+  FROM chapters c
+  WHERE c.story_id = ?
+  WINDOW w AS (
+    ORDER BY (CASE WHEN c.chapter_number IS NULL THEN 1 ELSE 0 END),
+             c.chapter_number ASC,
+             c.updated_at ASC,
+             c.id ASC
+  )
+)
+SELECT * FROM ordered WHERE id = ?
+SQL;
+
+        $row = DB::selectOne($sql, [$storyId, $chapterId]);
+        if ($row === null) {
+            return null;
+        }
+
+        $r = (array) $row;
+        $chapterAttrs = array_intersect_key($r, array_flip([
+            'id', 'story_id', 'title', 'chapter_number', 'content', 'audio_path',
+            'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
+        ]));
+        $chapter = static::hydrate([$chapterAttrs])->first();
+        if ($chapter === null) {
+            return null;
+        }
+
+        $prev = isset($r['nav_prev_id']) && $r['nav_prev_id'] !== null
+            ? ['id' => (int) $r['nav_prev_id'], 'title' => (string) $r['nav_prev_title']]
+            : null;
+        $next = isset($r['nav_next_id']) && $r['nav_next_id'] !== null
+            ? ['id' => (int) $r['nav_next_id'], 'title' => (string) $r['nav_next_title']]
+            : null;
+
+        return [
+            'chapter' => $chapter,
+            'prev' => $prev,
+            'next' => $next,
+            'chapter_index' => (int) $r['nav_chapter_index'],
+            'chapters_total' => (int) $r['nav_chapters_total'],
+        ];
+    }
+
+    /**
      * Sắp xếp đọc: có chapter_number trước, null sau; cùng số thì theo updated_at rồi id.
      *
      * @param  'asc'|'desc'  $direction

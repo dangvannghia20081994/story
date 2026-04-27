@@ -1,8 +1,17 @@
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 import { StyleSheet } from "react-native";
 
 import { Text, View } from "@/components/Themed";
+import { setWebDocumentTitle } from "@/lib/webTitle";
 
 export default function AboutScreen() {
+  useFocusEffect(
+    useCallback(() => {
+      setWebDocumentTitle("Ứng dụng");
+    }, []),
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Expo + React Native</Text>

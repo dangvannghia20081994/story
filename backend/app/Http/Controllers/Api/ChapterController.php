@@ -16,10 +16,21 @@ class ChapterController extends Controller
         $request->validate([
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            /** Bỏ cột content — dùng mục lục / phân trang an toàn với truyện dài. */
+            'omit_content' => ['sometimes', 'boolean'],
         ]);
         $perPage = min(100, max(1, (int) $request->input('per_page', 30)));
+        $omitContent = (bool) $request->boolean('omit_content');
 
-        $paginator = $story->chapters()->paginate($perPage);
+        $query = $story->chapters()->reorder()->chapterNumberSort('asc');
+        if ($omitContent) {
+            $query->select([
+                'id', 'story_id', 'title', 'chapter_number', 'audio_path',
+                'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
+            ]);
+        }
+
+        $paginator = $query->paginate($perPage);
 
         $paginator->getCollection()->transform(function (Chapter $chapter) {
             return array_merge($chapter->toArray(), [

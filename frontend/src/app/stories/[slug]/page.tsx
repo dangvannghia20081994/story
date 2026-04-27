@@ -43,7 +43,7 @@ function chapterAudioUrl(c: ChapterRow): string | null {
 async function loadStory(storyKey: string): Promise<{ story: StoryShowData; chapters: ChapterRow[] } | null> {
   try {
     const res = await apiFetch<{ data: StoryShowData }>(
-      `/api/stories/${encodeURIComponent(storyKey)}?chapters_order=asc&chapters_full=0`,
+      `/api/stories/${encodeURIComponent(storyKey)}?chapters_order=asc&chapters_full=0&chapters_limit=25&chapters_offset=0&chapters_omit_content=1`,
     );
     const story = res.data;
     const chapters = [...(story.chapters ?? [])];

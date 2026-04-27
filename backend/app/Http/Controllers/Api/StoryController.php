@@ -91,27 +91,96 @@ class StoryController extends Controller
         $data = $request->validate([
             'chapters_order' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
             'chapters_full' => ['sometimes', 'boolean'],
+            'chapters_limit' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'chapters_offset' => ['sometimes', 'integer', 'min:0'],
+            /** Không select cột content (danh sách chương / mục lục). */
+            'chapters_omit_content' => ['sometimes', 'boolean'],
+            /** Chỉ tải một chương đầy đủ + meta lân cận (tránh chapters_full với hàng nghìn chương). */
+            'read_chapter' => ['sometimes', 'integer', 'min:1'],
         ]);
-        $chaptersOrder = ($data['chapters_order'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
-        $fullChapters = (bool) ($data['chapters_full'] ?? false);
 
-        $chaptersTotal = $story->chapters()->count();
         $chaptersWithAudioTotal = $story->chapters()
             ->whereNotNull('audio_path')
             ->where('audio_path', '<>', '')
             ->count();
 
-        $story->load(['chapters' => function ($q) use ($chaptersOrder, $fullChapters) {
+        $readChapterId = isset($data['read_chapter']) ? (int) $data['read_chapter'] : null;
+        if ($readChapterId !== null) {
+            $nav = Chapter::readNavigationFor($story, $readChapterId);
+            if ($nav === null) {
+                abort(404);
+            }
+            $story->unsetRelation('chapters');
+            $story->loadCount('characters');
+            $c = $nav['chapter'];
+
+            $enrichNeighbor = function (?array $meta): ?array {
+                if ($meta === null) {
+                    return null;
+                }
+                $row = Chapter::query()->where('id', $meta['id'])->first(['id', 'title', 'audio_path', 'duration']);
+                if ($row === null) {
+                    return null;
+                }
+
+                return [
+                    'id' => $row->id,
+                    'title' => $row->title,
+                    'duration' => (int) $row->duration,
+                    'audio_url' => $row->publicAudioUrl(),
+                ];
+            };
+
+            return response()->json([
+                'data' => array_merge($story->toArray(), [
+                    'chapters' => [],
+                    'chapters_total' => $nav['chapters_total'],
+                    'chapters_with_audio_total' => $chaptersWithAudioTotal,
+                    'read_chapter' => array_merge($c->toArray(), [
+                        'audio_url' => $c->publicAudioUrl(),
+                    ]),
+                    'read_navigation' => [
+                        'chapter_index' => $nav['chapter_index'],
+                        'chapters_total' => $nav['chapters_total'],
+                        'prev' => $enrichNeighbor($nav['prev']),
+                        'next' => $enrichNeighbor($nav['next']),
+                    ],
+                ]),
+            ]);
+        }
+
+        $chaptersOrder = ($data['chapters_order'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+        $fullChapters = (bool) ($data['chapters_full'] ?? false);
+        $chaptersLimit = $fullChapters ? null : min(100, max(1, (int) ($data['chapters_limit'] ?? 10)));
+        $chaptersOffset = $fullChapters ? null : max(0, (int) ($data['chapters_offset'] ?? 0));
+        $chaptersOmitContent = ! $fullChapters && (bool) ($data['chapters_omit_content'] ?? false);
+
+        $chaptersTotal = $story->chapters()->count();
+
+        $story->load(['chapters' => function ($q) use ($chaptersOrder, $fullChapters, $chaptersLimit, $chaptersOffset, $chaptersOmitContent) {
             $q->reorder()->chapterNumberSort($chaptersOrder);
-            if (! $fullChapters) {
-                $q->limit(10);
+            if ($chaptersOmitContent) {
+                $q->select([
+                    'id', 'story_id', 'title', 'chapter_number', 'audio_path',
+                    'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
+                ]);
+            }
+            if (! $fullChapters && $chaptersLimit !== null) {
+                $q->offset($chaptersOffset ?? 0)->limit($chaptersLimit);
             }
         }]);
         $story->loadCount('characters');
 
-        $chapters = $story->chapters->map(fn (Chapter $c) => array_merge($c->toArray(), [
-            'audio_url' => $c->publicAudioUrl(),
-        ]));
+        $chapters = $story->chapters->map(function (Chapter $c) use ($chaptersOmitContent) {
+            $arr = array_merge($c->toArray(), [
+                'audio_url' => $c->publicAudioUrl(),
+            ]);
+            if ($chaptersOmitContent) {
+                $arr['content'] = '';
+            }
+
+            return $arr;
+        });
 
         return response()->json([
             'data' => array_merge($story->toArray(), [

@@ -56,7 +56,7 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 | `config/database.php` | Kết nối DB |
 | `config/queue.php` / Redis | Queue (Redis) |
 | `config/filesystems.php` | Disk `public` / Storage |
-| `config/cors.php` | `CORS_ALLOWED_ORIGINS`, đường `api/*` |
+| `config/cors.php` | `CORS_ALLOWED_ORIGINS`; khi `APP_ENV=local` (hoặc `CORS_ALLOW_LOCALHOST_PATTERN=true`) thêm pattern cho `http(s)://localhost` và `127.0.0.1` mọi cổng (Expo web / Metro) |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
 | `config/crawler.php` | List Redis (`CRAWLER_REDIS_QUEUE`), token API nội bộ (`CRAWLER_INTERNAL_TOKEN`) |
 | `config/cms.php` | Toast CMS: `CMS_TOAST_POSITION` (góc), `CMS_TOAST_DURATION_MS`; JS `window.cmsToast(message, { variant?, durationMs?, position? })` (partial `resources/views/cms/partials/toast.blade.php` trong layout CMS) |
@@ -92,6 +92,7 @@ Gửi header `Accept: application/json` khi gọi từ curl.
 |-------------|-----------|--------|
 | GET/POST/PATCH/DELETE | `/api/stories` … | CRUD truyện; `GET/PATCH/DELETE /api/stories/{story}` dùng **slug** (khuyến nghị) hoặc **id** số; `POST/PATCH` hỗ trợ thêm `genre?` (`tu-tien` \| `huyen-huyen` \| `kiem-hiep` \| `do-thi` \| `khac`), cùng `title`, `slug?`, `description?`, `first_chapter?` `{ title, content }` |
 | GET/POST/PATCH/DELETE | `/api/stories/{story}/chapters` … | CRUD chương; `{story}` = **slug** truyện (URL thân thiện) hoặc **id** số (tương thích cũ) |
+| GET | `/api/stories/{story}?chapters_order=&chapters_full=&chapters_limit=&chapters_offset=` | Chi tiết truyện: `chapters_full=1` tải toàn bộ chương; không thì phân trang `chapters_limit` (mặc định 10, tối đa 100) + `chapters_offset` |
 | GET/POST/PATCH/DELETE | `/api/stories/{story}/characters` … | CRUD nhân vật (body: `name`; API JSON không trả cột giọng legacy) |
 | GET/POST/PATCH/DELETE | `/api/lexicons` … | CRUD lexicon (`type`: `pronunciation` \| `name` \| `filter`, `priority`) |
 

@@ -61,13 +61,16 @@ services:
       context: ./app
       dockerfile: ../docker/expo.Dockerfile
     ports:
-      - "8090:8090"
+      # Metro web dev: trong container cổng 8081 — host vẫn mở 8090 (README app).
+      - "8090:8081"
     volumes:
       - ./app:/app
       - expo_node_modules:/app/node_modules
     environment:
       EXPO_PUBLIC_API_URL: http://story.test
       CHOKIDAR_USEPOLLING: "1"
+    # Named volume che node_modules: cài lại khi khởi động để khớp package-lock trên volume.
+    command: ["sh", "-c", "npm install && exec npx expo start --web --host lan --port 8081"]
     stdin_open: true
     tty: true
     depends_on:

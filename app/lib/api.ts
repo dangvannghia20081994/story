@@ -67,6 +67,8 @@ export interface Story {
   created_at: string;
   updated_at: string;
   chapters_count?: number;
+  chapters_total?: number;
+  chapters_with_audio_total?: number;
   characters_count?: number;
   chapters?: Chapter[];
 }
@@ -79,7 +81,23 @@ export interface Chapter {
   audio_path: string | null;
   audio_url?: string | null;
   duration: number;
+  chapter_number?: number | null;
 }
+
+/** Lân cận từ `read_navigation` (API `read_chapter`). */
+export type ReadNavigationNeighbor = {
+  id: number;
+  title: string;
+  duration?: number;
+  audio_url?: string | null;
+};
+
+export type StoryReadNavigation = {
+  chapter_index: number;
+  chapters_total: number;
+  prev: ReadNavigationNeighbor | null;
+  next: ReadNavigationNeighbor | null;
+};
 
 export interface CreateStoryData {
   title: string;
@@ -93,8 +111,15 @@ export interface CreateStoryData {
   };
 }
 
+/** Phản hồi phân trang Laravel (`StoryController@index`). */
 export type PaginatedStories = {
   data: Story[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  next_page_url: string | null;
+  prev_page_url: string | null;
 };
 
 export function chapterAudioUrl(c: Chapter | undefined | null): string | null {

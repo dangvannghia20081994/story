@@ -104,6 +104,8 @@ export type AudioWebHandle = {
 
 export type AudioWebProps = {
   text: string;
+  /** Khi đọc xong câu cuối (không dừng tay), ví dụ chuyển chương sau. */
+  onReadthroughEnd?: () => void;
   /** Khóa localStorage để nhớ câu đang đọc (F5 tiếp tục). Bỏ qua thì không lưu. */
   positionStorageKey?: string;
   className?: string;
@@ -121,7 +123,7 @@ export type AudioWebProps = {
  * trang cha hiển thị văn bản và truyền `sentenceElementsRef` + `onHighlightChange`.
  */
 export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function AudioWeb(
-  { text, positionStorageKey, className = "", sentenceElementsRef, onHighlightChange },
+  { text, onReadthroughEnd, positionStorageKey, className = "", sentenceElementsRef, onHighlightChange },
   ref,
 ) {
   const [sentences, setSentences] = useState<string[]>([]);
@@ -161,6 +163,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   const isPlayingRef = useRef(false);
   const currentIndexRef = useRef(currentIndex);
   const onHighlightChangeRef = useRef(onHighlightChange);
+  const onReadthroughEndRef = useRef(onReadthroughEnd);
 
   sentencesRef.current = sentences;
   rateRef.current = rate;
@@ -170,6 +173,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   isPlayingRef.current = isPlaying;
   currentIndexRef.current = currentIndex;
   onHighlightChangeRef.current = onHighlightChange;
+  onReadthroughEndRef.current = onReadthroughEnd;
 
   useEffect(() => {
     try {
@@ -410,6 +414,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
         } else {
           setIsPlaying(false);
           setCurrentIndex(-1);
+          onReadthroughEndRef.current?.();
         }
       };
 

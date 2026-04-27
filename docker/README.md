@@ -19,8 +19,10 @@ Thư mục này chứa **Dockerfile** dùng chung với `docker-compose.yml` ở
 |------|----------------|
 | Backend | `backend/.env` + override compose (`DB_HOST`, `REDIS_HOST`, `REDIS_CLIENT`, `REDIS_PREFIX`) |
 | Frontend | `docker-compose.yml` (`NEXT_PUBLIC_API_URL`, `API_URL`) |
-| Expo | `docker-compose.yml` (`EXPO_PUBLIC_API_URL`, …) |
+| Expo | `docker-compose.yml` (`EXPO_PUBLIC_API_URL`, `8090:8081`, `command` chạy `npm install` + `expo start --web --host lan`) — xem `expo.Dockerfile` |
 | Crawler (profile **`crawler`**) | `crawler/.env` + override compose (`REDIS_HOST=redis`, `CRAWLER_API_BASE_URL=http://backend:8000`) |
+
+**Expo trong Docker:** Expo SDK mới chỉ chấp nhận `--host lan|tunnel|localhost` (không còn `0.0.0.0`). Metro web lắng nghe **8081**; flag `--port` của `expo start` **không** áp dụng cho web nên map host **8090:8081**. Nếu thiếu gói trên volume `expo_node_modules`, lệnh `npm install` trong `command` sẽ đồng bộ trước khi start.
 
 ### Crawler (Python / Playwright)
 

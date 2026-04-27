@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { FullWidthLayout } from "@/components/layouts";
-import { StoriesList } from "../StoriesList";
+import { StoriesListClient } from "../StoriesListClient";
 import { CreateStoryButton } from "./CreateStoryButton";
 
 export default function StoriesPage() {
@@ -28,7 +28,7 @@ export default function StoriesPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
             Tất cả truyện
           </h2>
-          <StoriesList />
+          <StoriesListClient />
         </section>
       </div>
     </FullWidthLayout>
