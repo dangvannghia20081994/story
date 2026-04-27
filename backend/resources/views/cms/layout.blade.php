@@ -346,6 +346,7 @@
         .theme-picker__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         .theme-picker__btn svg { width: 1rem; height: 1rem; }
     </style>
+    @include('cms.partials.toast')
     @stack('head')
 </head>
 <body>
@@ -477,5 +478,6 @@
         applyFromPref(readPref());
     })();
     </script>
+    @stack('scripts')
 </body>
 </html>

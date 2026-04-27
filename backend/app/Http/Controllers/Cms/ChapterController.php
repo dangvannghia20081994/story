@@ -9,7 +9,9 @@ use App\Http\Requests\Cms\UpdateChapterRequest;
 use App\Models\Chapter;
 use App\Models\Story;
 use App\Services\WorkerTtsQueue;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -90,23 +92,48 @@ class ChapterController extends Controller
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã xóa chương.');
     }
 
-    public function enqueueWorkerTts(Story $story, Chapter $chapter): RedirectResponse
+    public function enqueueWorkerTts(Request $request, Story $story, Chapter $chapter): RedirectResponse|JsonResponse
     {
         $this->assertBelongs($story, $chapter);
 
+        $wantsJson = $request->expectsJson();
+
         if (! $chapter->canEnqueueWorkerTts()) {
-            return back()->withErrors([
-                'tts' => 'Không thể đưa chương vào hàng TTS: nội dung chương trống (sau khi bỏ HTML).',
-            ]);
+            $msg = 'Không thể đưa chương vào hàng TTS: nội dung chương trống (sau khi bỏ HTML).';
+            if ($wantsJson) {
+                return response()->json(['message' => $msg], 422);
+            }
+
+            return back()->withErrors(['tts' => $msg]);
         }
 
         try {
             WorkerTtsQueue::push($chapter);
         } catch (\Throwable $e) {
             report($e);
+            $msg = 'Không đẩy được job lên Redis (kiểm tra REDIS_* và queue worker-tts).';
+            if ($wantsJson) {
+                return response()->json(['message' => $msg], 503);
+            }
 
-            return back()->withErrors([
-                'tts' => 'Không đẩy được job lên Redis (kiểm tra REDIS_* và queue worker-tts).',
+            return back()->withErrors(['tts' => $msg]);
+        }
+
+        $chapter->refresh();
+
+        if ($wantsJson) {
+            $badgeTitle = null;
+            if ($chapter->cmsTtsStatusKey() === 'queued' && $chapter->tts_enqueued_at !== null) {
+                $badgeTitle = 'Đã đẩy hàng lúc '.$chapter->tts_enqueued_at->timezone(config('app.timezone'))->format('d/m/Y H:i');
+            }
+
+            return response()->json([
+                'message' => 'Đã đưa chương «'.$chapter->title.'» vào hàng TTS (Redis).',
+                'tts' => [
+                    'label' => $chapter->cmsTtsStatusLabel(),
+                    'badge_class' => $chapter->cmsTtsBadgeClass(),
+                    'title' => $badgeTitle,
+                ],
             ]);
         }
 

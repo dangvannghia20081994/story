@@ -49,6 +49,7 @@
                             <td><strong style="font-weight: 500;">{{ $chapter->title }}</strong></td>
                             <td>
                                 <span
+                                    id="chapter-tts-badge-{{ $chapter->id }}"
                                     class="cms-badge {{ $chapter->cmsTtsBadgeClass() }}"
                                     @if ($chapter->cmsTtsStatusKey() === 'queued' && $chapter->tts_enqueued_at)
                                         title="Đã đẩy hàng lúc {{ $chapter->tts_enqueued_at->timezone(config('app.timezone'))->format('d/m/Y H:i') }}"
@@ -66,18 +67,17 @@
                                 @endif
                             </td>
                             <td class="cms-story-row-actions">
-                                <form action="{{ route('cms.stories.chapters.enqueue-tts', [$story, $chapter]) }}" method="post" style="display: inline; margin: 0;">
-                                    @csrf
-                                    <button
-                                        type="submit"
-                                        class="icon-btn"
-                                        title="{{ $chapter->canEnqueueWorkerTts() ? 'Đưa chương vào hàng Redis (worker-tts)' : 'Không có nội dung text để TTS' }}"
-                                        aria-label="Đưa vào hàng TTS"
-                                        @disabled(! $chapter->canEnqueueWorkerTts())
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-                                    </button>
-                                </form>
+                                <button
+                                    type="button"
+                                    class="icon-btn js-enqueue-tts"
+                                    data-url="{{ route('cms.stories.chapters.enqueue-tts', [$story, $chapter]) }}"
+                                    data-chapter-id="{{ $chapter->id }}"
+                                    title="{{ $chapter->canEnqueueWorkerTts() ? 'Đưa chương vào hàng Redis (worker-tts)' : 'Không có nội dung text để TTS' }}"
+                                    aria-label="Đưa vào hàng TTS"
+                                    @disabled(! $chapter->canEnqueueWorkerTts())
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                                </button>
                                 <a class="icon-btn" href="{{ route('cms.stories.chapters.edit', [$story, $chapter]) }}" title="Sửa chương" aria-label="Sửa chương">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 </a>
@@ -99,3 +99,61 @@
     </div>
     @include('cms.partials.pagination', ['paginator' => $chapters])
 @endsection
+
+@push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js" crossorigin="anonymous"></script>
+    <script>
+    (function () {
+        var csrf = @json(csrf_token());
+        function notify(kind, text) {
+            if (typeof window.cmsToast === 'function') {
+                window.cmsToast(text, { variant: kind === 'error' ? 'error' : 'success' });
+            } else {
+                window.alert(text);
+            }
+        }
+        document.querySelectorAll('.js-enqueue-tts').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (btn.disabled) return;
+                var url = btn.getAttribute('data-url');
+                var id = btn.getAttribute('data-chapter-id');
+                if (!url || !id) return;
+                var badge = document.getElementById('chapter-tts-badge-' + id);
+                btn.disabled = true;
+                axios.post(url, {}, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf
+                    }
+                }).then(function (res) {
+                    var d = res.data;
+                    if (badge && d.tts) {
+                        badge.className = 'cms-badge ' + d.tts.badge_class;
+                        badge.textContent = d.tts.label;
+                        if (d.tts.title) {
+                            badge.setAttribute('title', d.tts.title);
+                        } else {
+                            badge.removeAttribute('title');
+                        }
+                    }
+                    notify('ok', d.message || 'Đã xếp hàng TTS.');
+                }).catch(function (err) {
+                    var msg = 'Lỗi mạng hoặc máy chủ.';
+                    if (err.response && err.response.data) {
+                        if (err.response.data.message) {
+                            msg = err.response.data.message;
+                        } else if (err.response.data.errors && err.response.data.errors.tts) {
+                            msg = err.response.data.errors.tts[0] || msg;
+                        }
+                    }
+                    notify('error', msg);
+                }).finally(function () {
+                    btn.disabled = false;
+                });
+            });
+        });
+    })();
+    </script>
+@endpush

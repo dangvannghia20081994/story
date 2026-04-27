@@ -59,6 +59,7 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 | `config/cors.php` | `CORS_ALLOWED_ORIGINS`, đường `api/*` |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
 | `config/crawler.php` | List Redis (`CRAWLER_REDIS_QUEUE`), token API nội bộ (`CRAWLER_INTERNAL_TOKEN`) |
+| `config/cms.php` | Toast CMS: `CMS_TOAST_POSITION` (góc), `CMS_TOAST_DURATION_MS`; JS `window.cmsToast(message, { variant?, durationMs?, position? })` (partial `resources/views/cms/partials/toast.blade.php` trong layout CMS) |
 
 **Quy ước:** mỗi lần thêm/sửa config hoặc biến env liên quan backend → cập nhật **`backend/README.md`** và **`.cursor/agents/backend/AGENT.md`**.
 
