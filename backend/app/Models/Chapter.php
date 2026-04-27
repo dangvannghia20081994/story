@@ -14,7 +14,7 @@ class Chapter extends Model
     protected $fillable = [
         'story_id',
         'title',
-        'chuong',
+        'chapter_number',
         'content',
         'audio_path',
         'duration',
@@ -23,7 +23,7 @@ class Chapter extends Model
     protected function casts(): array
     {
         return [
-            'chuong' => 'integer',
+            'chapter_number' => 'integer',
             'duration' => 'integer',
             'tts_enqueued_at' => 'datetime',
             'created_at' => 'datetime',
@@ -34,8 +34,8 @@ class Chapter extends Model
     protected static function booted(): void
     {
         static::saving(function (Chapter $chapter): void {
-            if ($chapter->isDirty('title')) {
-                $chapter->chuong = static::inferChuongFromTitle($chapter->title);
+            if ($chapter->isDirty('title') && ! $chapter->isDirty('chapter_number')) {
+                $chapter->chapter_number = static::inferChapterNumberFromTitle($chapter->title);
             }
         });
     }
@@ -46,25 +46,25 @@ class Chapter extends Model
     }
 
     /**
-     * Sắp xếp đọc: chương có số trước, null sau; cùng chuong thì theo updated_at rồi id.
+     * Sắp xếp đọc: có chapter_number trước, null sau; cùng số thì theo updated_at rồi id.
      *
      * @param  'asc'|'desc'  $direction
      */
-    public function scopeChuongSort(Builder $query, string $direction = 'asc'): Builder
+    public function scopeChapterNumberSort(Builder $query, string $direction = 'asc'): Builder
     {
         $desc = strtolower($direction) === 'desc';
-        $query->orderByRaw('(chuong IS NULL) ASC');
+        $query->orderByRaw('(chapter_number IS NULL) ASC');
         if ($desc) {
-            return $query->orderByDesc('chuong')->orderByDesc('updated_at')->orderByDesc('id');
+            return $query->orderByDesc('chapter_number')->orderByDesc('updated_at')->orderByDesc('id');
         }
 
-        return $query->orderBy('chuong')->orderBy('updated_at')->orderBy('id');
+        return $query->orderBy('chapter_number')->orderBy('updated_at')->orderBy('id');
     }
 
     /**
      * Đoán số chương từ tiêu đề (Chương N, #N., v.v.).
      */
-    public static function inferChuongFromTitle(?string $title): ?int
+    public static function inferChapterNumberFromTitle(?string $title): ?int
     {
         if ($title === null || $title === '') {
             return null;
@@ -90,18 +90,18 @@ class Chapter extends Model
     }
 
     /**
-     * Gán lại cột chuong cho mọi chương của truyện từ tiêu đề (không đụng updated_at).
+     * Gán lại chapter_number cho mọi chương của truyện từ tiêu đề (không đụng updated_at).
      *
      * @return int Số dòng đã cập nhật
      */
-    public static function reindexChuongFromTitlesForStory(Story $story): int
+    public static function reindexChapterNumbersFromTitlesForStory(Story $story): int
     {
         $n = 0;
         DB::transaction(function () use ($story, &$n): void {
             $rows = static::query()->where('story_id', $story->id)->get(['id', 'title']);
             foreach ($rows as $row) {
-                $chuong = static::inferChuongFromTitle($row->title);
-                DB::table('chapters')->where('id', $row->id)->update(['chuong' => $chuong]);
+                $num = static::inferChapterNumberFromTitle($row->title);
+                DB::table('chapters')->where('id', $row->id)->update(['chapter_number' => $num]);
                 $n++;
             }
         });
@@ -114,7 +114,10 @@ class Chapter extends Model
      *
      * @return array{chapter: Chapter, created: bool}
      */
-    public static function createOrUpdateByTitleForStory(Story $story, string $title, string $content): array
+    /**
+     * @param  ?int  $chapterNumber  null = giữ cũ khi update / suy ra từ tiêu đề khi tạo (hook saving).
+     */
+    public static function createOrUpdateByTitleForStory(Story $story, string $title, string $content, ?int $chapterNumber = null): array
     {
         $existing = static::query()
             ->where('story_id', $story->id)
@@ -122,15 +125,24 @@ class Chapter extends Model
             ->first();
 
         if ($existing !== null) {
-            $existing->fill(['content' => $content])->save();
+            $existing->fill(['content' => $content]);
+            if ($chapterNumber !== null) {
+                $existing->chapter_number = $chapterNumber;
+            }
+            $existing->save();
 
             return ['chapter' => $existing->fresh(), 'created' => false];
         }
 
-        $chapter = $story->chapters()->create([
+        $attrs = [
             'title' => $title,
             'content' => $content,
-        ]);
+        ];
+        if ($chapterNumber !== null) {
+            $attrs['chapter_number'] = $chapterNumber;
+        }
+
+        $chapter = $story->chapters()->create($attrs);
 
         return ['chapter' => $chapter, 'created' => true];
     }

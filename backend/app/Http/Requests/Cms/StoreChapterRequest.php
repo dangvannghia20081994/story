@@ -18,6 +18,9 @@ class StoreChapterRequest extends FormRequest
         if (is_string($content) && $content !== '') {
             $this->merge(['content' => Story::sanitizeChapterContent($content)]);
         }
+        if ($this->has('chapter_number') && $this->input('chapter_number') === '') {
+            $this->merge(['chapter_number' => null]);
+        }
     }
 
     /**
@@ -27,6 +30,7 @@ class StoreChapterRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
+            'chapter_number' => ['nullable', 'integer', 'min:1', 'max:999999'],
             'content' => ['required', 'string'],
         ];
     }

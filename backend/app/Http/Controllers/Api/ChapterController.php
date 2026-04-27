@@ -37,11 +37,17 @@ class ChapterController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
+            'chapter_number' => ['nullable', 'integer', 'min:1', 'max:999999'],
         ]);
 
         $data['content'] = Story::sanitizeChapterContent($data['content']);
 
-        $outcome = Chapter::createOrUpdateByTitleForStory($story, $data['title'], $data['content']);
+        $outcome = Chapter::createOrUpdateByTitleForStory(
+            $story,
+            $data['title'],
+            $data['content'],
+            $data['chapter_number'] ?? null,
+        );
         $chapter = $outcome['chapter'];
 
         return response()->json(
@@ -70,6 +76,7 @@ class ChapterController extends Controller
 
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
+            'chapter_number' => ['nullable', 'integer', 'min:1', 'max:999999'],
             'content' => ['sometimes', 'string'],
             'duration' => ['sometimes', 'numeric', 'min:0'],
         ]);

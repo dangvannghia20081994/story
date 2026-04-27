@@ -102,7 +102,7 @@ class StoryController extends Controller
             ->count();
 
         $story->load(['chapters' => function ($q) use ($chaptersOrder, $fullChapters) {
-            $q->reorder()->chuongSort($chaptersOrder);
+            $q->reorder()->chapterNumberSort($chaptersOrder);
             if (! $fullChapters) {
                 $q->limit(10);
             }

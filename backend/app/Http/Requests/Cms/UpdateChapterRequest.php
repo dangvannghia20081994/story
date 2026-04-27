@@ -18,6 +18,9 @@ class UpdateChapterRequest extends FormRequest
         if (is_string($content) && $content !== '') {
             $this->merge(['content' => Story::sanitizeChapterContent($content)]);
         }
+        if ($this->has('chapter_number') && $this->input('chapter_number') === '') {
+            $this->merge(['chapter_number' => null]);
+        }
     }
 
     /**
@@ -27,6 +30,7 @@ class UpdateChapterRequest extends FormRequest
     {
         return [
             'title' => ['sometimes', 'string', 'max:255'],
+            'chapter_number' => ['nullable', 'integer', 'min:1', 'max:999999'],
             'content' => ['sometimes', 'string'],
             'duration' => ['sometimes', 'numeric', 'min:0'],
             'audio_path' => ['nullable', 'string', 'max:1024'],

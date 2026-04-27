@@ -617,7 +617,7 @@
                                                     ],
                                                     "format": "date-time"
                                                 },
-                                                "chuong": {
+                                                "chapter_number": {
                                                     "type": [
                                                         "integer",
                                                         "null"
@@ -639,7 +639,7 @@
                                                 "duration",
                                                 "created_at",
                                                 "updated_at",
-                                                "chuong",
+                                                "chapter_number",
                                                 "audio_url"
                                             ]
                                         }
@@ -1856,7 +1856,7 @@
                                                                 ],
                                                                 "format": "date-time"
                                                             },
-                                                            "chuong": {
+                                                            "chapter_number": {
                                                                 "type": [
                                                                     "integer",
                                                                     "null"
@@ -1878,7 +1878,7 @@
                                                             "duration",
                                                             "created_at",
                                                             "updated_at",
-                                                            "chuong",
+                                                            "chapter_number",
                                                             "audio_url"
                                                         ]
                                                     }

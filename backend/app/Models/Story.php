@@ -129,13 +129,47 @@ class Story extends Model
     }
 
     /**
-     * Chuẩn hóa body chương khi lưu (CMS, API, crawler nội bộ): dòng quảng bá độc quyền + domain nguồn crawl.
+     * Xóa nhãn/watermark nguồn crawl khỏi nội dung chương (không phân biệt hoa thường ASCII).
+     */
+    public static function stripKnownRepostedSourceLabels(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+
+        $text = str_ireplace(['TruyenTV', '© Website'], '', $text);
+
+        return str_replace(['truyện chữ', 'Truyện chữ', 'TRUYỆN CHỮ'], '', $text);
+    }
+
+    /**
+     * Cắt bỏ từ cụm dụ người đọc theo dõi (thường ở cuối bản crawl) trở về cuối, kể cả cụm đó.
+     */
+    public static function stripFromFollowAlongNotice(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+
+        $marker = 'Bạn đã theo dõi đến';
+        $pos = mb_strpos($text, $marker, 0, 'UTF-8');
+        if ($pos === false) {
+            return $text;
+        }
+
+        return rtrim(mb_substr($text, 0, $pos, 'UTF-8'));
+    }
+
+    /**
+     * Chuẩn hóa body chương khi lưu (CMS, API, crawler nội bộ): dòng quảng bá độc quyền + domain nguồn crawl + nhãn nguồn + cắt footer theo dõi.
      */
     public static function sanitizeChapterContent(string $text): string
     {
         $text = self::stripExclusivePublishingNoticeLines($text);
+        $text = self::stripKnownRepostedSourceDomains($text);
+        $text = self::stripKnownRepostedSourceLabels($text);
 
-        return self::stripKnownRepostedSourceDomains($text);
+        return self::stripFromFollowAlongNotice($text);
     }
 
     protected $fillable = [
@@ -211,7 +245,7 @@ class Story extends Model
 
     public function chapters(): HasMany
     {
-        return $this->hasMany(Chapter::class)->chuongSort('asc');
+        return $this->hasMany(Chapter::class)->chapterNumberSort('asc');
     }
 
     public function characters(): HasMany
@@ -225,7 +259,7 @@ class Story extends Model
         return $this->hasOne(Chapter::class)
             ->whereNotNull('audio_path')
             ->where('audio_path', '<>', '')
-            ->chuongSort('asc');
+            ->chapterNumberSort('asc');
     }
 
     public function getTtsStatusAttribute(): string

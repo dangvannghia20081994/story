@@ -40,8 +40,19 @@ class WorkerTtsQueue
         $normalized = preg_replace('/<\\s*br\\s*\\/?>/i', "\n", $html) ?? $html;
         $plain = strip_tags($normalized);
         $plain = html_entity_decode($plain, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = preg_replace('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]/u', '', $plain) ?? $plain;
         $plain = preg_replace('/[ \t\x{00A0}]+/u', ' ', $plain) ?? $plain;
         $plain = preg_replace('/\R+/u', "\n", $plain) ?? $plain;
+        $lines = preg_split('/\R/u', $plain) ?: [];
+        $nonEmpty = [];
+        foreach ($lines as $line) {
+            $t = trim((string) $line);
+            if ($t !== '') {
+                $nonEmpty[] = $t;
+            }
+        }
+        $plain = implode(' ', $nonEmpty);
+        $plain = preg_replace('/\s+/u', ' ', $plain) ?? $plain;
 
         return trim($plain);
     }

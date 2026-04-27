@@ -1,25 +1,35 @@
 # Chạy project Story trên Windows (không Docker)
 
-Hướng dẫn cài **PostgreSQL**, **Redis**, **PHP ≥ 8.4**, **Composer**, **Node.js 20+** trên Windows, rồi chạy Laravel và Next.js thủ công. (Stack Docker xem [README.md](README.md) hoặc [GUIDE_VPS_HAS_DOCKER.md](GUIDE_VPS_HAS_DOCKER.md).)
+Cài **PostgreSQL**, **Redis**, **PHP ≥ 8.4**, **Composer**, **Node.js 20+**, rồi chạy Laravel + Next.js thủ công. Stack Docker: [README.md](README.md) hoặc [GUIDE_VPS_HAS_DOCKER.md](GUIDE_VPS_HAS_DOCKER.md). VPS không Docker: [GUIDE_VPS_NO_DOCKER.md](GUIDE_VPS_NO_DOCKER.md).
 
-Monorepo: `backend/` (Laravel), `frontend/` (Next.js), tùy chọn `app/` (Expo).
+Monorepo: **`backend/`** (Laravel API + CMS), **`frontend/`** (Next.js), tuỳ chọn **`app/`** (Expo), tuỳ chọn **`crawler/`**, **`worker-tts/`**.
 
 ---
 
-## 1. Cài phụ thuộc hệ thống
+## Tổng quan module
 
-| Thành phần | Gợi ý trên Windows |
-|-------------|---------------------|
-| **PostgreSQL** | [Installer chính thức](https://www.postgresql.org/download/windows/) — nhớ cổng (mặc định 5432) và mật khẩu user `postgres` hoặc user riêng. |
-| **Redis** | [Memurai](https://www.memurai.com/) (tương thích Redis), hoặc Redis qua **WSL2**, hoặc bản port Windows khác — Laravel dùng Redis tại `localhost:6379` (queue/cache nếu bật). |
-| **PHP 8.4 + Composer** | [windows.php.net](https://windows.php.net/download/) (Thread Safe ZIP) + bật extension `pgsql`, `openssl`, `curl`, `mbstring`, `zip`, `bcmath` trong `php.ini`; [Composer](https://getcomposer.org/download/). Hoặc dùng **Laragon** / **XAMPP** nếu đủ PHP 8.4. |
+| Module | Thư mục | Chạy trên Windows |
+|--------|---------|-------------------|
+| **API + CMS** | `backend/` | `php artisan serve` hoặc IIS/Apache + PHP |
+| **Web** | `frontend/` | `npm run dev` |
+| **Expo** | `app/` | `npx expo` — xem `app/README.md` |
+| **Crawler** | `crawler/` | `python worker.py` (Playwright + venv khuyến nghị) |
+| **Worker TTS** | `worker-tts/` | `python worker_redis.py` trong **venv** |
+
+---
+
+## 1. Phụ thuộc hệ thống
+
+| Thành phần | Gợi ý |
+|-------------|--------|
+| **PostgreSQL** | [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) — cổng 5432, user/mật khẩu. |
+| **Redis** | [Memurai](https://www.memurai.com/), hoặc Redis trên **WSL2**, hoặc port Windows — `localhost:6379`. |
+| **PHP 8.4 + Composer** | [windows.php.net](https://windows.php.net/download/) — bật `pgsql`, `openssl`, `curl`, `mbstring`, `zip`, `bcmath` trong `php.ini`; [Composer](https://getcomposer.org/download/). Hoặc **Laragon** nếu đủ PHP 8.4. |
 | **Node.js 20+** | [nodejs.org](https://nodejs.org/) LTS. |
 
 ---
 
 ## 2. Backend (Laravel)
-
-PowerShell hoặc cmd, từ thư mục repo:
 
 ```bash
 cd backend
@@ -27,12 +37,20 @@ copy .env.example .env
 php artisan key:generate
 ```
 
-Sửa `backend\.env`:
+`backend\.env`:
 
-- `DB_*` trỏ tới PostgreSQL local.
-- `REDIS_*` (`REDIS_HOST=localhost`, …). Nếu chưa cài extension **phpredis**, đặt `REDIS_CLIENT=predis` (mặc định trong `.env.example` của project).
-- `APP_URL=http://localhost:8000` (hoặc URL bạn dùng).
-- `CORS_ALLOWED_ORIGINS` — thêm `http://localhost:3000` (và cổng khác nếu Next chạy khác).
+- `DB_*`, `REDIS_*` (`REDIS_HOST=127.0.0.1`), `REDIS_CLIENT=predis` nếu không có `phpredis`.
+- `APP_URL=http://localhost:8000`
+- `CORS_ALLOWED_ORIGINS` — gồm `http://localhost:3000`
+- **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`**
+- **`WORKER_TTS_INTERNAL_TOKEN`**, **`WORKER_TTS_REDIS_QUEUE`**
+
+Sinh token (PowerShell từ `backend/`):
+
+```bash
+php artisan crawler:internal-token
+php artisan worker-tts:internal-token
+```
 
 ```bash
 composer install
@@ -42,22 +60,22 @@ php artisan storage:link --force
 php artisan serve
 ```
 
-Giữ terminal này mở. API: http://localhost:8000 — docs: http://localhost:8000/docs/api
+- API: http://localhost:8000  
+- Scramble: http://localhost:8000/docs/api  
+- CMS: http://localhost:8000/admin/login  
 
-**Symlink `public/storage`:** nếu `storage:link` lỗi, xem `backend/README.md` (bật **Developer Mode** hoặc chạy terminal **Run as administrator**).
+**Symlink `public/storage`:** lỗi thì xem `backend/README.md` (Developer Mode hoặc terminal **Run as administrator**).
 
 ---
 
 ## 3. Frontend (Next.js)
-
-Terminal mới:
 
 ```bash
 cd frontend
 npm install
 ```
 
-Tạo file `frontend\.env.local`:
+`frontend\.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -67,11 +85,11 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 npm run dev
 ```
 
-Mở http://localhost:3000
+→ http://localhost:3000
 
 ---
 
-## 4. Expo (`app/`) — tùy chọn
+## 4. Expo (`app/`)
 
 Xem `app/README.md`.
 
@@ -79,30 +97,53 @@ Xem `app/README.md`.
 
 ## 5. Crawler (Python + Playwright)
 
-CMS tạo job tại **`/admin/crawler-jobs`**: lưu bảng `crawler_jobs`, đẩy `{"crawler_job_id": …}` lên Redis (list mặc định `crawler:queue`). Worker **`crawler/worker.py`** lấy job, crawl bằng Playwright, gọi API nội bộ `GET/PATCH/POST /api/internal/crawler/...` (header **`X-Crawler-Token`**).
+CMS **`/admin/crawler-jobs`** → Redis `crawler:queue` → **`crawler/worker.py`** → API `/api/internal/crawler/*` (header **`X-Crawler-Token`**).
 
-**Backend** (`backend/.env`): đặt **`CRAWLER_INTERNAL_TOKEN`** (chuỗi bí mật, trùng với worker) và tuỳ chọn **`CRAWLER_REDIS_QUEUE`**. **`QUEUE_CONNECTION=redis`** đã phù hợp để Laravel dùng Redis; worker chỉ cần cùng host/cổng Redis.
+**Backend:** `CRAWLER_INTERNAL_TOKEN`, `CRAWLER_REDIS_QUEUE`.
 
-**Worker** (`crawler/`):
+**Worker:**
 
 ```bash
 cd crawler
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium
 copy .env.example .env
-# Sửa .env: REDIS_* , CRAWLER_API_BASE_URL=http://localhost:8000 , CRAWLER_INTERNAL_TOKEN=...
+REM Sửa .env: REDIS_*, CRAWLER_API_BASE_URL=http://127.0.0.1:8000 , CRAWLER_INTERNAL_TOKEN=...
 python worker.py
 ```
 
-`worker.py` tự gọi **`load_dotenv(crawler/.env)`** — biến đọc từ file `.env` cạnh script (không cần export tay).
+`worker.py` nạp **`crawler/.env`** qua dotenv.
 
-**Một lệnh dev (Git Bash):** từ gốc repo, [`run-dev.sh`](run-dev.sh) khởi Redis (nếu có `redis/redis-server.exe`), backend, frontend. **Crawler worker** chỉ chạy khi thêm **`./run-dev.sh --with-crawler`** và có **`crawler/.env`** + **`crawler/.venv`** (dùng `crawler/.venv/.../python` để tránh thiếu `playwright` trên Python global). `./run-dev.sh --help` xem gợi ý. Tắt worker dù có `--with-crawler`: `SKIP_CRAWLER_WORKER=1 ./run-dev.sh --with-crawler`.
+**Git Bash — [`run-dev.sh`](run-dev.sh):** `./run-dev.sh` (Redis + backend + frontend). Thêm crawler: **`./run-dev.sh --with-crawler`** (cần `crawler/.env` + `crawler/.venv`). `./run-dev.sh --help`. Tắt worker: `SKIP_CRAWLER_WORKER=1 ./run-dev.sh --with-crawler`.
 
 ---
 
-## 6. Gợi ý thêm
+## 6. Worker TTS (Python + VieNeu)
 
-- **WSL2 (Ubuntu):** Postgres/Redis + symlink đôi khi đơn giản hơn so với Windows thuần; có thể clone repo trong WSL và làm tương tự [GUIDE_VPS_NO_DOCKER.md](GUIDE_VPS_NO_DOCKER.md) (lệnh `bash`).
-- **Firewall:** cho phép cổng khi Windows hỏi lần đầu chạy PHP/Node.
+**Không** `pip install` vào Python hệ thống (PEP 668) — dùng **venv**:
 
-Chi tiết API và biến env: `backend/README.md`, [README.md](README.md).
+```bash
+cd worker-tts
+python -m venv .venv
+.venv\Scripts\activate
+pip install -U pip
+pip install -r requirements.txt
+copy .env.example .env
+REM WORKER_TTS_INTERNAL_TOKEN=... (trùng backend), BACKEND_API_BASE_URL=http://127.0.0.1:8000,
+REM REDIS_HOST=127.0.0.1, REFERENCE_AUDIO_PATH=... (file giọng mẫu WAV/MP3)
+python worker_redis.py
+```
+
+- **eSpeak NG:** cần cho VieNeu — xem `worker-tts/README.md` (Windows: tải bản portable hoặc WSL).
+- **Luồng:** Redis list `WORKER_TTS_REDIS_QUEUE` → tổng hợp giọng → POST `/api/internal/tts/chapters/{id}/audio` (**`X-Worker-Tts-Token`**, field file **`audio`**).
+
+---
+
+## 7. Gợi ý thêm
+
+- **WSL2:** Postgres/Redis + symlink đôi khi dễ hơn Windows thuần; có thể làm giống [GUIDE_VPS_NO_DOCKER.md](GUIDE_VPS_NO_DOCKER.md).
+- **Firewall Windows:** cho phép cổng khi hỏi lần đầu.
+
+Chi tiết: `backend/README.md`, [README.md](README.md).

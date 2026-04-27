@@ -38,7 +38,12 @@ class ChapterController extends Controller
     {
         $data = $request->validated();
 
-        $outcome = Chapter::createOrUpdateByTitleForStory($story, $data['title'], $data['content']);
+        $outcome = Chapter::createOrUpdateByTitleForStory(
+            $story,
+            $data['title'],
+            $data['content'],
+            $data['chapter_number'] ?? null,
+        );
         $status = $outcome['created']
             ? 'Đã tạo chương.'
             : 'Chương cùng tiêu đề đã tồn tại — đã cập nhật nội dung.';

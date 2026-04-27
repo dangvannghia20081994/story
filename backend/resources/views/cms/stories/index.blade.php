@@ -109,9 +109,9 @@
                                 <a class="icon-btn" href="{{ route('cms.stories.edit', $story) }}" title="Sửa truyện" aria-label="Sửa truyện">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 </a>
-                                <form action="{{ route('cms.stories.reindex-chapters', $story) }}" method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Gán lại số chương (chuong) từ tiêu đề cho mọi chương của truyện này?');">
+                                <form action="{{ route('cms.stories.reindex-chapters', $story) }}" method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Gán lại số thứ tự chương (chapter_number) từ tiêu đề cho mọi chương của truyện này?');">
                                     @csrf
-                                    <button type="submit" class="icon-btn" title="Re-index: gán chuong từ tiêu đề chương" aria-label="Re-index chương theo tiêu đề">
+                                    <button type="submit" class="icon-btn" title="Re-index: gán số chương từ tiêu đề" aria-label="Re-index chương theo tiêu đề">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <path d="M10 2h4"/>
                                             <path d="M12 2v3"/>

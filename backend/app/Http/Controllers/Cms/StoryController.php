@@ -140,7 +140,7 @@ class StoryController extends Controller
 
     public function reindexChapters(Story $story): RedirectResponse
     {
-        Chapter::reindexChuongFromTitlesForStory($story);
+        Chapter::reindexChapterNumbersFromTitlesForStory($story);
 
         return redirect()
             ->back()

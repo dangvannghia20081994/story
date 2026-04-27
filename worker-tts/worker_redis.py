@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -66,7 +69,101 @@ def internal_token() -> str:
     return (os.environ.get("WORKER_TTS_INTERNAL_TOKEN") or "").strip()
 
 
-def upload_audio(chapter_id: int, wav_path: Path) -> None:
+_ZW_RE = re.compile("[\u200b\u200c\u200d\ufeff]")
+
+
+def normalize_tts_text(text: str) -> str:
+    """Bỏ dòng trống / dòng chỉ khoảng trắng, ký tự zero-width; gộp đoạn bằng một space (tránh khoảng lặng kỳ khi infer)."""
+    text = _ZW_RE.sub("", text)
+    text = text.strip()
+    if not text:
+        return ""
+    parts: list[str] = []
+    for line in text.splitlines():
+        s = line.strip()
+        if s:
+            parts.append(s)
+    out = " ".join(parts)
+    out = re.sub(r"\s+", " ", out, flags=re.UNICODE)
+    return out.strip()
+
+
+def upload_audio_format() -> str:
+    """Định dạng gửi API: wav | mp3 | m4a (WORKER_TTS_UPLOAD_FORMAT)."""
+    raw = (os.environ.get("WORKER_TTS_UPLOAD_FORMAT") or "wav").strip().lower()
+    if raw in ("mav", "aac"):  # typo / alias
+        raw = "m4a"
+    if raw not in ("wav", "mp3", "m4a"):
+        return "wav"
+    return raw
+
+
+def ffmpeg_audio_bitrate() -> str:
+    return (os.environ.get("WORKER_TTS_FFMPEG_AUDIO_BITRATE") or "192k").strip() or "192k"
+
+
+def _ffmpeg_wav_to(src_wav: Path, dst: Path, fmt: str) -> None:
+    ffmpeg = (os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"
+    br = ffmpeg_audio_bitrate()
+    if fmt == "mp3":
+        cmd = [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(src_wav),
+            "-vn",
+            "-c:a",
+            "libmp3lame",
+            "-b:a",
+            br,
+            str(dst),
+        ]
+    elif fmt == "m4a":
+        cmd = [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(src_wav),
+            "-vn",
+            "-c:a",
+            "aac",
+            "-b:a",
+            br,
+            str(dst),
+        ]
+    else:
+        raise ValueError(fmt)
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        err = (r.stderr or r.stdout or "").strip()
+        raise RuntimeError(f"ffmpeg lỗi (exit {r.returncode}): {err[:2000]}")
+
+
+def build_upload_payload(wav_path: Path, fmt: str) -> tuple[Path, str, str]:
+    """
+    Trả về (đường_dẫn_file_gửi, tên_multipart, content_type).
+    Nếu fmt != wav, tạo file cạnh wav_path cùng basename — caller phải xóa khi khác wav_path.
+    """
+    if fmt == "wav":
+        return wav_path, "chapter.wav", "audio/wav"
+    if fmt == "mp3":
+        out = wav_path.with_suffix(".mp3")
+        _ffmpeg_wav_to(wav_path, out, "mp3")
+        return out, "chapter.mp3", "audio/mpeg"
+    if fmt == "m4a":
+        out = wav_path.with_suffix(".m4a")
+        _ffmpeg_wav_to(wav_path, out, "m4a")
+        return out, "chapter.m4a", "audio/mp4"
+    raise ValueError(fmt)
+
+
+def upload_audio(chapter_id: int, file_path: Path, multipart_name: str, content_type: str) -> None:
     import requests
 
     token = internal_token()
@@ -78,11 +175,15 @@ def upload_audio(chapter_id: int, wav_path: Path) -> None:
         )
 
     url = f"{backend_base_url()}/api/internal/tts/chapters/{chapter_id}/audio"
-    with wav_path.open("rb") as f:
+    headers = {
+        "X-Worker-Tts-Token": token,
+        "Accept": "application/json",
+    }
+    with file_path.open("rb") as f:
         r = requests.post(
             url,
-            headers={"X-Worker-Tts-Token": token},
-            files={"audio": ("chapter.wav", f, "audio/wav")},
+            headers=headers,
+            files={"audio": (multipart_name, f, content_type)},
             data={"duration": "0"},
             timeout=600,
         )
@@ -113,9 +214,13 @@ def process_message(tts, raw: str) -> None:
         print(f"[worker-tts] Không thấy file giọng mẫu: {ref}", file=sys.stderr)
         return
 
-    text = str(text).strip()
-    total = 5
-    _stage(chapter_id, 1, total, f"Chuẩn bị — độ dài text={len(text)} ký tự")
+    text = normalize_tts_text(str(text))
+    if not text:
+        print(f"[worker-tts] Text rỗng sau khi chuẩn hoá (bỏ dòng trống): chapter_id={chapter_id}", file=sys.stderr)
+        return
+    out_fmt = upload_audio_format()
+    total = 6 if out_fmt != "wav" else 5
+    _stage(chapter_id, 1, total, f"Chuẩn bị — độ dài text={len(text)} ký tự, upload_format={out_fmt!r}")
 
     _stage(chapter_id, 2, total, "Encode giọng tham chiếu (reference)")
     voice = tts.encode_reference(str(ref))
@@ -124,15 +229,27 @@ def process_message(tts, raw: str) -> None:
     audio = tts.infer(text=text, voice=voice)
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        tmp_path = Path(tmp.name)
+        tmp_wav = Path(tmp.name)
+    encoded_path: Path | None = None
     try:
         _stage(chapter_id, 4, total, "Ghi file WAV tạm")
-        tts.save(audio, str(tmp_path))
-        _stage(chapter_id, 5, total, "Upload lên backend API")
-        upload_audio(chapter_id, tmp_path)
+        tts.save(audio, str(tmp_wav))
+        if out_fmt != "wav":
+            _stage(chapter_id, 5, total, f"ffmpeg: WAV → {out_fmt.upper()}")
+            upload_path, multipart_name, mime = build_upload_payload(tmp_wav, out_fmt)
+            if upload_path != tmp_wav:
+                encoded_path = upload_path
+            step_upload = 6
+        else:
+            upload_path, multipart_name, mime = build_upload_payload(tmp_wav, "wav")
+            step_upload = 5
+        _stage(chapter_id, step_upload, total, "Upload lên backend API")
+        upload_audio(chapter_id, upload_path, multipart_name, mime)
         print(f"[worker-tts] chapter={chapter_id}  hoàn tất (upload OK)", flush=True)
     finally:
-        tmp_path.unlink(missing_ok=True)
+        tmp_wav.unlink(missing_ok=True)
+        if encoded_path is not None:
+            encoded_path.unlink(missing_ok=True)
 
 
 def main() -> int:
@@ -148,6 +265,16 @@ def main() -> int:
         )
         return 1
 
+    fmt = upload_audio_format()
+    if fmt != "wav" and not shutil.which((os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"):
+        print(
+            "[worker-tts] WORKER_TTS_UPLOAD_FORMAT=%s nhưng không tìm thấy ffmpeg trong PATH.\n"
+            "  Cài: Debian/Ubuntu `apt install ffmpeg`, hoặc đặt FFMPEG_PATH đến binary."
+            % (fmt,),
+            file=sys.stderr,
+        )
+        return 1
+
     try:
         from vieneu import Vieneu
     except ImportError as e:
@@ -157,7 +284,10 @@ def main() -> int:
     key = queue_key()
     print(f"[worker-tts] Khởi tạo VieNeu (có thể tải model lần đầu)...")
     tts = Vieneu()
-    print(f"[worker-tts] Sẵn sàng. Queue={key!r} BLPOP, reference={reference_audio_path()}")
+    print(
+        f"[worker-tts] Sẵn sàng. Queue={key!r} BLPOP, reference={reference_audio_path()}, "
+        f"WORKER_TTS_UPLOAD_FORMAT={fmt!r}"
+    )
 
     r = redis_client()
     while True:

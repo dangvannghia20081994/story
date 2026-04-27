@@ -1,8 +1,22 @@
 # Chạy Story trên VPS không Docker
 
-Cài từng thành phần trên **một máy Linux** (Ubuntu 22.04/24.04 LTS): PostgreSQL, Redis, PHP 8.4 + Composer, web server (Nginx khuyến nghị), Node.js 20+. Phù hợp khi không dùng Docker hoặc chỉ một phần stack chạy container.
+Cài từng thành phần trên **một máy Linux** (Ubuntu 22.04/24.04 LTS): PostgreSQL, Redis, PHP 8.4 + Composer, Nginx (+ PHP-FPM), Node.js 20+. Phù hợp khi không dùng Docker hoặc chỉ một phần stack container.
 
-Luồng dữ liệu: **Nginx** → PHP-FPM (Laravel) cổng socket; **Next.js** build tĩnh + `npm start` hoặc Node behind Nginx.
+Luồng gợi ý: **Nginx** → PHP-FPM (Laravel `public/`); **Next.js** `npm run start` hoặc PM2 sau `npm run build`, Nginx `proxy_pass`.
+
+---
+
+## Tổng quan module
+
+| Module | Thư mục | Chạy như |
+|--------|---------|-----------|
+| **API + CMS** | `backend/` | PHP-FPM + Nginx `root` → `backend/public` |
+| **Web** | `frontend/` | Node (`npm run build` + `npm run start` hoặc PM2) |
+| **Expo** | `app/` | Tuỳ chọn — xem `app/README.md` |
+| **Crawler** | `crawler/` | Python + Playwright, process nền (systemd) |
+| **Worker TTS** | `worker-tts/` | Python venv, `worker_redis.py`, process nền |
+
+Tài liệu chi tiết API/CMS: [backend/README.md](backend/README.md). Docker tương đương: [GUIDE_VPS_HAS_DOCKER.md](GUIDE_VPS_HAS_DOCKER.md).
 
 ---
 
@@ -14,28 +28,21 @@ sudo apt install -y postgresql postgresql-contrib redis-server
 sudo systemctl enable --now postgresql redis-server
 ```
 
-Tạo user/DB (ví dụ khớp ý nghĩa với `backend/.env.example`):
-
 ```bash
 sudo -u postgres psql -c "CREATE USER story WITH PASSWORD 'your-secure-password';"
 sudo -u postgres psql -c "CREATE DATABASE story OWNER story;"
 ```
 
-Trong `backend/.env`: `DB_CONNECTION=pgsql`, `DB_HOST=localhost`, `DB_DATABASE=story`, `DB_USERNAME=story`, `DB_PASSWORD=...`, `REDIS_HOST=localhost`, `REDIS_PREFIX=` (thường rỗng), `REDIS_CLIENT=predis` nếu không cài `phpredis`.
+`backend/.env`: `DB_CONNECTION=pgsql`, `DB_HOST=localhost`, `DB_DATABASE=story`, `DB_USERNAME=story`, `DB_PASSWORD=...`, `REDIS_HOST=localhost`, `REDIS_PREFIX=`, `REDIS_CLIENT=predis` nếu không dùng extension `phpredis`.
 
 ---
 
-## 2. PHP 8.4, Composer, extension
-
-Cài PHP và extension Laravel thường dùng (tên gói có thể khác theo bản Ubuntu — tham khảo [Laravel server requirements](https://laravel.com/docs/deployment)):
+## 2. PHP 8.4, Composer, Laravel
 
 ```bash
 sudo apt install -y php8.4-fpm php8.4-cli php8.4-pgsql php8.4-xml php8.4-curl php8.4-mbstring php8.4-zip php8.4-bcmath
-curl -sS https://getcomposer.org/installer | php
-sudo mv composer.phar /usr/local/bin/composer
+# Composer: https://getcomposer.org/download/
 ```
-
-Triển khai code:
 
 ```bash
 sudo mkdir -p /var/www && sudo chown "$USER:$USER" /var/www
@@ -46,23 +53,30 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Chỉnh `.env`: `APP_URL`, `APP_ENV=production`, `APP_DEBUG=false`, DB, Redis, `CORS_ALLOWED_ORIGINS`.
+`.env`: `APP_URL`, `APP_ENV=production`, `APP_DEBUG=false`, DB, Redis, `CORS_ALLOWED_ORIGINS`, **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`**, **`WORKER_TTS_INTERNAL_TOKEN`**, **`WORKER_TTS_REDIS_QUEUE`**, tuỳ chọn **`WORKER_TTS_MAX_AUDIO_UPLOAD_KB`**.
+
+Sinh token (trong `backend/`):
+
+```bash
+php artisan crawler:internal-token
+php artisan worker-tts:internal-token
+```
 
 ```bash
 php artisan migrate --force
-php artisan db:seed   # hoặc bỏ seed trên production nếu không cần
+php artisan db:seed
 php artisan storage:link --force --relative
 php artisan config:cache
 php artisan route:cache
 ```
 
-**Upload MP3 lớn (nếu tự tải file audio):** tăng `upload_max_filesize` / `post_max_size` trong pool PHP-FPM nếu cần (xem `backend/README.md`).
+**Upload file lớn (TTS WAV, upload audio):** tăng **`client_max_body_size`** (Nginx) và **`upload_max_filesize`** / **`post_max_size`** (pool PHP-FPM) — xem `backend/README.md`.
 
 ---
 
 ## 3. Nginx + PHP-FPM (Laravel)
 
-Ví dụ site API (rút gọn — điều chỉnh `server_name`, đường dẫn, socket PHP):
+Ví dụ (chỉnh `server_name`, `root`, socket PHP):
 
 ```nginx
 server {
@@ -86,20 +100,18 @@ server {
 }
 ```
 
-Bật site, reload Nginx, chứng chỉ TLS (Let’s Encrypt) qua `certbot`.
+TLS: Let’s Encrypt (`certbot`).
 
 ---
 
 ## 4. Next.js (frontend)
-
-Trên cùng máy hoặc máy khác:
 
 ```bash
 cd /var/www/story/frontend
 npm install
 ```
 
-Tạo `.env.production` (hoặc export trước khi build):
+`.env.production`:
 
 ```env
 NEXT_PUBLIC_API_URL=https://api.example.com
@@ -110,30 +122,55 @@ npm run build
 NODE_ENV=production npm run start -- -p 3000
 ```
 
-Hoặc dùng **systemd** / **PM2** để giữ tiến trình. Nginx `proxy_pass` tới `http://localhost:3000` cho domain frontend.
+Hoặc PM2 / systemd; Nginx `proxy_pass` tới `localhost:3000`.
 
 ---
 
-## 5. Expo / mobile (`app/`)
+## 5. Expo (`app/`)
 
-Tùy chọn; development thường trên máy cục bộ. Production web có thể chỉ dùng Next.js — xem `app/README.md`.
-
----
-
-## 6. Crawler (worker Python)
-
-- **Backend:** trong `backend/.env` đặt **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** (mặc định `crawler:queue`), cùng **`REDIS_*`** trỏ Redis trên máy.
-- **Worker:** Python 3.11+ khuyến nghị, thư mục `crawler/`: `pip install -r requirements.txt`, `playwright install chromium`, file **`crawler/.env`** (mẫu `crawler/.env.example`) với `REDIS_HOST=127.0.0.1`, `CRAWLER_API_BASE_URL` (URL API Laravel, ví dụ `https://api.example.com`), **`CRAWLER_INTERNAL_TOKEN`** trùng backend, `CRAWLER_REDIS_QUEUE` trùng backend.
-- Chạy nền: **`python crawler/worker.py`** (hoặc **systemd** / **supervisor** một process `WorkingDirectory=/var/www/story/crawler`, `ExecStart=.../venv/bin/python worker.py`).
-- **Bảo mật:** không public route `/api/internal/crawler/*`; chỉ worker có token. Tuân thủ robots/ToS site nguồn.
-
-Chi tiết luồng: `backend/README.md` (mục Crawler), CMS `/admin/crawler-jobs`.
+Tuỳ chọn — xem `app/README.md`.
 
 ---
 
-## 7. Kiểm tra
+## 6. Crawler (Python + Playwright)
 
-- API: `curl -sS -H "Accept: application/json" https://api.example.com/docs/api.json | head`
-- File audio (nếu có): `backend/storage/app/public/...` — xem `backend/README.md`
+- **Backend:** `CRAWLER_INTERNAL_TOKEN`, `CRAWLER_REDIS_QUEUE`, `REDIS_*`.
+- **Worker:** Python 3.11+; `cd crawler && python3 -m venv .venv && source .venv/bin/activate`, `pip install -r requirements.txt`, `playwright install chromium`, **`crawler/.env`** (`crawler/.env.example`): `REDIS_HOST=127.0.0.1`, `CRAWLER_API_BASE_URL=https://api.example.com`, token trùng backend, queue trùng.
+- Chạy: `python worker.py` (systemd: `WorkingDirectory=/var/www/story/crawler`, `ExecStart=.../.venv/bin/python worker.py`).
+- **Bảo mật:** route `/api/internal/crawler/*` chỉ cho worker có header **`X-Crawler-Token`**.
 
-Tài liệu tham chiếu: [README.md](README.md), [backend/README.md](backend/README.md).
+CMS: **`/admin/crawler-jobs`**. Chi tiết: `backend/README.md`.
+
+---
+
+## 7. Worker TTS (Python + VieNeu)
+
+- **Backend:** `WORKER_TTS_INTERNAL_TOKEN`, `WORKER_TTS_REDIS_QUEUE`, cùng Redis với Laravel.
+- **Worker:** Python 3.10+; **venv** (tránh PEP 668 “externally-managed-environment” khi `pip install` global):
+
+```bash
+cd /var/www/story/worker-tts
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+cp .env.example .env
+# WORKER_TTS_INTERNAL_TOKEN=... (trùng backend), BACKEND_API_BASE_URL=https://api.example.com,
+# REDIS_HOST=127.0.0.1, WORKER_TTS_REDIS_QUEUE=story:tts:queue, REFERENCE_AUDIO_PATH=...
+python worker_redis.py
+```
+
+- **eSpeak NG** (bắt buộc cho VieNeu trên host): `sudo apt install espeak-ng` — xem `worker-tts/README.md` / `worker-tts/GUIDE.md`.
+- **Luồng:** Redis list (RPUSH từ Laravel / CMS “đẩy hàng TTS”) → worker → **POST** `/api/internal/tts/chapters/{id}/audio` (header **`X-Worker-Tts-Token`**).
+
+---
+
+## 8. Kiểm tra
+
+```bash
+curl -sS -H "Accept: application/json" https://api.example.com/docs/api.json | head
+```
+
+File public: `backend/storage/app/public/` sau `storage:link` → URL `/storage/...`.
+
+Tham chiếu: [README.md](README.md), [backend/README.md](backend/README.md), [GUIDE_WINDOW.md](GUIDE_WINDOW.md).

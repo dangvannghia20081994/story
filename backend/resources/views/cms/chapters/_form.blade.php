@@ -14,6 +14,19 @@
         <input id="title" name="title" value="{{ old('title', $chapter?->title ?? '') }}" required>
     </div>
     <div class="field">
+        <label for="chapter_number">Số chương (chapter_number)</label>
+        <input
+            id="chapter_number"
+            name="chapter_number"
+            type="number"
+            min="1"
+            max="999999"
+            value="{{ old('chapter_number', $chapter?->chapter_number ?? '') }}"
+            placeholder="Để trống — tự suy từ tiêu đề khi lưu (nếu khớp mẫu)"
+        >
+        <p class="muted" style="margin-top: 0.25rem;">Tuỳ chọn. Có giá trị thì dùng làm thứ tự đọc; khi sửa tiêu đề, nếu không đổi ô này thì không ghi đè số đã nhập.</p>
+    </div>
+    <div class="field">
         <label for="content">{{ $isEdit ? 'Nội dung' : 'Nội dung *' }}</label>
         <textarea id="content" name="content" rows="16" required>{{ old('content', $chapter?->content ?? '') }}</textarea>
         <p class="muted" style="margin-top: 0.35rem; max-width: 42rem;">
