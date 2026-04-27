@@ -61,26 +61,28 @@
                     @forelse ($stories as $story)
                         <tr>
                             <td><strong style="font-weight: 500;">{{ $story->title }}</strong></td>
-                            <td style="display: flex; flex-wrap: wrap; gap: 0.28rem; align-items: center;">
-                                @php
-                                    $gList = $story->genres;
-                                    $gList = is_array($gList) ? $gList : [];
-                                @endphp
-                                @forelse ($gList as $genreSlug)
+                            <td>
+                                <div class="cms-cell-flex-badges">
                                     @php
-                                        $genreBadge = match ($genreSlug) {
-                                            'tu-tien' => 'cms-badge--genre-tu-tien',
-                                            'huyen-huyen' => 'cms-badge--genre-huyen-huyen',
-                                            'kiem-hiep' => 'cms-badge--genre-kiem-hiep',
-                                            'do-thi' => 'cms-badge--genre-do-thi',
-                                            'khac' => 'cms-badge--genre-khac',
-                                            default => 'cms-badge--genre',
-                                        };
+                                        $gList = $story->genres;
+                                        $gList = is_array($gList) ? $gList : [];
                                     @endphp
-                                    <span class="cms-badge {{ $genreBadge }}">{{ \App\Models\Story::genreLabel($genreSlug) }}</span>
-                                @empty
-                                    <span class="cms-badge cms-badge--genre">{{ \App\Models\Story::genreLabel(null) }}</span>
-                                @endforelse
+                                    @forelse ($gList as $genreSlug)
+                                        @php
+                                            $genreBadge = match ($genreSlug) {
+                                                'tu-tien' => 'cms-badge--genre-tu-tien',
+                                                'huyen-huyen' => 'cms-badge--genre-huyen-huyen',
+                                                'kiem-hiep' => 'cms-badge--genre-kiem-hiep',
+                                                'do-thi' => 'cms-badge--genre-do-thi',
+                                                'khac' => 'cms-badge--genre-khac',
+                                                default => 'cms-badge--genre',
+                                            };
+                                        @endphp
+                                        <span class="cms-badge {{ $genreBadge }}">{{ \App\Models\Story::genreLabel($genreSlug) }}</span>
+                                    @empty
+                                        <span class="cms-badge cms-badge--genre">{{ \App\Models\Story::genreLabel(null) }}</span>
+                                    @endforelse
+                                </div>
                             </td>
                             <td>
                                 @php

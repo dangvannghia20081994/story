@@ -189,6 +189,13 @@
         .card--table { padding: 0; overflow: hidden; }
         .table-scroll { overflow-x: auto; }
         .table-scroll table { margin: 0; }
+        /* Flex trên <td> làm lệch vertical-align; bọc badge trong div. */
+        .cms-cell-flex-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.28rem;
+            align-items: center;
+        }
         .muted { color: var(--muted); font-size: 0.875rem; }
         .cms-badge {
             display: inline-block;
@@ -271,7 +278,7 @@
         }
         html.theme-dark .flash { background: #052e1b; border-color: #166534; color: #bbf7d0; }
         table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-        th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--surface-border); vertical-align: top; }
+        th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--surface-border); vertical-align: middle; }
         th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
         tbody tr:hover { background: rgba(99, 102, 241, 0.04); }
         html.theme-dark tbody tr:hover { background: rgba(99, 102, 241, 0.08); }
