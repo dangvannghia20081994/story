@@ -235,6 +235,12 @@
         html.theme-dark .cms-badge--job-processing { background: #78350f; color: #fde68a; }
         html.theme-dark .cms-badge--job-completed { background: #064e3b; color: #a7f3d0; }
         html.theme-dark .cms-badge--job-failed { background: #7f1d1d; color: #fecaca; }
+        .cms-badge--tts-ready { background: #d1fae5; color: #065f46; }
+        html.theme-dark .cms-badge--tts-ready { background: #064e3b; color: #a7f3d0; }
+        .cms-badge--tts-pending { background: #fef3c7; color: #92400e; }
+        html.theme-dark .cms-badge--tts-pending { background: #78350f; color: #fde68a; }
+        .cms-badge--tts-muted { background: #f1f5f9; color: #64748b; }
+        html.theme-dark .cms-badge--tts-muted { background: #334155; color: #94a3b8; }
         .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
             padding: 0.45rem 0.9rem; border-radius: 0.45rem; border: 1px solid var(--surface-border);

@@ -8,6 +8,7 @@ use App\Http\Requests\Cms\StoreChapterRequest;
 use App\Http\Requests\Cms\UpdateChapterRequest;
 use App\Models\Chapter;
 use App\Models\Story;
+use App\Services\WorkerTtsQueue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -82,6 +83,29 @@ class ChapterController extends Controller
         $chapter->delete();
 
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã xóa chương.');
+    }
+
+    public function enqueueWorkerTts(Story $story, Chapter $chapter): RedirectResponse
+    {
+        $this->assertBelongs($story, $chapter);
+
+        if (! $chapter->canEnqueueWorkerTts()) {
+            return back()->withErrors([
+                'tts' => 'Không thể đưa chương vào hàng TTS: nội dung chương trống (sau khi bỏ HTML).',
+            ]);
+        }
+
+        try {
+            WorkerTtsQueue::push($chapter);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors([
+                'tts' => 'Không đẩy được job lên Redis (kiểm tra REDIS_* và queue worker-tts).',
+            ]);
+        }
+
+        return back()->with('status', 'Đã đưa chương «'.$chapter->title.'» vào hàng TTS (Redis).');
     }
 
     private function assertBelongs(Story $story, Chapter $chapter): void

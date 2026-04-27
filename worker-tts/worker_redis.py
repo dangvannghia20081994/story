@@ -20,6 +20,22 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 
+def load_local_env() -> None:
+    """Khi chạy trực tiếp `python worker_redis.py`, nạp worker-tts/.env (Docker dùng env_file, không bắt buộc file trong image)."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    path = SCRIPT_DIR / ".env"
+    if path.is_file():
+        load_dotenv(path, override=False)
+
+
+def _stage(chapter_id: int, step: int, total: int, label: str) -> None:
+    """In tiến độ theo giai đoạn (không phải % nội bộ model)."""
+    print(f"[worker-tts] chapter={chapter_id}  [{step}/{total}] {label}", flush=True)
+
+
 def redis_client():
     import redis
 
@@ -55,7 +71,11 @@ def upload_audio(chapter_id: int, wav_path: Path) -> None:
 
     token = internal_token()
     if not token:
-        raise RuntimeError("Thiếu WORKER_TTS_INTERNAL_TOKEN")
+        raise RuntimeError(
+            "Thiếu WORKER_TTS_INTERNAL_TOKEN (trùng giá trị trong backend/.env; "
+            "chạy ngoài Docker: tạo worker-tts/.env từ .env.example; "
+            "Docker: env_file worker-tts/.env trong docker-compose)."
+        )
 
     url = f"{backend_base_url()}/api/internal/tts/chapters/{chapter_id}/audio"
     with wav_path.open("rb") as f:
@@ -94,22 +114,40 @@ def process_message(tts, raw: str) -> None:
         return
 
     text = str(text).strip()
-    print(f"[worker-tts] Chapter {chapter_id}, độ dài text={len(text)} ký tự")
+    total = 5
+    _stage(chapter_id, 1, total, f"Chuẩn bị — độ dài text={len(text)} ký tự")
 
+    _stage(chapter_id, 2, total, "Encode giọng tham chiếu (reference)")
     voice = tts.encode_reference(str(ref))
+
+    _stage(chapter_id, 3, total, "Tổng hợp giọng (infer — có thể lâu)")
     audio = tts.infer(text=text, voice=voice)
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp_path = Path(tmp.name)
     try:
+        _stage(chapter_id, 4, total, "Ghi file WAV tạm")
         tts.save(audio, str(tmp_path))
+        _stage(chapter_id, 5, total, "Upload lên backend API")
         upload_audio(chapter_id, tmp_path)
-        print(f"[worker-tts] Đã upload audio chapter_id={chapter_id}")
+        print(f"[worker-tts] chapter={chapter_id}  hoàn tất (upload OK)", flush=True)
     finally:
         tmp_path.unlink(missing_ok=True)
 
 
 def main() -> int:
+    load_local_env()
+    if not internal_token():
+        print(
+            "[worker-tts] Thiếu WORKER_TTS_INTERNAL_TOKEN.\n"
+            "  • Backend + worker phải cùng một token (backend/.env và worker-tts/.env).\n"
+            "  • Sinh token: trong thư mục backend chạy: php artisan worker-tts:internal-token\n"
+            "    rồi copy dòng WORKER_TTS_INTERNAL_TOKEN=... vào cả hai file .env.\n"
+            "  • Docker: docker compose --profile worker-tts up — cần file worker-tts/.env (xem env_file trong compose).",
+            file=sys.stderr,
+        )
+        return 1
+
     try:
         from vieneu import Vieneu
     except ImportError as e:

@@ -38,6 +38,7 @@
                 <thead>
                     <tr>
                         <th>Tiêu đề</th>
+                        <th>Trạng thái TTS</th>
                         <th>Audio</th>
                         <th class="th-actions">Thao tác</th>
                     </tr>
@@ -46,8 +47,37 @@
                     @forelse ($chapters as $chapter)
                         <tr>
                             <td><strong style="font-weight: 500;">{{ $chapter->title }}</strong></td>
-                            <td>{{ $chapter->audio_path ? 'Có đường dẫn' : '—' }}</td>
+                            <td>
+                                <span
+                                    class="cms-badge {{ $chapter->cmsTtsBadgeClass() }}"
+                                    @if ($chapter->cmsTtsStatusKey() === 'queued' && $chapter->tts_enqueued_at)
+                                        title="Đã đẩy hàng lúc {{ $chapter->tts_enqueued_at->timezone(config('app.timezone'))->format('d/m/Y H:i') }}"
+                                    @endif
+                                >{{ $chapter->cmsTtsStatusLabel() }}</span>
+                            </td>
+                            <td>
+                                @if ($chapter->hasAudioFile())
+                                    <span class="cms-badge cms-badge--tts-ready">Có file</span>
+                                    @if ((int) $chapter->duration > 0)
+                                        <span class="muted" style="font-size: 0.8rem;">{{ (int) $chapter->duration }}s</span>
+                                    @endif
+                                @else
+                                    <span class="muted">—</span>
+                                @endif
+                            </td>
                             <td class="cms-story-row-actions">
+                                <form action="{{ route('cms.stories.chapters.enqueue-tts', [$story, $chapter]) }}" method="post" style="display: inline; margin: 0;">
+                                    @csrf
+                                    <button
+                                        type="submit"
+                                        class="icon-btn"
+                                        title="{{ $chapter->canEnqueueWorkerTts() ? 'Đưa chương vào hàng Redis (worker-tts)' : 'Không có nội dung text để TTS' }}"
+                                        aria-label="Đưa vào hàng TTS"
+                                        @disabled(! $chapter->canEnqueueWorkerTts())
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                                    </button>
+                                </form>
                                 <a class="icon-btn" href="{{ route('cms.stories.chapters.edit', [$story, $chapter]) }}" title="Sửa chương" aria-label="Sửa chương">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 </a>
@@ -61,7 +91,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="3" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có chương. Dùng <strong>Thêm chương</strong> ở trên.</td></tr>
+                        <tr><td colspan="4" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có chương. Dùng <strong>Thêm chương</strong> ở trên.</td></tr>
                     @endforelse
                 </tbody>
             </table>

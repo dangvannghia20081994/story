@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\WorkerTtsQueue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ class Chapter extends Model
         return [
             'chuong' => 'integer',
             'duration' => 'integer',
+            'tts_enqueued_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
@@ -140,5 +142,58 @@ class Chapter extends Model
         }
 
         return Storage::disk('public')->url($this->audio_path);
+    }
+
+    public function hasAudioFile(): bool
+    {
+        $p = $this->audio_path;
+
+        return is_string($p) && $p !== '';
+    }
+
+    /**
+     * Trạng thái TTS cho CMS: audio xong, đã RPUSH Redis, chưa đẩy hàng, hoặc thiếu text.
+     *
+     * @return 'ready'|'queued'|'pending'|'no_text'
+     */
+    public function cmsTtsStatusKey(): string
+    {
+        if ($this->hasAudioFile()) {
+            return 'ready';
+        }
+        if (WorkerTtsQueue::plainTextFromChapter($this) === '') {
+            return 'no_text';
+        }
+        if ($this->tts_enqueued_at !== null) {
+            return 'queued';
+        }
+
+        return 'pending';
+    }
+
+    public function cmsTtsStatusLabel(): string
+    {
+        return match ($this->cmsTtsStatusKey()) {
+            'ready' => 'Đã có audio',
+            'queued' => 'Đã xếp hàng TTS',
+            'pending' => 'Chưa đẩy hàng',
+            'no_text' => 'Thiếu nội dung',
+        };
+    }
+
+    public function cmsTtsBadgeClass(): string
+    {
+        return match ($this->cmsTtsStatusKey()) {
+            'ready' => 'cms-badge--tts-ready',
+            'queued' => 'cms-badge--job-queued',
+            'pending' => 'cms-badge--tts-pending',
+            'no_text' => 'cms-badge--tts-muted',
+        };
+    }
+
+    /** Có thể RPUSH job worker-tts (có plain text sau khi strip HTML). */
+    public function canEnqueueWorkerTts(): bool
+    {
+        return $this->cmsTtsStatusKey() !== 'no_text';
     }
 }

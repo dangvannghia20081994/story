@@ -32,6 +32,7 @@ Route::prefix('admin')->name('cms.')->group(function (): void {
 
         Route::get('stories/{story}/chapters/bulk', [CmsChapterController::class, 'createBulk'])->name('stories.chapters.bulk');
         Route::post('stories/{story}/chapters/bulk', [CmsChapterController::class, 'storeBulk'])->name('stories.chapters.bulk.store');
+        Route::post('stories/{story}/chapters/{chapter}/enqueue-tts', [CmsChapterController::class, 'enqueueWorkerTts'])->name('stories.chapters.enqueue-tts');
         Route::resource('stories.chapters', CmsChapterController::class)->except(['show']);
 
         Route::get('stories/{story}/characters/bulk', [CmsCharacterController::class, 'createBulk'])->name('stories.characters.bulk');

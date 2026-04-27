@@ -38,9 +38,13 @@ class TtsInternalController extends Controller
         $filename = 'audio.'.$extension;
         $path = $uploaded->storeAs($dir, $filename, 'public');
 
-        $chapter->audio_path = $path;
-        $chapter->duration = (int) ($data['duration'] ?? 0);
-        $chapter->save();
+        $duration = (int) ($data['duration'] ?? 0);
+        Chapter::query()->whereKey($chapter->getKey())->update([
+            'audio_path' => $path,
+            'duration' => $duration,
+            'tts_enqueued_at' => null,
+            'updated_at' => now(),
+        ]);
         $fresh = $chapter->fresh();
 
         return response()->json([

@@ -25,6 +25,10 @@ class WorkerTtsQueue
         $json = json_encode($payload, JSON_THROW_ON_ERROR);
 
         Redis::rpush($key, $json);
+
+        Chapter::query()->whereKey($chapter->getKey())->update([
+            'tts_enqueued_at' => now(),
+        ]);
     }
 
     /**
