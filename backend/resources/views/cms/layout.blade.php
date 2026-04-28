@@ -197,6 +197,12 @@
             align-items: center;
         }
         .muted { color: var(--muted); font-size: 0.875rem; }
+        .cms-pagination {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.2rem 0.45rem;
+        }
         .cms-badge {
             display: inline-block;
             padding: 0.15rem 0.55rem;
@@ -278,6 +284,40 @@
         html.theme-dark input:focus, html.theme-dark select:focus, html.theme-dark textarea:focus { border-color: #818cf8; }
         textarea { min-height: 10rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.85rem; }
         .field { margin-bottom: 0.9rem; }
+        .card--crawler-job { max-width: none; }
+        .crawler-job-form {
+            display: grid;
+            gap: 1rem 1.35rem;
+            grid-template-columns: 1fr;
+        }
+        @media (min-width: 960px) {
+            .crawler-job-form {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .crawler-job-form__full { grid-column: 1 / -1; }
+        }
+        .crawler-job-form__panel {
+            margin: 0;
+            min-width: 0;
+            padding: 0.6rem 0.85rem 0.85rem;
+            border: 1px solid var(--surface-border);
+            border-radius: 0.5rem;
+            background: rgba(148, 163, 184, 0.07);
+        }
+        html.theme-dark .crawler-job-form__panel {
+            background: rgba(30, 41, 59, 0.45);
+        }
+        .crawler-job-form__legend {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            padding: 0 0.3rem;
+        }
+        .crawler-job-form__panel .field:last-child { margin-bottom: 0; }
+        .crawler-job-form .field { margin-bottom: 0.72rem; }
+        .crawler-job-form textarea#source_url { min-height: 6.25rem; }
         .error { color: #dc2626; font-size: 0.8rem; margin-top: 0.25rem; }
         .flash {
             background: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; padding: 0.7rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;

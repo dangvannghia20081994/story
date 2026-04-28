@@ -150,7 +150,7 @@ class LexiconController extends Controller
 
     public function jsonChaptersForStory(Story $story): JsonResponse
     {
-        $rows = $story->chapters()->get(['id', 'title']);
+        $rows = $story->chapters()->get(['id', 'title', 'slug']);
 
         return response()->json($rows);
     }

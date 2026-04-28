@@ -8,7 +8,7 @@
     <p class="content-lead">Cập nhật cấu hình trong DB. Trạng thái và số chương đã nhập giữ nguyên; sau khi lưu dùng <strong>Gửi lại Redis</strong> trên danh sách nếu muốn chạy worker với cấu hình mới.</p>
     <p class="muted" style="margin-bottom: 1rem;">Trạng thái hiện tại: <code>{{ $job->status }}</code> — chương đã nhập: <strong>{{ $job->chapters_imported }}</strong></p>
 
-    <div class="card" style="max-width: 40rem;">
+    <div class="card card--crawler-job">
         <form method="post" action="{{ route('cms.crawler-jobs.update', $job) }}">
             @csrf
             @method('PUT')

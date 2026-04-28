@@ -146,6 +146,9 @@ def slice_urls_for_crawl(
         start = 1
     if start < 1:
         start = 1
+    # Tránh rỗng khi chapter_start > số URL (vd. chỉ 1 chương mà start=2)
+    if urls and start > len(urls):
+        start = len(urls)
     out = urls[start - 1 :]
     if max_chapters is not None and max_chapters != "":
         try:

@@ -16,6 +16,23 @@ DEFAULT_UA = (
     "(KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
 )
 
+# Dòng không có chữ: trống, hoặc chỉ ... / … / ??? (lặp thêm cùng kiểu).
+_CRAWLER_JUNK_ONLY_LINE = re.compile(r"^(?:\.{3,}|…|\?{3,})$", re.UNICODE)
+
+
+def _normalize_crawler_plaintext_lines(text: str) -> str:
+    """Bỏ mọi dòng trống; bỏ dòng chỉ gồm dấu lặp / chấm hỏi lặp (vd. ..., ???)."""
+    t = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    out: list[str] = []
+    for line in t.split("\n"):
+        s = line.strip()
+        if not s:
+            continue
+        if _CRAWLER_JUNK_ONLY_LINE.match(s):
+            continue
+        out.append(s)
+    return "\n".join(out)
+
 
 def _env_int_ms(name: str, default: int) -> int:
     raw = (os.environ.get(name) or "").strip()
@@ -171,8 +188,10 @@ def clean_content(html_content: str) -> str:
         tag.decompose()
     for tag in soup.select('[class*="ads"], [id*="ads"], .advertisement, .qc, .banner'):
         tag.decompose()
+    for tag in soup.select("div.signature, span.signature"):
+        tag.decompose()
     text = soup.get_text(separator="\n")
-    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = _normalize_crawler_plaintext_lines(text)
     return text.strip()
 
 
@@ -259,11 +278,26 @@ def resolve_chapter_urls(
     links_selector: str | None,
     next_page_selector: str | None = None,
 ) -> list[str]:
-    """Nếu không có selector link chương, chỉ crawl đúng một URL (source_url)."""
+    """Nếu không có selector link chương, chỉ crawl đúng một URL (source_url).
+
+    Nếu có selector nhưng không thu được link nào (vd. source_url đã là trang một chương,
+    không phải mục lục), fallback crawl đúng source_url như một chương.
+    """
+    base = (story_url or "").strip()
+    if not base:
+        return []
     sel = (links_selector or "").strip()
     if not sel:
-        return [story_url.strip()]
-    return collect_chapter_urls(page, story_url, sel, next_page_selector)
+        return [base]
+    urls = collect_chapter_urls(page, story_url, sel, next_page_selector)
+    if not urls:
+        print(
+            "[crawler] Không có link khớp chapter_links_selector — "
+            "crawl source_url như một chương duy nhất.",
+            flush=True,
+        )
+        return [base]
+    return urls
 
 
 def crawl_chapter(page: Page, url: str, title_sel: str, body_sel: str) -> dict:

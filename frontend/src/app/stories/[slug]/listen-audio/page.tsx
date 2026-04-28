@@ -440,11 +440,11 @@ function ListenAudioStoryPageContent() {
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
             <Link
               href={`/stories/${encodeURIComponent(storySlug)}`}
-              className="shrink-0 rounded-full border border-indigo-200/60 bg-gradient-to-r from-white to-indigo-50/80 px-2.5 py-1.5 text-xs font-medium text-indigo-800 shadow-sm transition hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-200 dark:hover:to-violet-950/40 sm:px-3 sm:text-sm"
+              className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-indigo-200/60 bg-gradient-to-r from-white to-indigo-50/80 px-3 text-xs font-medium text-indigo-800 shadow-sm transition hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-200 dark:hover:to-violet-950/40 sm:text-sm"
             >
               ← Truyện
             </Link>
-            <div className="hidden h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
+            <div className="hidden h-6 w-px shrink-0 self-center bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
             <div className="min-w-0 flex-1">
               <p className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-50 sm:truncate sm:leading-normal">
                 {story.title}
@@ -472,11 +472,11 @@ function ListenAudioStoryPageContent() {
               </div>
             </div>
           </div>
-          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
+          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             {ttsSupported !== false ? (
               <Link
                 href={storyListenHref(storyForLinks, currentChapter.id)}
-                className="inline-flex min-h-[2.75rem] items-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
+                className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
               >
                 Giọng trình duyệt
               </Link>
@@ -485,7 +485,7 @@ function ListenAudioStoryPageContent() {
                 role="button"
                 aria-disabled
                 title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
-                className="inline-flex min-h-[2.75rem] cursor-not-allowed items-center rounded-xl bg-zinc-300 px-3 py-2 text-xs font-semibold text-zinc-500 opacity-90 dark:bg-zinc-800 dark:text-zinc-500"
+                className="inline-flex h-11 shrink-0 cursor-not-allowed items-center justify-center whitespace-nowrap rounded-xl bg-zinc-300 px-3 text-xs font-semibold text-zinc-500 opacity-90 dark:bg-zinc-800 dark:text-zinc-500"
               >
                 Giọng trình duyệt
               </span>
@@ -493,15 +493,17 @@ function ListenAudioStoryPageContent() {
             <button
               type="button"
               onClick={() => setShowToc((v) => !v)}
-              className={`min-h-[2.75rem] min-w-0 flex-1 truncate rounded-xl border px-3 py-2 text-left text-xs font-semibold shadow-sm transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
+              className={`inline-flex h-11 min-w-0 flex-1 items-center rounded-xl border px-3 text-left text-xs font-semibold shadow-sm transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
                 showToc
                   ? "border-transparent bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-indigo-500/25 dark:from-indigo-600 dark:to-violet-600 dark:shadow-indigo-900/40 dark:text-white"
                   : "border-indigo-200/70 bg-gradient-to-r from-white to-indigo-50/70 text-zinc-800 hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/40 dark:text-zinc-100 dark:hover:to-violet-950/35"
               }`}
               aria-expanded={showToc}
             >
-              <span className={showToc ? "text-white/85" : "text-zinc-400 dark:text-zinc-500"}>Mục lục · </span>
-              {currentChapter?.title ?? "Chương"}
+              <span className="flex min-w-0 flex-1 items-center gap-0">
+                <span className={showToc ? "shrink-0 text-white/85" : "shrink-0 text-zinc-400 dark:text-zinc-500"}>Mục lục · </span>
+                <span className="min-w-0 truncate">{currentChapter?.title ?? "Chương"}</span>
+              </span>
             </button>
           </div>
         </div>
@@ -607,17 +609,17 @@ function ListenAudioStoryPageContent() {
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Dùng trang đọc để xem chữ, hoặc nghe bằng giọng trình duyệt nếu bạn muốn.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
               <Link
                 href={storyReadHref(storyForLinks, currentChapter.id)}
-                className="inline-flex justify-center rounded-xl border border-indigo-200/70 bg-gradient-to-r from-white to-indigo-50/90 px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm transition hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-100 dark:hover:to-violet-950/35"
+                className="inline-flex w-full min-h-[2.75rem] items-center justify-center rounded-xl border border-indigo-200/70 bg-gradient-to-r from-white to-indigo-50/90 px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm transition hover:from-indigo-50 hover:to-violet-50 sm:w-auto dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-100 dark:hover:to-violet-950/35"
               >
                 Đọc chương
               </Link>
               {ttsSupported !== false ? (
                 <Link
                   href={storyListenHref(storyForLinks, currentChapter.id)}
-                  className="inline-flex justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/40"
+                  className="inline-flex w-full min-h-[2.75rem] items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg sm:w-auto dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/40"
                 >
                   Nghe (TTS)
                 </Link>
@@ -626,7 +628,7 @@ function ListenAudioStoryPageContent() {
                   role="button"
                   aria-disabled
                   title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
-                  className="inline-flex cursor-not-allowed justify-center rounded-xl bg-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-500 opacity-90 dark:bg-zinc-800 dark:text-zinc-500"
+                  className="inline-flex w-full min-h-[2.75rem] cursor-not-allowed items-center justify-center rounded-xl bg-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-500 opacity-90 sm:w-auto dark:bg-zinc-800 dark:text-zinc-500"
                 >
                   Nghe (TTS)
                 </span>

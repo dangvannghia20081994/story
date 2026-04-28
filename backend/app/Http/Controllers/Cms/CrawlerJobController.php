@@ -17,6 +17,13 @@ class CrawlerJobController extends Controller
 {
     public function index(): View
     {
+        $statusCounts = CrawlerJob::query()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(static fn ($count): int => (int) $count)
+            ->all();
+
         $jobs = CrawlerJob::query()
             ->with('story')
             ->orderByDesc('id')
@@ -25,6 +32,8 @@ class CrawlerJobController extends Controller
         return view('cms.crawler_jobs.index', [
             'jobs' => $jobs,
             'crawlerTokenConfigured' => (string) config('crawler.internal_token') !== '',
+            'crawlerJobCount' => CrawlerJob::query()->count(),
+            'crawlerStatusCounts' => $statusCounts,
         ]);
     }
 

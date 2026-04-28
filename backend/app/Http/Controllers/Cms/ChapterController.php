@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Cms;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cms\StoreBulkChaptersRequest;
 use App\Http\Requests\Cms\StoreChapterRequest;
+use App\Http\Requests\Cms\StripChapterContentRequest;
 use App\Http\Requests\Cms\UpdateChapterRequest;
 use App\Models\Chapter;
 use App\Models\Story;
@@ -17,13 +18,73 @@ use Illuminate\View\View;
 
 class ChapterController extends Controller
 {
-    public function index(Story $story): View
+    public function index(Request $request, Story $story): View
     {
-        $chapters = $story->chapters()
-            ->paginate(30)
-            ->withQueryString();
+        $q = trim((string) $request->query('q', ''));
+        $tts = trim((string) $request->query('tts', ''));
+        $audio = trim((string) $request->query('audio', ''));
+        $sort = trim((string) $request->query('sort', 'read_asc'));
 
-        return view('cms.chapters.index', compact('story', 'chapters'));
+        $allowedTts = ['', 'ready', 'queued', 'pending', 'no_text'];
+        if (! in_array($tts, $allowedTts, true)) {
+            $tts = '';
+        }
+        $allowedAudio = ['', '1', '0'];
+        if (! in_array($audio, $allowedAudio, true)) {
+            $audio = '';
+        }
+        $allowedSort = ['read_asc', 'read_desc', 'updated_desc', 'updated_asc', 'id_desc', 'id_asc'];
+        if (! in_array($sort, $allowedSort, true)) {
+            $sort = 'read_asc';
+        }
+
+        $query = $story->chapters()->reorder();
+
+        if ($q !== '') {
+            $like = '%'.addcslashes($q, '%_\\').'%';
+            $query->where('title', 'like', $like);
+        }
+
+        if ($audio === '1') {
+            $query->whereNotNull('audio_path')->where('audio_path', '!=', '');
+        } elseif ($audio === '0') {
+            $query->where(function ($sub): void {
+                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+            });
+        }
+
+        if ($tts === 'ready') {
+            $query->whereNotNull('audio_path')->where('audio_path', '!=', '');
+        } elseif ($tts === 'queued') {
+            $query->where(function ($sub): void {
+                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+            })->whereNotNull('tts_enqueued_at');
+        } elseif ($tts === 'pending') {
+            $query->where(function ($sub): void {
+                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+            })->whereNull('tts_enqueued_at')
+                ->whereRaw('LENGTH(TRIM(COALESCE(content, ?))) > 0', ['']);
+        } elseif ($tts === 'no_text') {
+            $query->where(function ($sub): void {
+                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+            })->where(function ($sub): void {
+                $sub->whereNull('content')
+                    ->orWhereRaw('LENGTH(TRIM(COALESCE(content, ?))) = 0', ['']);
+            });
+        }
+
+        match ($sort) {
+            'read_desc' => $query->chapterNumberSort('desc'),
+            'updated_desc' => $query->orderByDesc('updated_at')->orderByDesc('id'),
+            'updated_asc' => $query->orderBy('updated_at')->orderBy('id'),
+            'id_desc' => $query->orderByDesc('id'),
+            'id_asc' => $query->orderBy('id'),
+            default => $query->chapterNumberSort('asc'),
+        };
+
+        $chapters = $query->paginate(30)->withQueryString();
+
+        return view('cms.chapters.index', compact('story', 'chapters', 'q', 'tts', 'audio', 'sort'));
     }
 
     public function create(Story $story): View
@@ -34,6 +95,51 @@ class ChapterController extends Controller
     public function createBulk(Story $story): View
     {
         return view('cms.chapters.bulk', compact('story'));
+    }
+
+    public function stripContentForm(Story $story): View
+    {
+        return view('cms.chapters.strip-content', compact('story'));
+    }
+
+    public function stripContentStore(StripChapterContentRequest $request, Story $story): RedirectResponse
+    {
+        /** @var list<string> $phrases */
+        $phrases = $request->validated('phrases');
+
+        $chaptersUpdated = 0;
+        $totalOccurrencesRemoved = 0;
+
+        $story->chapters()
+            ->select(['id', 'content'])
+            ->orderBy('id')
+            ->chunkById(50, function ($chapters) use ($phrases, &$chaptersUpdated, &$totalOccurrencesRemoved): void {
+                foreach ($chapters as $chapter) {
+                    $original = (string) $chapter->content;
+                    $working = $original;
+                    $removedHere = 0;
+
+                    foreach ($phrases as $phrase) {
+                        $removedHere += substr_count($working, $phrase);
+                        $working = str_replace($phrase, '', $working);
+                    }
+
+                    $newContent = Story::sanitizeChapterContent($working);
+
+                    if ($newContent !== $original) {
+                        $chapter->content = $newContent;
+                        $chapter->save();
+                        $chaptersUpdated++;
+                        $totalOccurrencesRemoved += $removedHere;
+                    }
+                }
+            });
+
+        $status = $chaptersUpdated === 0
+            ? 'Không có chương nào thay đổi (không tìm thấy chuỗi đã nhập hoặc nội dung sau xử lý trùng với hiện tại).'
+            : "Đã cập nhật {$chaptersUpdated} chương; đã gỡ {$totalOccurrencesRemoved} lần xuất hiện chuỗi (trước bước chuẩn hóa nội dung).";
+
+        return redirect()->route('cms.stories.chapters.index', $story)->with('status', $status);
     }
 
     public function store(StoreChapterRequest $request, Story $story): RedirectResponse

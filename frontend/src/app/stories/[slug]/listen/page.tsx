@@ -433,11 +433,11 @@ function ListenStoryPageContent() {
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
             <Link
               href={`/stories/${encodeURIComponent(storySlug)}`}
-              className="shrink-0 rounded-full border border-indigo-200/60 bg-gradient-to-r from-white to-indigo-50/80 px-2.5 py-1.5 text-xs font-medium text-indigo-800 shadow-sm transition hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-200 dark:hover:to-violet-950/40 sm:px-3 sm:text-sm"
+              className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-indigo-200/60 bg-gradient-to-r from-white to-indigo-50/80 px-3 text-xs font-medium text-indigo-800 shadow-sm transition hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-200 dark:hover:to-violet-950/40 sm:text-sm"
             >
               ← Truyện
             </Link>
-            <div className="hidden h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
+            <div className="hidden h-6 w-px shrink-0 self-center bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
             <div className="min-w-0 flex-1">
               <p className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-50 sm:truncate sm:leading-normal">
                 {story.title}
@@ -463,11 +463,11 @@ function ListenStoryPageContent() {
               </div>
             </div>
           </div>
-          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
+          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             {listenChapterAudioUrl ? (
               <Link
                 href={storyListenAudioHref(storyForListenLinks, currentChapter.id)}
-                className="inline-flex min-h-[2.75rem] items-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
+                className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
               >
                 Nghe audio
               </Link>
@@ -475,21 +475,17 @@ function ListenStoryPageContent() {
             <button
               type="button"
               onClick={() => setShowToc((v) => !v)}
-              className={`min-h-[2.75rem] min-w-0 flex-1 truncate rounded-xl border px-3 py-2 text-left text-xs font-semibold shadow-sm transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
+              className={`inline-flex h-11 min-w-0 flex-1 items-center rounded-xl border px-3 text-left text-xs font-semibold shadow-sm transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
                 showToc
                   ? "border-transparent bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-indigo-500/25 dark:from-indigo-600 dark:to-violet-600 dark:shadow-indigo-900/40 dark:text-white"
                   : "border-indigo-200/70 bg-gradient-to-r from-white to-indigo-50/70 text-zinc-800 hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/40 dark:text-zinc-100 dark:hover:to-violet-950/35"
               }`}
               aria-expanded={showToc}
             >
-              <span
-                className={
-                  showToc ? "text-white/85" : "text-zinc-400 dark:text-zinc-500"
-                }
-              >
-                Mục lục ·{" "}
+              <span className="flex min-w-0 flex-1 items-center gap-0">
+                <span className={showToc ? "shrink-0 text-white/85" : "shrink-0 text-zinc-400 dark:text-zinc-500"}>Mục lục · </span>
+                <span className="min-w-0 truncate">{currentChapter?.title ?? "Chương"}</span>
               </span>
-              {currentChapter?.title ?? "Chương"}
             </button>
           </div>
         </div>

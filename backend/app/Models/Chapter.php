@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class Chapter extends Model
 {
@@ -38,7 +39,40 @@ class Chapter extends Model
             if ($chapter->isDirty('title') && ! $chapter->isDirty('chapter_number')) {
                 $chapter->chapter_number = static::inferChapterNumberFromTitle($chapter->title);
             }
+
+            $storyId = (int) ($chapter->story_id ?? 0);
+            if ($storyId < 1) {
+                return;
+            }
+
+            if ($chapter->isDirty('title') || $chapter->slug === null || $chapter->slug === '') {
+                $chapter->slug = static::uniqueSlugForStory(
+                    $storyId,
+                    (string) ($chapter->title ?? ''),
+                    $chapter->exists ? (int) $chapter->getKey() : null,
+                );
+            }
         });
+    }
+
+    /**
+     * Slug duy nhất trong một truyện, suy từ tiêu đề (ASCII; trùng thì thêm -2, -3, …).
+     */
+    public static function uniqueSlugForStory(int $storyId, string $title, ?int $ignoreChapterId = null): string
+    {
+        $base = Str::slug($title) ?: 'chuong';
+        $slug = $base;
+        $suffix = 0;
+        while (static::query()
+            ->where('story_id', $storyId)
+            ->where('slug', $slug)
+            ->when($ignoreChapterId !== null, static fn ($q) => $q->where('id', '!=', $ignoreChapterId))
+            ->exists()) {
+            $suffix++;
+            $slug = $base.'-'.$suffix;
+        }
+
+        return $slug;
     }
 
     public function story(): BelongsTo
@@ -90,7 +124,7 @@ SQL;
 
         $r = (array) $row;
         $chapterAttrs = array_intersect_key($r, array_flip([
-            'id', 'story_id', 'title', 'chapter_number', 'content', 'audio_path',
+            'id', 'story_id', 'title', 'slug', 'chapter_number', 'content', 'audio_path',
             'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
         ]));
         $chapter = static::hydrate([$chapterAttrs])->first();

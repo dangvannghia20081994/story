@@ -25,7 +25,7 @@ class ChapterController extends Controller
         $query = $story->chapters()->reorder()->chapterNumberSort('asc');
         if ($omitContent) {
             $query->select([
-                'id', 'story_id', 'title', 'chapter_number', 'audio_path',
+                'id', 'story_id', 'title', 'slug', 'chapter_number', 'audio_path',
                 'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
             ]);
         }

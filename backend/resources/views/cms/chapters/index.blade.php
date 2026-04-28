@@ -4,6 +4,7 @@
 
 @push('head')
     @include('cms.partials.icon-toolbar-styles')
+    @include('cms.partials.cms-filter-bar-styles')
 @endpush
 
 @section('content')
@@ -29,9 +30,48 @@
             <div class="add-dropdown__menu">
                 <a href="{{ route('cms.stories.chapters.create', $story) }}">Thêm một chương</a>
                 <a href="{{ route('cms.stories.chapters.bulk', $story) }}">Thêm nhiều chương</a>
+                <a href="{{ route('cms.stories.chapters.strip-content', $story) }}">Gỡ chuỗi hàng loạt</a>
             </div>
         </details>
     </div>
+    <form class="stories-filter-bar stories-filter-bar--scroll" method="get" action="{{ url()->current() }}">
+        <input
+            type="search"
+            name="q"
+            class="stories-filter-bar__q"
+            value="{{ $q ?? '' }}"
+            placeholder="Tìm theo tiêu đề chương"
+            aria-label="Tìm theo tiêu đề chương"
+            autocomplete="off"
+        />
+        <select name="tts" class="stories-filter-bar__genre" style="min-width: 12rem; max-width: 16rem;" aria-label="Lọc trạng thái TTS">
+            <option value="" @selected(($tts ?? '') === '')>Mọi trạng thái TTS</option>
+            <option value="ready" @selected(($tts ?? '') === 'ready')>Đã có audio</option>
+            <option value="queued" @selected(($tts ?? '') === 'queued')>Đã xếp hàng TTS</option>
+            <option value="pending" @selected(($tts ?? '') === 'pending')>Chưa đẩy hàng (có nội dung)</option>
+            <option value="no_text" @selected(($tts ?? '') === 'no_text')>Thiếu nội dung (gần đúng)</option>
+        </select>
+        <select name="audio" class="stories-filter-bar__genre" aria-label="Lọc file audio">
+            <option value="" @selected(($audio ?? '') === '')>Audio: tất cả</option>
+            <option value="1" @selected(($audio ?? '') === '1')>Có đường dẫn audio</option>
+            <option value="0" @selected(($audio ?? '') === '0')>Chưa có audio</option>
+        </select>
+        <select name="sort" class="stories-filter-bar__genre" style="min-width: 13rem; max-width: 17rem;" aria-label="Sắp xếp">
+            <option value="read_asc" @selected(($sort ?? 'read_asc') === 'read_asc')>Thứ tự đọc (số chương ↑)</option>
+            <option value="read_desc" @selected(($sort ?? '') === 'read_desc')>Thứ tự đọc (số chương ↓)</option>
+            <option value="updated_desc" @selected(($sort ?? '') === 'updated_desc')>Cập nhật mới nhất</option>
+            <option value="updated_asc" @selected(($sort ?? '') === 'updated_asc')>Cập nhật cũ nhất</option>
+            <option value="id_desc" @selected(($sort ?? '') === 'id_desc')>ID chương mới → cũ</option>
+            <option value="id_asc" @selected(($sort ?? '') === 'id_asc')>ID chương cũ → mới</option>
+        </select>
+        <div class="stories-filter-bar__actions">
+            <button type="submit" class="btn btn-primary">Lọc</button>
+            @if (($q ?? '') !== '' || ($tts ?? '') !== '' || ($audio ?? '') !== '' || ($sort ?? 'read_asc') !== 'read_asc')
+                <a href="{{ url()->current() }}" class="btn">Xóa lọc</a>
+            @endif
+        </div>
+    </form>
+    @include('cms.partials.pagination', ['paginator' => $chapters, 'variant' => 'toolbar'])
     <div class="card card--table">
         <div class="table-scroll">
             <table>
@@ -67,6 +107,16 @@
                                 @endif
                             </td>
                             <td class="cms-story-row-actions">
+                                <a
+                                    class="icon-btn"
+                                    href="{{ $story->frontendReadChapterUrl((int) $chapter->id) }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Mở trang đọc chương trên web"
+                                    aria-label="Mở trang đọc chương trên web"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg>
+                                </a>
                                 <button
                                     type="button"
                                     class="icon-btn js-enqueue-tts"
@@ -97,7 +147,7 @@
             </table>
         </div>
     </div>
-    @include('cms.partials.pagination', ['paginator' => $chapters])
+    @include('cms.partials.pagination', ['paginator' => $chapters, 'variant' => 'footer'])
 @endsection
 
 @push('scripts')

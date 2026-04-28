@@ -45,6 +45,7 @@
             @endif
         </div>
     </form>
+    @include('cms.partials.pagination', ['paginator' => $stories, 'variant' => 'toolbar'])
     <div class="card card--table">
         <div class="table-scroll">
             <table>
@@ -137,5 +138,5 @@
             </table>
         </div>
     </div>
-    @include('cms.partials.pagination', ['paginator' => $stories])
+    @include('cms.partials.pagination', ['paginator' => $stories, 'variant' => 'footer'])
 @endsection

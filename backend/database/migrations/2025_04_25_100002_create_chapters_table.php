@@ -12,11 +12,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('story_id')->constrained()->cascadeOnDelete();
             $table->string('title');
+            $table->string('slug', 191);
             $table->unsignedInteger('chapter_number')->nullable();
             $table->longText('content');
             $table->string('audio_path')->nullable();
             $table->unsignedInteger('duration')->default(0);
             $table->index(['story_id', 'chapter_number', 'updated_at']);
+            $table->unique(['story_id', 'slug']);
             $table->timestamp('tts_enqueued_at')->nullable();
             $table->timestamps();
         });

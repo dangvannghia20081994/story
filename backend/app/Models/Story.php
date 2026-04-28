@@ -323,4 +323,10 @@ class Story extends Model
 
         return $root.'/stories/'.rawurlencode($key);
     }
+
+    /** Trang đọc một chương (Next) — query `chapter` = id chương, cùng quy ước `read/page.tsx`. */
+    public function frontendReadChapterUrl(int $chapterId): string
+    {
+        return $this->frontendDetailUrl().'/read?chapter='.(int) $chapterId;
+    }
 }

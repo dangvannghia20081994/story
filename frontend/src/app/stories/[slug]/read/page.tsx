@@ -390,11 +390,11 @@ function ReadStoryPageContent() {
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
             <Link
               href={`/stories/${encodeURIComponent(storySlug)}`}
-              className="shrink-0 rounded-full border border-zinc-200/90 bg-white/80 px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-indigo-800 dark:hover:text-indigo-300 sm:px-3 sm:text-sm"
+              className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-zinc-200/90 bg-white/80 px-3 text-xs font-medium text-zinc-600 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-indigo-800 dark:hover:text-indigo-300 sm:text-sm"
             >
               ← Truyện
             </Link>
-            <div className="hidden h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
+            <div className="hidden h-6 w-px shrink-0 self-center bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
             <div className="min-w-0 flex-1">
               <p className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-50 sm:truncate sm:leading-normal">
                 {story.title}
@@ -405,11 +405,11 @@ function ReadStoryPageContent() {
               </p>
             </div>
           </div>
-          <div className="flex w-full min-w-0 shrink-0 items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
+          <div className="flex w-full min-w-0 shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
             {ttsSupported !== false ? (
               <Link
                 href={storyListenHref(storyForListenLinks, currentChapter.id)}
-                className="min-h-[2.75rem] rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:text-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
+                className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:text-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
               >
                 Nghe (TTS)
               </Link>
@@ -418,7 +418,7 @@ function ReadStoryPageContent() {
                 role="button"
                 aria-disabled
                 title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
-                className="inline-flex min-h-[2.75rem] cursor-not-allowed items-center rounded-xl border border-zinc-200 bg-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-400 opacity-80 sm:text-sm dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-500"
+                className="inline-flex h-11 shrink-0 cursor-not-allowed items-center justify-center whitespace-nowrap rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-xs font-semibold text-zinc-400 opacity-80 sm:text-sm dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-500"
               >
                 Nghe (TTS)
               </span>
@@ -426,7 +426,7 @@ function ReadStoryPageContent() {
             {readChapterAudioUrl ? (
               <Link
                 href={storyListenAudioHref(storyForListenLinks, currentChapter.id)}
-                className="min-h-[2.75rem] rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:text-sm dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/55"
+                className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:text-sm dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/55"
               >
                 Nghe audio
               </Link>
@@ -434,30 +434,34 @@ function ReadStoryPageContent() {
             <button
               type="button"
               onClick={() => setShowToc((v) => !v)}
-              className={`min-h-[2.75rem] min-w-0 flex-1 truncate rounded-xl border px-3 py-2 text-left text-xs font-semibold transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
+              className={`inline-flex h-11 min-w-0 flex-1 items-center rounded-xl border px-3 text-left text-xs font-semibold transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
                 showToc
                   ? "border-indigo-300 bg-indigo-50 text-indigo-900 dark:border-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-100"
                   : "border-zinc-200 bg-white/80 text-zinc-800 hover:border-indigo-200 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-100 dark:hover:border-indigo-800"
               }`}
               aria-expanded={showToc}
             >
-              <span className="text-zinc-400 dark:text-zinc-500">Mục lục · </span>
-              {currentChapter?.title ?? "Chương"}
+              <span className="flex min-w-0 flex-1 items-center gap-0">
+                <span className="shrink-0 text-zinc-400 dark:text-zinc-500">Mục lục · </span>
+                <span className="min-w-0 truncate">{currentChapter?.title ?? "Chương"}</span>
+              </span>
             </button>
-            <div className="flex shrink-0 items-center self-center rounded-xl border border-zinc-200 bg-zinc-50/90 p-0.5 dark:border-zinc-700 dark:bg-zinc-900/80">
+            <div className="flex h-11 shrink-0 items-stretch overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/90 dark:border-zinc-700 dark:bg-zinc-900/80">
               <button
                 type="button"
                 onClick={() => setFontSize((s) => Math.max(14, s - 2))}
-                className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-white dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="inline-flex min-w-[2.25rem] items-center justify-center px-2 text-xs font-semibold text-zinc-600 hover:bg-white dark:text-zinc-400 dark:hover:bg-zinc-800"
                 aria-label="Giảm cỡ chữ"
               >
                 A-
               </button>
-              <span className="px-1 text-[10px] font-medium tabular-nums text-zinc-400">{fontSize}</span>
+              <span className="flex min-w-[1.75rem] items-center justify-center border-x border-zinc-200/90 bg-zinc-100/80 text-[10px] font-medium tabular-nums text-zinc-500 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-400">
+                {fontSize}
+              </span>
               <button
                 type="button"
                 onClick={() => setFontSize((s) => Math.min(28, s + 2))}
-                className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-white dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="inline-flex min-w-[2.25rem] items-center justify-center px-2 text-xs font-semibold text-zinc-600 hover:bg-white dark:text-zinc-400 dark:hover:bg-zinc-800"
                 aria-label="Tăng cỡ chữ"
               >
                 A+
