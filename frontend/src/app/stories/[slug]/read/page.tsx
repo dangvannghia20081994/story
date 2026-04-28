@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
+import { storyListenAudioHref, storyListenHref } from "@/lib/storyPath";
 
 type Chapter = {
   id: number;
@@ -98,6 +100,11 @@ async function fetchReadSlice(storySlug: string, chapterId: number): Promise<Sto
   const key = encodeURIComponent(storySlug);
   const res = await apiFetch<{ data: StoryShowRead }>(`/api/stories/${key}?read_chapter=${chapterId}`);
   return res.data;
+}
+
+function chapterAudioUrl(c: Chapter | undefined): string | null {
+  if (!c) return null;
+  return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
 }
 
 function ReadStoryPageContent() {
@@ -285,6 +292,12 @@ function ReadStoryPageContent() {
   const chapterOrdinal = readNav?.chapter_index ?? currentChapterIndex + 1;
   const pathSlugEnc = encodeURIComponent(storySlug);
 
+  const readChapterAudioUrl = useMemo(() => chapterAudioUrl(currentChapter), [currentChapter]);
+  const storyForListenLinks = useMemo(
+    () => ({ id: story?.id ?? 0, slug: storySlug }),
+    [story?.id, storySlug],
+  );
+
   const hasPrev = Boolean(readNav?.prev) || currentChapterIndex > 0;
   const hasNext = Boolean(readNav?.next) || currentChapterIndex < chapters.length - 1;
 
@@ -388,11 +401,19 @@ function ReadStoryPageContent() {
           </div>
           <div className="flex w-full min-w-0 shrink-0 items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
             <Link
-              href={`/stories/${pathSlugEnc}/listen?chapter=${currentChapter.id}`}
+              href={storyListenHref(storyForListenLinks, currentChapter.id)}
               className="min-h-[2.75rem] rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:text-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
             >
-              Nghe truyện
+              Nghe (TTS)
             </Link>
+            {readChapterAudioUrl ? (
+              <Link
+                href={storyListenAudioHref(storyForListenLinks, currentChapter.id)}
+                className="min-h-[2.75rem] rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:text-sm dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/55"
+              >
+                Nghe audio
+              </Link>
+            ) : null}
             <button
               type="button"
               onClick={() => setShowToc((v) => !v)}

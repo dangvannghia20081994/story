@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { storyListenHref, storyReadHref } from "@/lib/storyPath";
+import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
+import { storyListenAudioHref, storyListenHref, storyReadHref } from "@/lib/storyPath";
 
 export type StoryChapterListRow = {
   id: number;
   title: string;
+  audio_path?: string | null;
+  audio_url?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -87,31 +90,51 @@ export function StoryChapterList({
         </button>
       </div>
       <ul className="divide-y divide-zinc-200/90 overflow-hidden rounded-xl border border-zinc-200/80 dark:divide-zinc-800 dark:border-zinc-800">
-        {chapters.map((chapter) => (
-          <li
-            key={chapter.id}
-            className="flex flex-col gap-3 bg-white/40 px-4 py-3.5 transition hover:bg-white/90 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-3 dark:bg-zinc-950/20 dark:hover:bg-zinc-900/50"
-          >
-            <div className="min-w-0 flex-1 space-y-0.5">
-              <p className="font-medium text-zinc-900 dark:text-zinc-100">{chapter.title}</p>
-              <p className="text-xs tabular-nums text-zinc-500 dark:text-zinc-500">{chapterListDateTime(chapter)}</p>
-            </div>
-            <div className="flex shrink-0 gap-2 sm:pl-2">
-              <Link
-                href={storyReadHref(story, chapter.id)}
-                className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-800 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-200"
-              >
-                Đọc
-              </Link>
-              <Link
-                href={storyListenHref(story, chapter.id)}
-                className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
-              >
-                Nghe
-              </Link>
-            </div>
-          </li>
-        ))}
+        {chapters.map((chapter) => {
+          const audioHrefUrl = resolvePlayableAudioUrl(chapter.audio_url, chapter.audio_path);
+          return (
+            <li
+              key={chapter.id}
+              className="flex flex-col gap-3 bg-white/40 px-4 py-3.5 transition hover:bg-white/90 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-3 dark:bg-zinc-950/20 dark:hover:bg-zinc-900/50"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="font-medium text-zinc-900 dark:text-zinc-100">{chapter.title}</p>
+                <p className="text-xs tabular-nums text-zinc-500 dark:text-zinc-500">{chapterListDateTime(chapter)}</p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end sm:pl-2">
+                <Link
+                  href={storyReadHref(story, chapter.id)}
+                  className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-800 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-200"
+                >
+                  Đọc
+                </Link>
+                <Link
+                  href={storyListenHref(story, chapter.id)}
+                  className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
+                >
+                  TTS
+                </Link>
+                {audioHrefUrl ? (
+                  <Link
+                    href={storyListenAudioHref(story, chapter.id)}
+                    className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/55"
+                  >
+                    Audio
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    title="Chương này chưa có file audio"
+                    className="inline-flex cursor-not-allowed items-center rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-400 opacity-70 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-500"
+                  >
+                    Audio
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {showExpandMore ? (
         <div className="mt-4 flex justify-center">

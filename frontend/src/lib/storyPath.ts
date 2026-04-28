@@ -20,3 +20,10 @@ export function storyListenHref(story: { id: number; slug?: string | null }, cha
   if (chapterId == null) return base;
   return `${base}?chapter=${chapterId}`;
 }
+
+/** Nghe bằng file audio (AudioPlayer). TODO: có thể giới hạn tài khoản trả phí. */
+export function storyListenAudioHref(story: { id: number; slug?: string | null }, chapterId?: number): string {
+  const base = `${storyDetailHref(story)}/listen-audio`;
+  if (chapterId == null) return base;
+  return `${base}?chapter=${chapterId}`;
+}

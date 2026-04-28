@@ -9,6 +9,7 @@ import { genreLabel } from "@/lib/genreLabels";
 import { storyGenreSlugs } from "@/lib/storyGenres";
 import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
+import { StoryListenAudioPrimaryButton } from "./StoryListenAudioPrimaryButton";
 import { StoryReadPrimaryButton } from "./StoryReadPrimaryButton";
 import { StoryListenPrimaryButton } from "./StoryListenPrimaryButton";
 
@@ -127,6 +128,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                 <>
                   <StoryReadPrimaryButton storyKey={slug} story={s} />
                   <StoryListenPrimaryButton storyKey={slug} story={s} />
+                  {withAudioTotal > 0 ? <StoryListenAudioPrimaryButton storyKey={slug} story={s} /> : null}
                 </>
               ) : null}
               <StoryAddChapterButton

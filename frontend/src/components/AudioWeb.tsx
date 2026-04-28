@@ -113,18 +113,34 @@ export type AudioWebProps = {
   className?: string;
   sentenceElementsRef?: MutableRefObject<(HTMLElement | null)[]>;
   onHighlightChange?: (state: AudioWebReadingHighlight) => void;
+  /** Chuyển chương (trang listen): hiện nút Prev/Next cạnh tua câu khi cả hai callback đều có. */
+  onGoToPreviousChapter?: () => void;
+  onGoToNextChapter?: () => void;
+  canGoToPreviousChapter?: boolean;
+  canGoToNextChapter?: boolean;
 };
 
 function chipClass(active: boolean) {
-  return `rounded-full border px-2 py-0.5 text-[11px] transition cursor-pointer ${
+  return `rounded-full border px-2 py-0.5 text-[11px] font-medium transition cursor-pointer ${
     active
-      ? "border-blue-500 bg-blue-500 text-white"
-      : "border-gray-300 bg-white text-gray-500 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+      ? "border-transparent bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-500/25 dark:from-indigo-500 dark:to-violet-500 dark:shadow-indigo-900/40"
+      : "border-gray-300 bg-white text-gray-600 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50/90 hover:to-violet-50/80 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:border-indigo-500/50 dark:hover:from-indigo-950/40 dark:hover:to-violet-950/30"
   }`;
 }
 
 export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function AudioWeb(
-  { text, onReadthroughEnd, positionStorageKey, className = "", sentenceElementsRef, onHighlightChange },
+  {
+    text,
+    onReadthroughEnd,
+    positionStorageKey,
+    className = "",
+    sentenceElementsRef,
+    onHighlightChange,
+    onGoToPreviousChapter,
+    onGoToNextChapter,
+    canGoToPreviousChapter = false,
+    canGoToNextChapter = false,
+  },
   ref,
 ) {
   const [sentences, setSentences] = useState<string[]>([]);
@@ -170,6 +186,19 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   currentIndexRef.current = currentIndex;
   onHighlightChangeRef.current = onHighlightChange;
   onReadthroughEndRef.current = onReadthroughEnd;
+
+  useEffect(() => {
+    return () => {
+      isPlayingRef.current = false;
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -354,59 +383,80 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   }, []);
 
   const speakFrom = useCallback(
-    (index: number) => {
+    (startIndex: number) => {
       if (typeof window === "undefined" || !window.speechSynthesis) return;
       const list = sentencesRef.current;
-      if (index < 0 || index >= list.length) return;
+      if (startIndex < 0 || startIndex >= list.length) return;
 
       window.speechSynthesis.cancel();
       setWordRange(null);
 
-      const utterance = new SpeechSynthesisUtterance(list[index]);
-      const lang = speechLangRef.current?.trim() || "vi-VN";
-      utterance.lang = lang;
-      utterance.rate = Math.min(2, Math.max(0.5, rateRef.current));
-      utterance.volume = Math.max(0, Math.min(1, volumeRef.current));
+      isPlayingRef.current = true;
+      setIsPlaying(true);
+      setCurrentIndex(startIndex);
 
-      const v = resolveVoiceForLang(voices, lang, voiceUriRef.current);
-      if (v) utterance.voice = v;
+      // Speak one sentence at a time — chain via onend to avoid inter-sentence delay
+      const speakOne = (i: number) => {
+        // Guard: stop if playback was cancelled externally
+        if (!isPlayingRef.current) return;
 
-      utterance.onstart = () => {
-        setCurrentIndex(index);
-        setIsPlaying(true);
-        setWordRange(null);
-      };
+        const list = sentencesRef.current;
+        if (i < 0 || i >= list.length) return;
 
-      utterance.onboundary = (event) => {
-        if (event.name !== "word" || typeof event.charIndex !== "number") return;
-        const sentence = list[index];
-        const from = event.charIndex;
-        const tail = sentence.slice(from);
-        const m = tail.match(/^\S+/);
-        const len = m ? m[0].length : 0;
-        if (len > 0) {
-          setWordRange({ start: from, end: from + len });
-        }
-      };
+        const sentenceText = list[i];
+        const lang = speechLangRef.current?.trim() || "vi-VN";
+        const safeRate = Math.min(2, Math.max(0.5, rateRef.current));
+        const safeVol = Math.max(0, Math.min(1, volumeRef.current));
+        const v = resolveVoiceForLang(voices, lang, voiceUriRef.current);
 
-      utterance.onend = () => {
-        setWordRange(null);
-        if (index < list.length - 1) {
-          speakFrom(index + 1);
-        } else {
+        const utterance = new SpeechSynthesisUtterance(sentenceText);
+        utterance.lang = lang;
+        utterance.rate = safeRate;
+        utterance.volume = safeVol;
+        if (v) utterance.voice = v;
+
+        utterance.onstart = () => {
+          setCurrentIndex(i);
+          setIsPlaying(true);
+          setWordRange(null);
+        };
+
+        utterance.onboundary = (event) => {
+          if (event.name !== "word" || typeof event.charIndex !== "number") return;
+          const from = event.charIndex;
+          const tail = sentenceText.slice(from);
+          const m = tail.match(/^\S+/);
+          const len = m ? m[0].length : 0;
+          if (len > 0) setWordRange({ start: from, end: from + len });
+        };
+
+        utterance.onend = () => {
+          setWordRange(null);
+          if (!isPlayingRef.current) return;
+          const next = i + 1;
+          if (next < sentencesRef.current.length) {
+            // Tiny setTimeout(0) prevents Chrome's internal queue delay
+            setTimeout(() => speakOne(next), 0);
+          } else {
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+            setCurrentIndex(-1);
+            onReadthroughEndRef.current?.();
+          }
+        };
+
+        utterance.onerror = (event) => {
+          const code = event.error;
+          if (code === "canceled" || code === "interrupted") return;
           isPlayingRef.current = false;
           setIsPlaying(false);
-          setCurrentIndex(-1);
-          onReadthroughEndRef.current?.();
-        }
+          setWordRange(null);
+        };
+
+        window.speechSynthesis.speak(utterance);
       };
 
-      utterance.onerror = () => {
-        setIsPlaying(false);
-        setWordRange(null);
-      };
-
-      window.speechSynthesis.speak(utterance);
+      speakOne(startIndex);
     },
     [voices],
   );
@@ -508,6 +558,9 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
 
   const volumePercent = Math.round(volume * 100);
 
+  const showChapterNavControls =
+    typeof onGoToPreviousChapter === "function" && typeof onGoToNextChapter === "function";
+
   return (
     <div
       className={`w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 ${className}`}
@@ -552,23 +605,37 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             className="relative h-1.5 cursor-pointer rounded-full border border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-700"
           >
             <div
-              className="h-full rounded-full bg-blue-500 transition-[width] duration-300"
+              className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 transition-[width] duration-300 dark:from-indigo-400 dark:via-violet-500 dark:to-sky-400"
               style={{ width: `${progressPct}%` }}
             />
             <div
-              className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-500 bg-white transition-[left] duration-300 dark:bg-gray-900"
+              className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-indigo-500 bg-white shadow-sm ring-1 ring-indigo-500/30 transition-[left] duration-300 dark:border-violet-400 dark:bg-gray-900 dark:ring-violet-400/25"
               style={{ left: `${progressPct}%` }}
             />
           </div>
         </div>
 
-        <div className="mb-4 flex items-center justify-center gap-4">
+        <div
+          className={`mb-4 flex items-center justify-center ${showChapterNavControls ? "gap-2 sm:gap-2.5" : "gap-4"}`}
+        >
+          {showChapterNavControls ? (
+            <button
+              type="button"
+              onClick={onGoToPreviousChapter}
+              disabled={!canGoToPreviousChapter}
+              aria-label="Chương trước"
+              title="Chương trước"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+            >
+              <ChapterNavPrevIcon />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => skipSentences(-1)}
             disabled={sentences.length === 0}
             aria-label="Câu trước"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
           >
             <SkipBackIcon />
           </button>
@@ -578,7 +645,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             onClick={togglePlay}
             disabled={sentences.length === 0}
             aria-label={isPlaying ? "Tạm dừng" : "Phát"}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-500 transition hover:bg-blue-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-500/40 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/50"
           >
             {isPlaying ? <PauseIcon /> : <PlayIcon />}
           </button>
@@ -588,10 +655,22 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             onClick={() => skipSentences(1)}
             disabled={sentences.length === 0}
             aria-label="Câu sau"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
           >
             <SkipForwardIcon />
           </button>
+          {showChapterNavControls ? (
+            <button
+              type="button"
+              onClick={onGoToNextChapter}
+              disabled={!canGoToNextChapter}
+              aria-label="Chương sau"
+              title="Chương sau"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+            >
+              <ChapterNavNextIcon />
+            </button>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -610,7 +689,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
               value={volume}
               onChange={handleVolumeChange}
               aria-label="Âm lượng"
-              className="w-full accent-blue-500"
+              className="w-full accent-indigo-600 dark:accent-violet-400"
             />
           </div>
 
@@ -671,7 +750,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
               <div
-                className="h-full rounded-full bg-blue-500 transition-[width] duration-1000"
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width] duration-1000 dark:from-indigo-400 dark:to-violet-400"
                 style={{ width: `${timerPct}%` }}
               />
             </div>
@@ -777,6 +856,43 @@ function SkipForwardIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
       <polyline points="13 18 18 12 13 6" />
       <polyline points="6 18 11 12 6 6" />
+    </svg>
+  );
+}
+
+/** Hai mũi tên trái — chuyển chương (khác icon tua câu). */
+function ChapterNavPrevIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M11.25 19l-6.75-7 6.75-7M18 19l-6.75-7 6.75-7" />
+    </svg>
+  );
+}
+
+function ChapterNavNextIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12.75 5l6.75 7-6.75 7M6 5l6.75 7-6.75 7" />
     </svg>
   );
 }

@@ -41,8 +41,8 @@ interface AudioPlayerProps {
   onChapterChange?: (chapterId: number) => void;
   /** Gộp vào card cha: bỏ viền/hộp mặc định */
   unstyled?: boolean;
-  /** Trang chi tiết / trang đọc: giao diện player nổi bật (`read` = dock dưới, gọn hơn) */
-  layout?: "default" | "detail" | "read";
+  /** Trang chi tiết / trang đọc: giao diện player nổi bật (`read` = dock dưới, gọn hơn). `audioweb` = giống khối AudioWeb (file MP3). */
+  layout?: "default" | "detail" | "read" | "audioweb";
   /** Chương khớp với `src` ban đầu (SSR) — highlight đúng pill */
   initialChapterId?: number | null;
   /** Gọi khi đang phát (đã throttle) — ví dụ đồng bộ scroll nội dung */
@@ -69,6 +69,14 @@ const SLEEP_OPTIONS = [
   { label: "60 phút", minutes: 60 },
   { label: "90 phút", minutes: 90 },
 ];
+
+function audiowebChipClass(active: boolean) {
+  return `rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
+    active
+      ? "border-transparent bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-500/25 dark:from-indigo-500 dark:to-violet-500 dark:shadow-indigo-900/40"
+      : "border-gray-300 bg-white text-gray-600 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50/90 hover:to-violet-50/80 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:border-indigo-500/40 dark:hover:from-indigo-950/40 dark:hover:to-violet-950/30"
+  }`;
+}
 
 export function AudioPlayer({
   src,
@@ -509,6 +517,23 @@ export function AudioPlayer({
     cb(el.currentTime, d);
   }, [duration, hintD]);
 
+  const skipAudioSeconds = useCallback(
+    (delta: number) => {
+      if (speechEnabled) return;
+      const el = audioRef.current;
+      if (!el) return;
+      const fromEl = normalizeMediaDuration(el.duration);
+      const fromState = normalizeMediaDuration(duration);
+      const d = fromEl > 0 ? fromEl : fromState > 0 ? fromState : hintD;
+      if (d <= 0) return;
+      const next = Math.min(Math.max(0, el.currentTime + delta), d);
+      el.currentTime = next;
+      setCurrentTime(next);
+      emitSeekComplete();
+    },
+    [duration, emitSeekComplete, hintD, speechEnabled],
+  );
+
   /** Trong lúc `seeking`, một số trình duyệt vẫn bắn `timeupdate` với `currentTime` tạm (vd. 0) — không cập nhật UI. */
   const handleTimeUpdate = useCallback(() => {
     const el = audioRef.current;
@@ -683,14 +708,41 @@ export function AudioPlayer({
     uiDuration > 0 ? uiDuration : Math.max(1, Number.isFinite(uiCurrentTime) ? uiCurrentTime : 0);
   const pct = uiDuration > 0 ? Math.min(100, (uiCurrentTime / uiDuration) * 100) : 0;
 
+  const volumePercentAwb = Math.round(volume * 100);
+  const remainAudioSec = Math.max(0, uiDuration - uiCurrentTime);
+  const timerPctAwb =
+    sleepTimer > 0 && sleepTimeLeft != null && sleepTimeLeft > 0
+      ? (sleepTimeLeft / (sleepTimer * 60)) * 100
+      : 0;
+
+  const audiowebPrevChapter =
+    chapterIndex > 0 ? chapters[chapterIndex - 1] : undefined;
+  const audiowebNextChapter =
+    chapterIndex >= 0 && chapterIndex < chapters.length - 1
+      ? chapters[chapterIndex + 1]
+      : undefined;
+  const audiowebCanGoPrev = Boolean(
+    audiowebPrevChapter &&
+      (audiowebPrevChapter.audio_url?.trim() || audiowebPrevChapter.speech_text?.trim()),
+  );
+  const audiowebCanGoNext = Boolean(
+    audiowebNextChapter &&
+      (audiowebNextChapter.audio_url?.trim() || audiowebNextChapter.speech_text?.trim()),
+  );
+  const audiowebShowChapterNav = chapters.length > 1 && chapterIndex >= 0;
+
   const premiumShell =
     "relative overflow-hidden border border-indigo-200/40 bg-gradient-to-b from-indigo-50/90 via-white to-violet-50/50 shadow-[0_20px_50px_-20px_rgba(99,102,241,0.35)] dark:border-indigo-900/40 dark:from-indigo-950/40 dark:via-zinc-950 dark:to-violet-950/20";
   /** Trang đọc: dock gọn, bớt đổ bóng để tiết kiệm không gian. */
   /** `overflow-visible` để menu cài đặt (`bottom-full`) không bị cắt bởi vỏ dock. */
   const readDockShell =
     "relative overflow-visible border border-indigo-200/35 bg-gradient-to-b from-indigo-50/80 via-white to-violet-50/40 shadow-[0_10px_28px_-16px_rgba(99,102,241,0.22)] dark:border-indigo-900/35 dark:from-indigo-950/35 dark:via-zinc-950 dark:to-violet-950/15";
-  const shellClass =
-    layout === "detail"
+  const audiowebLayout = layout === "audioweb" && !speechEnabled;
+  const audiowebShell =
+    "relative w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-900";
+  const shellClass = audiowebLayout
+    ? audiowebShell
+    : layout === "detail"
       ? `${premiumShell} rounded-2xl`
       : layout === "read"
         ? `${readDockShell} rounded-t-2xl rounded-b-none border-b-0`
@@ -736,7 +788,233 @@ export function AudioPlayer({
         onDurationChange={syncDurationFromAudio}
       />
 
-      {showPremiumLayout ? (
+      {audiowebLayout ? (
+        <>
+          <div className="relative z-10 px-4 py-3 sm:px-5 sm:py-4">
+          {autoplayBlockedMessage ? (
+            <p
+              role="status"
+              className="mb-3 text-center text-xs leading-snug text-amber-800 dark:text-amber-200/95"
+            >
+              {autoplayBlockedMessage}
+            </p>
+          ) : null}
+
+          <div className="mb-3 max-h-20 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 dark:border-gray-700 dark:bg-gray-800 sm:max-h-24 sm:mb-4 sm:py-2">
+            {storyTitle ? (
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                {storyTitle}
+              </p>
+            ) : null}
+            <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
+              {title?.trim()
+                ? title
+                : "Đang phát file audio — dùng thanh trượt hoặc tua ±15 giây để tìm đoạn."}
+            </p>
+          </div>
+
+          <div className="mb-3 sm:mb-4">
+            <div className="mb-1.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+              <span className="tabular-nums">
+                {formatTime(uiCurrentTime)} / {formatTime(uiDuration)}
+              </span>
+              <span className="tabular-nums">{playbackRate}×</span>
+              <span className="tabular-nums">Còn {formatTime(remainAudioSec)}</span>
+            </div>
+            <div
+              role="slider"
+              tabIndex={0}
+              aria-valuemin={0}
+              aria-valuemax={Math.max(0, Math.floor(seekMax))}
+              aria-valuenow={Math.min(Math.floor(uiCurrentTime), Math.floor(seekMax))}
+              aria-label="Tiến độ phát"
+              className="relative h-1.5 cursor-pointer rounded-full border border-gray-200 bg-gray-100 outline-none dark:border-gray-600 dark:bg-gray-700"
+              onPointerDown={onSeekTrackPointerDown}
+              onPointerMove={onSeekTrackPointerMove}
+              onPointerUp={onSeekTrackPointerUp}
+              onPointerCancel={onSeekTrackPointerUp}
+              onKeyDown={onSeekTrackKeyDown}
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 transition-[width] duration-150 dark:from-indigo-400 dark:via-violet-500 dark:to-sky-400"
+                style={{ width: `${pct}%` }}
+              />
+              <div
+                className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-indigo-500 bg-white shadow-sm ring-1 ring-indigo-500/30 transition-[left] duration-150 dark:border-violet-400 dark:bg-gray-900 dark:ring-violet-400/25"
+                style={{ left: `${pct}%` }}
+              />
+            </div>
+          </div>
+
+          <div
+            className={`mb-3 flex items-center justify-center sm:mb-4 ${audiowebShowChapterNav ? "gap-2 sm:gap-2.5" : "gap-4"}`}
+          >
+            {audiowebShowChapterNav ? (
+              <button
+                type="button"
+                onClick={() => audiowebPrevChapter && handleChapterSelect(audiowebPrevChapter)}
+                disabled={!audiowebCanGoPrev}
+                aria-label="Chương trước"
+                title="Chương trước"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+              >
+                <AudiowebChapterNavPrevIcon />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => skipAudioSeconds(-15)}
+              aria-label="Lùi 15 giây"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <polyline points="11 18 6 12 11 6" />
+                <polyline points="18 18 13 12 18 6" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              onClick={togglePlay}
+              aria-label={uiPlaying ? "Tạm dừng" : "Phát"}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 transition hover:from-indigo-500 hover:to-violet-500 active:scale-95 dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/50"
+            >
+              {uiPlaying ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden>
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden>
+                  <polygon points="5,3 19,12 5,21" />
+                </svg>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => skipAudioSeconds(15)}
+              aria-label="Tiến 15 giây"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <polyline points="13 18 18 12 13 6" />
+                <polyline points="6 18 11 12 6 6" />
+              </svg>
+            </button>
+            {audiowebShowChapterNav ? (
+              <button
+                type="button"
+                onClick={() => audiowebNextChapter && handleChapterSelect(audiowebNextChapter)}
+                disabled={!audiowebCanGoNext}
+                aria-label="Chương sau"
+                title="Chương sau"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+              >
+                <AudiowebChapterNavNextIcon />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Âm lượng
+                </span>
+                <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{volumePercentAwb}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={volume}
+                onChange={handleVolumeChange}
+                aria-label="Âm lượng"
+                className="w-full accent-indigo-600 dark:accent-violet-400"
+              />
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Tốc độ
+                </span>
+                <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{playbackRate}×</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {SPEED_OPTIONS.map((s) => (
+                  <button key={s} type="button" onClick={() => handleSpeedChange(s)} className={audiowebChipClass(playbackRate === s)}>
+                    {s}×
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Hẹn giờ tắt
+                </span>
+                <span className="text-xs font-medium text-gray-800 dark:text-gray-100">
+                  {sleepTimer > 0 ? `${sleepTimer} phút` : "Tắt"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {SLEEP_OPTIONS.map((t) => (
+                  <button
+                    key={t.minutes}
+                    type="button"
+                    onClick={() => setSleepTimer(t.minutes)}
+                    className={audiowebChipClass(sleepTimer === t.minutes)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Còn lại
+                </span>
+                <span className="text-xs font-medium text-gray-800 dark:text-gray-100">
+                  {sleepTimer > 0 && sleepTimeLeft != null && sleepTimeLeft > 0 ? formatSleepTime(sleepTimeLeft) : "--:--"}
+                </span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width] duration-1000 dark:from-indigo-400 dark:to-violet-400"
+                  style={{ width: `${timerPctAwb}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+                {sleepTimer > 0 ? "Tự động tắt sau khi hết giờ" : "Không hẹn giờ"}
+              </p>
+            </div>
+          </div>
+          </div>
+
+          <div className="relative z-10 flex flex-wrap items-center gap-2 border-t border-gray-200 bg-gray-50 px-5 py-3 dark:border-gray-700 dark:bg-gray-800">
+            <div
+              className={`h-2 w-2 shrink-0 rounded-full ${uiPlaying ? "animate-pulse bg-green-500" : "bg-gray-400 dark:bg-gray-500"}`}
+            />
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {uiPlaying ? "Đang phát…" : "Sẵn sàng"}
+            </span>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+              <span
+                className="max-w-[min(11rem,42vw)] shrink truncate rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                title="Nghe TTS và chọn ngôn ngữ/giọng ở trang Giọng trình duyệt"
+              >
+                Chỉ file âm thanh
+              </span>
+            </div>
+          </div>
+        </>
+      ) : showPremiumLayout ? (
         <div className="relative z-10">
           <div
             className={`w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 ${readCompact ? "h-0.5" : "h-1"}`}
@@ -1379,5 +1657,41 @@ export function AudioPlayer({
           )
         : null}
     </div>
+  );
+}
+
+function AudiowebChapterNavPrevIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M11.25 19l-6.75-7 6.75-7M18 19l-6.75-7 6.75-7" />
+    </svg>
+  );
+}
+
+function AudiowebChapterNavNextIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12.75 5l6.75 7-6.75 7M6 5l6.75 7-6.75 7" />
+    </svg>
   );
 }
