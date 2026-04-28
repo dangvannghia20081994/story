@@ -163,9 +163,12 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
             <legend className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Thể loại (chọn nhiều)
             </legend>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col items-start gap-2">
               {GENRES.map((g) => (
-                <label key={g.value} className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800 dark:text-zinc-200">
+                <label
+                  key={g.value}
+                  className="inline-flex max-w-full cursor-pointer select-none items-center gap-2 rounded-md py-0.5 text-sm text-zinc-800 dark:text-zinc-200"
+                >
                   <input
                     type="checkbox"
                     checked={formData.genres.includes(g.value)}
@@ -180,9 +183,9 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
                           : prev.genres.filter((x) => x !== g.value),
                       }));
                     }}
-                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600"
+                    className="shrink-0 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600"
                   />
-                  {g.label}
+                  <span className="min-w-0">{g.label}</span>
                 </label>
               ))}
             </div>

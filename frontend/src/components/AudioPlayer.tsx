@@ -9,6 +9,11 @@ import {
   filterVietnameseVoices,
   logVietnameseVoiceAvailability,
 } from "@/lib/browserSpeech";
+import {
+  initialSleepFromPrefs,
+  loadAudioReadPrefs,
+  saveAudioReadPrefs,
+} from "@/lib/audioReadPreferences";
 
 function normalizeMediaDuration(raw: number): number {
   if (!Number.isFinite(raw) || raw <= 0 || raw === Number.POSITIVE_INFINITY) {
@@ -47,8 +52,8 @@ interface AudioPlayerProps {
   /** Giây từ backend khi `audio.duration` chưa sẵn sàng (trang đọc). */
   durationHintSec?: number | null;
   /**
-   * Chương kế tiếp khi phát hết file (layout read): tự chuyển `src` + gọi `onChapterChange` + phát tiếp.
-   * Không dùng khi đọc bằng giọng trình duyệt (`speechEnabled`).
+   * Chương kế tiếp khi phát hết file (layout read): gọi `onChapterChange` rồi thử `play()` khi file mới sẵn sàng.
+   * Trình duyệt có thể chặn (autoplay policy). Không dùng khi đọc bằng giọng trình duyệt (`speechEnabled`).
    */
   autoAdvanceChapter?: AudioChapterItem | null;
 }
@@ -90,8 +95,8 @@ export function AudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const [volume, setVolume] = useState(() => loadAudioReadPrefs().volume);
+  const [playbackRate, setPlaybackRate] = useState(() => loadAudioReadPrefs().playbackRate);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showReadSettings, setShowReadSettings] = useState(false);
@@ -100,10 +105,16 @@ export function AudioPlayer({
     right: number;
     maxHeight: number;
   } | null>(null);
-  const [sleepTimer, setSleepTimer] = useState(0);
-  const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(null);
+  const sleepInit = initialSleepFromPrefs(loadAudioReadPrefs());
+  const [sleepTimer, setSleepTimer] = useState(sleepInit.preset);
+  const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(sleepInit.left);
+  const isFirstSleepEffectRef = useRef(true);
+  /** Chỉ dùng lần đầu effect [sleepTimer] chạy — tránh phụ thuộc `sleepTimeLeft` làm effect chạy lại mỗi giây. */
+  const initialSleepLeftRef = useRef<number | null>(sleepInit.left);
   const [currentChapterId, setCurrentChapterId] = useState<number | null>(initialChapterId);
+  /** Chỉ bật khi vừa hết file và chuyển chương kế — dùng với `canplay` để gọi `play()` (Chrome có thể chặn nếu không còn tương tác). */
   const autoplayAfterSrcChangeRef = useRef(false);
+  const [autoplayBlockedMessage, setAutoplayBlockedMessage] = useState<string | null>(null);
   const autoAdvanceChapterRef = useRef(autoAdvanceChapter);
   autoAdvanceChapterRef.current = autoAdvanceChapter;
   const [showChapterList, setShowChapterList] = useState(false);
@@ -190,9 +201,27 @@ export function AudioPlayer({
     onSeekCompleteRef.current = onSeekComplete;
   }, [onSeekComplete]);
 
-  useEffect(() => {
+  /**
+   * Đồng bộ prop `src` vào state trong phase layout (trước các effect metadata/canplay).
+   * Nếu dùng `useEffect`, một render `src` đã mới còn `activeSrc` cũ → `<audio>` và effect [activeSrc] lệch,
+   * autoplay sau `ended` có thể không gắn listener / không gọi `play()` đúng lúc.
+   */
+  useLayoutEffect(() => {
     setActiveSrc(src);
   }, [src]);
+
+  useLayoutEffect(() => {
+    const el = audioRef.current;
+    if (!el || speechEnabled) return;
+    el.volume = volume;
+    el.playbackRate = playbackRate;
+  }, [activeSrc, volume, playbackRate, speechEnabled]);
+
+  useEffect(() => {
+    if (sleepTimeLeft !== 0) return;
+    if (sleepTimer <= 0) return;
+    setSleepTimer(0);
+  }, [sleepTimeLeft, sleepTimer]);
 
   const syncDurationFromAudio = useCallback(() => {
     const el = audioRef.current;
@@ -208,6 +237,7 @@ export function AudioPlayer({
     const el = audioRef.current;
     if (!el) return;
 
+    setAutoplayBlockedMessage(null);
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
@@ -223,21 +253,32 @@ export function AudioPlayer({
         return;
       }
       autoplayAfterSrcChangeRef.current = false;
-      void el.play().catch(() => {});
+      void el.play().catch((err: unknown) => {
+        const name = err && typeof err === "object" && "name" in err ? (err as { name?: string }).name : "";
+        if (name === "NotAllowedError") {
+          setAutoplayBlockedMessage(
+            "Trình duyệt chặn tự phát chương tiếp — bấm Phát để nghe (chính sách autoplay của Chrome/Safari).",
+          );
+        }
+      });
     };
 
     el.addEventListener("loadedmetadata", onMeta);
     el.addEventListener("durationchange", onDur);
     el.addEventListener("loadeddata", onLoadedData);
     el.addEventListener("canplay", playWhenReady, { once: true });
+    if (autoplayAfterSrcChangeRef.current && el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      queueMicrotask(playWhenReady);
+    }
 
+    /* cleanup; effect deps gồm `src` để parent đổi URL trước khi `activeSrc` khớp vẫn gắn lại canplay/autoplay. */
     return () => {
       el.removeEventListener("loadedmetadata", onMeta);
       el.removeEventListener("durationchange", onDur);
       el.removeEventListener("loadeddata", onLoadedData);
       el.removeEventListener("canplay", playWhenReady);
     };
-  }, [activeSrc, syncDurationFromAudio]);
+  }, [activeSrc, src, syncDurationFromAudio]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -262,10 +303,27 @@ export function AudioPlayer({
   useEffect(() => {
     if (sleepTimer <= 0) {
       setSleepTimeLeft(null);
+      saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
+      isFirstSleepEffectRef.current = false;
       return;
     }
 
-    setSleepTimeLeft(sleepTimer * 60);
+    if (isFirstSleepEffectRef.current) {
+      isFirstSleepEffectRef.current = false;
+      const leftNow = initialSleepLeftRef.current ?? sleepTimer * 60;
+      initialSleepLeftRef.current = null;
+      saveAudioReadPrefs({
+        sleepPresetMinutes: sleepTimer,
+        sleepDeadlineAt: Date.now() + leftNow * 1000,
+      });
+    } else {
+      const full = sleepTimer * 60;
+      setSleepTimeLeft(full);
+      saveAudioReadPrefs({
+        sleepPresetMinutes: sleepTimer,
+        sleepDeadlineAt: Date.now() + full * 1000,
+      });
+    }
 
     const interval = setInterval(() => {
       setSleepTimeLeft((prev) => {
@@ -276,14 +334,23 @@ export function AudioPlayer({
           if (typeof window !== "undefined" && window.speechSynthesis) {
             window.speechSynthesis.cancel();
           }
+          saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
           return 0;
         }
-        return prev - 1;
+        const next = prev - 1;
+        if (next > 0 && next % 12 === 0) {
+          saveAudioReadPrefs({
+            sleepPresetMinutes: sleepTimer,
+            sleepDeadlineAt: Date.now() + next * 1000,
+          });
+        }
+        return next;
       });
     }, 1000);
 
     return () => clearInterval(interval);
   }, [sleepTimer]);
+
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -344,7 +411,10 @@ export function AudioPlayer({
     const el = audioRef.current;
     if (!el) return;
     if (el.paused) {
-      void el.play();
+      void el
+        .play()
+        .then(() => setAutoplayBlockedMessage(null))
+        .catch(() => {});
     } else {
       el.pause();
     }
@@ -470,6 +540,7 @@ export function AudioPlayer({
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = parseFloat(e.target.value);
     setVolume(vol);
+    saveAudioReadPrefs({ volume: vol });
     if (audioRef.current) {
       audioRef.current.volume = vol;
     }
@@ -477,6 +548,7 @@ export function AudioPlayer({
 
   const handleSpeedChange = useCallback((speed: number) => {
     setPlaybackRate(speed);
+    saveAudioReadPrefs({ playbackRate: speed });
     if (audioRef.current) {
       audioRef.current.playbackRate = speed;
     }
@@ -748,6 +820,15 @@ export function AudioPlayer({
               </p>
             ) : null}
           </div>
+
+          {autoplayBlockedMessage ? (
+            <p
+              role="status"
+              className={`mb-1 text-center leading-snug text-amber-900/95 dark:text-amber-200/95 ${readCompact ? "text-[10px]" : "text-xs"}`}
+            >
+              {autoplayBlockedMessage}
+            </p>
+          ) : null}
 
           <div
             className={`flex min-w-0 items-center ${readCompact ? "justify-between gap-2" : "flex-wrap gap-2 sm:gap-3"}`}

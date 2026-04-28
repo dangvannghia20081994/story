@@ -34,7 +34,7 @@ class ChapterController extends Controller
 
         $paginator->getCollection()->transform(function (Chapter $chapter) {
             return array_merge($chapter->toArray(), [
-                'audio_url' => $chapter->publicAudioUrl(),
+                'audio_url' => $chapter->signedAudioStreamUrl(),
             ]);
         });
 
@@ -63,7 +63,7 @@ class ChapterController extends Controller
 
         return response()->json(
             array_merge($chapter->toArray(), [
-                'audio_url' => $chapter->publicAudioUrl(),
+                'audio_url' => $chapter->signedAudioStreamUrl(),
                 'chapter_created' => $outcome['created'],
             ]),
             $outcome['created'] ? 201 : 200
@@ -76,7 +76,7 @@ class ChapterController extends Controller
 
         return response()->json([
             'data' => array_merge($chapter->toArray(), [
-                'audio_url' => $chapter->publicAudioUrl(),
+                'audio_url' => $chapter->signedAudioStreamUrl(),
             ]),
         ]);
     }
@@ -101,7 +101,7 @@ class ChapterController extends Controller
 
         return response()->json([
             'data' => array_merge($fresh->toArray(), [
-                'audio_url' => $fresh->publicAudioUrl(),
+                'audio_url' => $fresh->signedAudioStreamUrl(),
             ]),
         ]);
     }

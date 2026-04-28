@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
+import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import {
   AudioWeb,
@@ -12,10 +13,6 @@ import {
   type AudioWebHandle,
   type AudioWebReadingHighlight,
 } from "@/components/AudioWeb";
-
-function readProgressStorageKey(storyId: string): string {
-  return `story-read:${storyId}`;
-}
 
 type Chapter = {
   id: number;
@@ -59,11 +56,8 @@ function resolveInitialChapterId(storySlug: string, list: Chapter[]): number | n
       const id = parseInt(q, 10);
       if (Number.isFinite(id)) return id;
     }
-    const raw = localStorage.getItem(readProgressStorageKey(storySlug));
-    if (raw) {
-      const id = parseInt(raw, 10);
-      if (Number.isFinite(id)) return id;
-    }
+    const saved = getSavedChapterId(storySlug);
+    if (saved != null) return saved;
   } catch {
     /* ignore */
   }
@@ -118,6 +112,12 @@ async function fetchReadSlice(storySlug: string, chapterId: number): Promise<Sto
 
 const shell =
   "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
+
+function isKeyboardChapterNavBlocked(target: EventTarget | null): boolean {
+  const el = target instanceof HTMLElement ? target : null;
+  if (!el) return false;
+  return Boolean(el.closest("input, textarea, select, [contenteditable='true']"));
+}
 
 function ReadStoryPageContent() {
   const params = useParams();
@@ -313,11 +313,7 @@ function ReadStoryPageContent() {
     const fromQs = chapterParam ? parseInt(chapterParam, 10) : NaN;
     const id = Number.isFinite(fromQs) ? fromQs : chapters[currentChapterIndex]?.id;
     if (!Number.isFinite(id)) return;
-    try {
-      localStorage.setItem(readProgressStorageKey(storySlug), String(id));
-    } catch {
-      /* ignore */
-    }
+    setSavedChapterId(storySlug, id);
   }, [storySlug, chapterParam, chapters, currentChapterIndex, loading]);
 
   const chapterIdFromUrl = chapterParam ? parseInt(chapterParam, 10) : NaN;
@@ -349,22 +345,40 @@ function ReadStoryPageContent() {
   const hasNext = Boolean(readNav?.next) || currentChapterIndex < chapters.length - 1;
   const audioUrl = chapterAudioUrl(currentChapter);
 
+  /** Chương sau để AudioPlayer gọi `onChapterChange` + thử autoplay khi hết file — ưu tiên bản đầy đủ trong `chapters` (audio_path / URL đã resolve). */
   const autoAdvanceChapter = useMemo(() => {
-    const n = readNav?.next;
-    if (!n?.audio_url) {
+    const nextFromIndex = chapters[currentChapterIndex + 1];
+    const navNext = readNav?.next;
+    const nextId = navNext?.id ?? nextFromIndex?.id;
+    if (nextId == null || !Number.isFinite(nextId)) {
       return null;
     }
-    const url = resolvePlayableAudioUrl(n.audio_url, null);
+    const nextMeta =
+      chapters.find((c) => c.id === nextId) ??
+      (navNext
+        ? {
+            id: navNext.id,
+            title: navNext.title,
+            content: "",
+            audio_path: null as string | null,
+            duration: navNext.duration ?? 0,
+            audio_url: navNext.audio_url ?? null,
+          }
+        : undefined);
+    if (!nextMeta) {
+      return null;
+    }
+    const url = chapterAudioUrl(nextMeta as Chapter);
     if (!url?.trim()) {
       return null;
     }
     return {
-      id: n.id,
-      title: n.title,
+      id: nextMeta.id,
+      title: nextMeta.title,
       audio_url: url,
       speech_text: undefined as string | undefined,
     };
-  }, [readNav?.next]);
+  }, [readNav?.next, chapters, currentChapterIndex]);
 
   const sentenceElementsRef = useRef<(HTMLElement | null)[]>([]);
   const audioWebRef = useRef<AudioWebHandle | null>(null);
@@ -471,6 +485,77 @@ function ReadStoryPageContent() {
     },
     [chapters, router, pathSlugEnc, scrollReadPaneToTop],
   );
+
+  useEffect(() => {
+    if (loading || !storySlug) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (showToc) return;
+      if (isKeyboardChapterNavBlocked(e.target)) return;
+      if (e.key === "ArrowLeft" && hasPrev) {
+        e.preventDefault();
+        goToPrev();
+      } else if (e.key === "ArrowRight" && hasNext) {
+        e.preventDefault();
+        goToNext();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [loading, storySlug, showToc, hasPrev, hasNext, goToPrev, goToNext]);
+
+  useEffect(() => {
+    if (loading || !story) return;
+    const main = mainScrollRef.current;
+    if (!main) return;
+
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = true;
+    };
+
+    const onTouchCancel = () => {
+      tracking = false;
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      if (showToc) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      const minDx = 56;
+      if (Math.abs(dx) < minDx) return;
+      if (Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      if (dx < 0 && hasPrev) {
+        e.preventDefault();
+        goToPrev();
+      } else if (dx > 0 && hasNext) {
+        e.preventDefault();
+        goToNext();
+      }
+    };
+
+    main.addEventListener("touchstart", onTouchStart, { passive: true });
+    main.addEventListener("touchcancel", onTouchCancel);
+    main.addEventListener("touchend", onTouchEnd, { passive: false });
+
+    return () => {
+      main.removeEventListener("touchstart", onTouchStart);
+      main.removeEventListener("touchcancel", onTouchCancel);
+      main.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [loading, story, showToc, hasPrev, hasNext, goToPrev, goToNext]);
 
   if (loading) {
     return (
@@ -629,19 +714,9 @@ function ReadStoryPageContent() {
       <main
         ref={mainScrollRef}
         className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-10 pt-6 md:px-8 md:pb-12 md:pt-10"
+        aria-label="Nội dung chương. Vuốt sang trái hoặc phím mũi tên trái: chương trước. Vuốt sang phải hoặc mũi tên phải: chương sau."
       >
         <article ref={readScrollRef} className={`relative z-0 ${shell} mx-auto max-w-3xl px-6 py-8 md:px-10 md:py-10`}>
-          <div className="mb-2 text-center">
-            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/50 dark:text-indigo-200">
-              Chương {chapterOrdinal} / {chaptersTotalDisplay}
-            </span>
-          </div>
-          <h1
-            className="mb-3 text-balance text-center text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-2xl"
-            style={{ fontSize: `${Math.min(fontSize + 4, 28)}px` }}
-          >
-            {story.title}
-          </h1>
           {currentChapter ? (
             <h2
               className="mb-8 text-balance text-center text-base font-semibold text-zinc-600 dark:text-zinc-400 md:text-lg"

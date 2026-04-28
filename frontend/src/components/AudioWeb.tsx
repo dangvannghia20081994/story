@@ -22,6 +22,11 @@ import {
   normalizeSpeechLang,
   resolveVoiceForLang,
 } from "@/lib/browserSpeech";
+import {
+  initialSleepFromPrefs,
+  loadAudioReadPrefs,
+  saveAudioReadPrefs,
+} from "@/lib/audioReadPreferences";
 
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const;
 const SLEEP_OPTIONS = [
@@ -129,14 +134,17 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   const [sentences, setSentences] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [rate, setRate] = useState(1);
+  const [rate, setRate] = useState(() => loadAudioReadPrefs().playbackRate);
   const [voiceUri, setVoiceUri] = useState("");
   const [speechLang, setSpeechLang] = useState("vi-VN");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [wordRange, setWordRange] = useState<{ start: number; end: number } | null>(null);
-  const [volume, setVolume] = useState(1);
-  const [sleepTimer, setSleepTimer] = useState(0);
-  const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(null);
+  const [volume, setVolume] = useState(() => loadAudioReadPrefs().volume);
+  const sleepInitAw = initialSleepFromPrefs(loadAudioReadPrefs());
+  const [sleepTimer, setSleepTimer] = useState(sleepInitAw.preset);
+  const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(sleepInitAw.left);
+  const isFirstSleepEffectAwRef = useRef(true);
+  const initialSleepLeftAwRef = useRef<number | null>(sleepInitAw.left);
   const [showReadSettings, setShowReadSettings] = useState(false);
   const [readMenuPlacement, setReadMenuPlacement] = useState<{
     bottom: number;
@@ -243,18 +251,45 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   useEffect(() => {
     if (sleepTimer <= 0) {
       setSleepTimeLeft(null);
+      saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
+      isFirstSleepEffectAwRef.current = false;
       return;
     }
-    setSleepTimeLeft(sleepTimer * 60);
+
+    if (isFirstSleepEffectAwRef.current) {
+      isFirstSleepEffectAwRef.current = false;
+      const leftNow = initialSleepLeftAwRef.current ?? sleepTimer * 60;
+      initialSleepLeftAwRef.current = null;
+      saveAudioReadPrefs({
+        sleepPresetMinutes: sleepTimer,
+        sleepDeadlineAt: Date.now() + leftNow * 1000,
+      });
+    } else {
+      const full = sleepTimer * 60;
+      setSleepTimeLeft(full);
+      saveAudioReadPrefs({
+        sleepPresetMinutes: sleepTimer,
+        sleepDeadlineAt: Date.now() + full * 1000,
+      });
+    }
+
     const interval = setInterval(() => {
       setSleepTimeLeft((prev) => {
         if (prev === null || prev <= 1) {
           if (typeof window !== "undefined" && window.speechSynthesis) {
             window.speechSynthesis.cancel();
           }
+          saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
           return 0;
         }
-        return prev - 1;
+        const next = prev - 1;
+        if (next > 0 && next % 12 === 0) {
+          saveAudioReadPrefs({
+            sleepPresetMinutes: sleepTimer,
+            sleepDeadlineAt: Date.now() + next * 1000,
+          });
+        }
+        return next;
       });
     }, 1000);
     return () => clearInterval(interval);
@@ -263,6 +298,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   useEffect(() => {
     if (sleepTimeLeft !== 0) return;
     if (sleepTimer <= 0) return;
+    setSleepTimer(0);
     setIsPlaying(false);
     setWordRange(null);
   }, [sleepTimeLeft, sleepTimer]);
@@ -412,6 +448,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
         if (index < list.length - 1) {
           speakFrom(index + 1);
         } else {
+          isPlayingRef.current = false;
           setIsPlaying(false);
           setCurrentIndex(-1);
           onReadthroughEndRef.current?.();
@@ -483,11 +520,14 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   }, [rate, voiceUri, volume, speechLang, speakFrom]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setVolume(parseFloat(e.target.value));
+    const v = parseFloat(e.target.value);
+    setVolume(v);
+    saveAudioReadPrefs({ volume: v });
   }, []);
 
   const handleSpeedPick = useCallback((speed: number) => {
     setRate(speed);
+    saveAudioReadPrefs({ playbackRate: speed });
   }, []);
 
   const sliderMax = Math.max(0, sentences.length - 1);

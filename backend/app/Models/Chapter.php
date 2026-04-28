@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 class Chapter extends Model
 {
@@ -215,13 +216,67 @@ SQL;
         return ['chapter' => $chapter, 'created' => true];
     }
 
+    /**
+     * URL công khai trực tiếp tới /storage — chỉ còn ý nghĩa khi file legacy nằm trên disk public.
+     *
+     * @deprecated Dùng cho CMS / debug; client nên dùng {@see signedAudioStreamUrl}.
+     */
     public function publicAudioUrl(): ?string
     {
         if ($this->audio_path === null || $this->audio_path === '') {
             return null;
         }
+        if (! Storage::disk('public')->exists($this->audio_path)) {
+            return null;
+        }
 
         return Storage::disk('public')->url($this->audio_path);
+    }
+
+    /**
+     * URL có chữ ký thời hạn để phát audio (GET stream + Range).
+     */
+    public function signedAudioStreamUrl(): ?string
+    {
+        if (! $this->hasAudioFile()) {
+            return null;
+        }
+        if ($this->resolveAudioFileAbsolutePath() === null) {
+            return null;
+        }
+
+        $minutes = (int) config('chapter_audio.signed_url_ttl_minutes', 30);
+
+        return URL::temporarySignedRoute(
+            'api.chapters.audio.stream',
+            now()->addMinutes(max(1, $minutes)),
+            ['chapter' => $this->getKey()],
+        );
+    }
+
+    /**
+     * @return array{absolute: string, extension: string}|null
+     */
+    public function resolveAudioFileAbsolutePath(): ?array
+    {
+        $relative = $this->audio_path;
+        if (! is_string($relative) || $relative === '') {
+            return null;
+        }
+
+        $disks = ['local', 'public'];
+        foreach ($disks as $diskName) {
+            $disk = Storage::disk($diskName);
+            if (! $disk->exists($relative)) {
+                continue;
+            }
+            $absolute = $disk->path($relative);
+            $extension = strtolower(pathinfo($relative, PATHINFO_EXTENSION));
+
+            return ['absolute' => $absolute, 'extension' => $extension !== '' ? $extension : 'bin'];
+        }
+
+        return null;
     }
 
     public function hasAudioFile(): bool

@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 class TtsInternalController extends Controller
 {
     /**
-     * Worker TTS upload file âm thanh chương (WAV/MP3/M4A), lưu disk public và cập nhật DB.
+     * Worker TTS upload file âm thanh chương (WAV/MP3/M4A), lưu disk private (config chapter_audio) và cập nhật DB.
      */
     public function storeChapterAudio(Request $request, Chapter $chapter): JsonResponse
     {
@@ -79,8 +79,15 @@ class TtsInternalController extends Controller
             ]));
 
             if ($chapter->audio_path !== null && $chapter->audio_path !== '') {
-                Storage::disk('public')->delete($chapter->audio_path);
-                Log::info('worker_tts.upload.removed_previous_file', array_merge($ctx, ['path' => $chapter->audio_path]));
+                foreach (['local', 'public'] as $diskName) {
+                    if (Storage::disk($diskName)->exists($chapter->audio_path)) {
+                        Storage::disk($diskName)->delete($chapter->audio_path);
+                        Log::info('worker_tts.upload.removed_previous_file', array_merge($ctx, [
+                            'path' => $chapter->audio_path,
+                            'disk' => $diskName,
+                        ]));
+                    }
+                }
             }
 
             $extension = strtolower((string) $uploaded->getClientOriginalExtension()) ?: 'wav';
@@ -90,17 +97,19 @@ class TtsInternalController extends Controller
 
             $dir = 'stories/'.$chapter->story_id.'/chapters/'.$chapter->id;
             $filename = 'audio.'.$extension;
-            $path = $uploaded->storeAs($dir, $filename, 'public');
+            $disk = (string) config('chapter_audio.storage_disk', 'local');
+            $path = $uploaded->storeAs($dir, $filename, $disk);
 
             if (! is_string($path) || $path === '') {
                 Log::error('worker_tts.upload.store_as_failed', array_merge($ctx, [
                     'dir' => $dir,
                     'filename' => $filename,
-                    'disk_root' => (string) config('filesystems.disks.public.root'),
+                    'disk' => $disk,
+                    'disk_root' => (string) config('filesystems.disks.'.$disk.'.root', ''),
                 ]));
 
                 return response()->json([
-                    'message' => 'Không ghi được file âm thanh lên disk public (quyền ghi storage/app/public hoặc disk).',
+                    'message' => 'Không ghi được file âm thanh lên disk chapter_audio (quyền ghi storage hoặc cấu hình disk).',
                 ], 500);
             }
 
@@ -124,7 +133,7 @@ class TtsInternalController extends Controller
                 'data' => [
                     'chapter_id' => $fresh->id,
                     'audio_path' => $fresh->audio_path,
-                    'audio_url' => $fresh->publicAudioUrl(),
+                    'audio_url' => $fresh->signedAudioStreamUrl(),
                     'duration' => $fresh->duration,
                 ],
             ], 201);

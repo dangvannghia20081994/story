@@ -299,12 +299,12 @@ class Story extends Model
     public function getAudioUrlAttribute(): ?string
     {
         if ($this->relationLoaded('firstAudibleChapter') && $this->firstAudibleChapter) {
-            return $this->firstAudibleChapter->publicAudioUrl();
+            return $this->firstAudibleChapter->signedAudioStreamUrl();
         }
         if ($this->relationLoaded('chapters')) {
             $first = $this->chapters->first(fn (Chapter $c) => $c->audio_path !== null && $c->audio_path !== '');
 
-            return $first ? $first->publicAudioUrl() : null;
+            return $first ? $first->signedAudioStreamUrl() : null;
         }
 
         return null;

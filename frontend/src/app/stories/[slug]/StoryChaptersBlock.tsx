@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
 import { StoryChapterList } from "./StoryChapterList";
@@ -57,6 +57,19 @@ export function StoryChaptersBlock({
   const [createdAsc, setCreatedAsc] = useState(true);
   const [sortPending, setSortPending] = useState(false);
   const [expandMoreLoading, setExpandMoreLoading] = useState(false);
+
+  const initialSnapshot = useMemo(
+    () => JSON.stringify({ total: initialChaptersTotal, ids: initialChapters.map((c) => c.id) }),
+    [initialChapters, initialChaptersTotal],
+  );
+  const [lastServerSnapshot, setLastServerSnapshot] = useState(initialSnapshot);
+
+  useEffect(() => {
+    if (initialSnapshot === lastServerSnapshot) return;
+    setLastServerSnapshot(initialSnapshot);
+    setChapters(initialChapters);
+    setChaptersTotal(initialChaptersTotal);
+  }, [initialChapters, initialChaptersTotal, initialSnapshot, lastServerSnapshot]);
 
   const toggleSort = useCallback(async () => {
     const nextAsc = !createdAsc;

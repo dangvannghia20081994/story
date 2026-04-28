@@ -127,7 +127,7 @@ class StoryController extends Controller
                     'id' => $row->id,
                     'title' => $row->title,
                     'duration' => (int) $row->duration,
-                    'audio_url' => $row->publicAudioUrl(),
+                    'audio_url' => $row->signedAudioStreamUrl(),
                 ];
             };
 
@@ -137,7 +137,7 @@ class StoryController extends Controller
                     'chapters_total' => $nav['chapters_total'],
                     'chapters_with_audio_total' => $chaptersWithAudioTotal,
                     'read_chapter' => array_merge($c->toArray(), [
-                        'audio_url' => $c->publicAudioUrl(),
+                        'audio_url' => $c->signedAudioStreamUrl(),
                     ]),
                     'read_navigation' => [
                         'chapter_index' => $nav['chapter_index'],
@@ -173,7 +173,7 @@ class StoryController extends Controller
 
         $chapters = $story->chapters->map(function (Chapter $c) use ($chaptersOmitContent) {
             $arr = array_merge($c->toArray(), [
-                'audio_url' => $c->publicAudioUrl(),
+                'audio_url' => $c->signedAudioStreamUrl(),
             ]);
             if ($chaptersOmitContent) {
                 $arr['content'] = '';

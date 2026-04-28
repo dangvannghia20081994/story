@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SidebarLayout } from "@/components/layouts";
+import { StoryAddChapterButton } from "./StoryAddChapterButton";
 import { StoryChaptersBlock } from "./StoryChaptersBlock";
 import { apiFetch } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
 import { storyGenreSlugs } from "@/lib/storyGenres";
 import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
-import { storyReadHref } from "@/lib/storyPath";
+import { StoryReadPrimaryButton } from "./StoryReadPrimaryButton";
 
 type ChapterRow = {
   id: number;
@@ -144,17 +145,14 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                 </p>
               ) : null}
             </div>
-            {chaptersTotal > 0 ? (
-              <div className="shrink-0 md:pt-1">
-                <Link
-                  href={storyReadHref(s)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:bg-indigo-500 md:w-auto"
-                >
-                  <span aria-hidden>📖</span>
-                  Đọc truyện
-                </Link>
-              </div>
-            ) : null}
+            <div className="flex shrink-0 flex-col gap-2 md:pt-1 sm:flex-row sm:items-stretch">
+              {chaptersTotal > 0 ? <StoryReadPrimaryButton storyKey={slug} story={s} /> : null}
+              <StoryAddChapterButton
+                storyKey={slug}
+                storyTitle={s.title}
+                variant={chaptersTotal > 0 ? "secondary" : "primary"}
+              />
+            </div>
           </div>
         </section>
 
@@ -170,6 +168,10 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
         ) : (
           <section className={`${shell} p-6 text-center`}>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Truyện này chưa có chương.</p>
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
+              Dùng nút <span className="font-medium text-indigo-600 dark:text-indigo-400">Thêm chương</span> phía trên để
+              tạo chương đầu tiên.
+            </p>
           </section>
         )}
       </div>

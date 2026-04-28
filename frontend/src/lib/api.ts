@@ -87,3 +87,24 @@ export async function createStory(data: CreateStoryData): Promise<Story> {
     body: JSON.stringify(data),
   });
 }
+
+export type CreateChapterPayload = {
+  title: string;
+  content: string;
+  chapter_number?: number | null;
+};
+
+/** POST /api/stories/{story}/chapters — 201 tạo mới, 200 cập nhật theo tiêu đề trùng. */
+export async function createStoryChapter(storyKey: string, data: CreateChapterPayload): Promise<Record<string, unknown>> {
+  const body: Record<string, unknown> = {
+    title: data.title.trim(),
+    content: data.content,
+  };
+  if (typeof data.chapter_number === "number" && data.chapter_number >= 1) {
+    body.chapter_number = data.chapter_number;
+  }
+  return apiFetch<Record<string, unknown>>(`/api/stories/${encodeURIComponent(storyKey)}/chapters`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

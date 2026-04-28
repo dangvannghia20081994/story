@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ChapterAudioStreamController;
 use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\CharacterController;
 use App\Http\Controllers\Api\Internal\CrawlerInternalController;
@@ -17,6 +18,10 @@ Route::delete('/stories/{story}', [StoryController::class, 'destroy']);
 Route::get('/stories/{story}/chapters', [ChapterController::class, 'index']);
 Route::post('/stories/{story}/chapters', [ChapterController::class, 'store']);
 Route::get('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'show']);
+
+Route::get('/chapters/{chapter}/audio/stream', [ChapterAudioStreamController::class, 'stream'])
+    ->middleware(['signed', 'throttle:chapter-audio-stream'])
+    ->name('api.chapters.audio.stream');
 Route::patch('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'update']);
 Route::delete('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'destroy']);
 Route::get('/stories/{story}/characters', [CharacterController::class, 'index']);
