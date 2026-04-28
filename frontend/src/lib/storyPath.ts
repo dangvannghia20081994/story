@@ -14,3 +14,9 @@ export function storyReadHref(story: { id: number; slug?: string | null }, chapt
   if (chapterId == null) return base;
   return `${base}?chapter=${chapterId}`;
 }
+
+export function storyListenHref(story: { id: number; slug?: string | null }, chapterId?: number): string {
+  const base = `${storyDetailHref(story)}/listen`;
+  if (chapterId == null) return base;
+  return `${base}?chapter=${chapterId}`;
+}

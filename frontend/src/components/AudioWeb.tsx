@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
+import type { ChangeEvent, MouseEvent, MutableRefObject } from "react";
 
 import {
   AUDIO_WEB_SPEECH_LANG_KEY,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/audioReadPreferences";
 
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const;
+
 const SLEEP_OPTIONS = [
   { label: "Tắt", minutes: 0 },
   { label: "15 phút", minutes: 15 },
@@ -98,35 +99,30 @@ export function splitIntoSentences(text: string): string[] {
 export type AudioWebReadingHighlight = {
   sentenceIndex: number | null;
   isPlaying: boolean;
-  /** Vị trí ký tự trong câu `sentenceIndex` (onboundary `word`). */
   wordInSentence: { start: number; end: number } | null;
 };
 
 export type AudioWebHandle = {
-  /** Phát từ câu `index` (hủy queue hiện tại). */
   playFromSentence: (index: number) => void;
 };
 
 export type AudioWebProps = {
   text: string;
-  /** Khi đọc xong câu cuối (không dừng tay), ví dụ chuyển chương sau. */
   onReadthroughEnd?: () => void;
-  /** Khóa localStorage để nhớ câu đang đọc (F5 tiếp tục). Bỏ qua thì không lưu. */
   positionStorageKey?: string;
   className?: string;
-  /**
-   * Ref mảng phần tử DOM từng câu trên trang (cùng thứ tự với `splitIntoSentences(text)`).
-   * Dùng để `scrollIntoView` khi đang phát.
-   */
-  sentenceElementsRef?: React.MutableRefObject<(HTMLElement | null)[]>;
-  /** Đồng bộ highlight / câu đang đọc với nội dung hiển thị ngoài component. */
+  sentenceElementsRef?: MutableRefObject<(HTMLElement | null)[]>;
   onHighlightChange?: (state: AudioWebReadingHighlight) => void;
 };
 
-/**
- * Điều khiển TTS theo câu (Web Speech API). Không render nội dung chương —
- * trang cha hiển thị văn bản và truyền `sentenceElementsRef` + `onHighlightChange`.
- */
+function chipClass(active: boolean) {
+  return `rounded-full border px-2 py-0.5 text-[11px] transition cursor-pointer ${
+    active
+      ? "border-blue-500 bg-blue-500 text-white"
+      : "border-gray-300 bg-white text-gray-500 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+  }`;
+}
+
 export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function AudioWeb(
   { text, onReadthroughEnd, positionStorageKey, className = "", sentenceElementsRef, onHighlightChange },
   ref,
@@ -145,15 +141,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(sleepInitAw.left);
   const isFirstSleepEffectAwRef = useRef(true);
   const initialSleepLeftAwRef = useRef<number | null>(sleepInitAw.left);
-  const [showReadSettings, setShowReadSettings] = useState(false);
-  const [readMenuPlacement, setReadMenuPlacement] = useState<{
-    bottom: number;
-    right: number;
-    maxHeight: number;
-  } | null>(null);
-
-  const readSettingsRef = useRef<HTMLDivElement>(null);
-  const readSettingsPopoverRef = useRef<HTMLDivElement>(null);
+  const progressTrackRef = useRef<HTMLDivElement>(null);
 
   const langOptions = useMemo(() => buildLangOptions(voices), [voices]);
   const voiceList = useMemo(() => {
@@ -304,47 +292,6 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   }, [sleepTimeLeft, sleepTimer]);
 
   useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (!(t instanceof Node)) return;
-      if (showReadSettings) {
-        const inTrigger = readSettingsRef.current?.contains(t) ?? false;
-        const inPopover = readSettingsPopoverRef.current?.contains(t) ?? false;
-        if (!inTrigger && !inPopover) {
-          setShowReadSettings(false);
-        }
-      }
-    };
-    document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
-  }, [showReadSettings]);
-
-  useLayoutEffect(() => {
-    if (!showReadSettings) {
-      setReadMenuPlacement(null);
-      return;
-    }
-    const update = () => {
-      const wrap = readSettingsRef.current;
-      if (!wrap || typeof window === "undefined") return;
-      const rect = wrap.getBoundingClientRect();
-      const gap = 8;
-      setReadMenuPlacement({
-        bottom: window.innerHeight - rect.top + gap,
-        right: window.innerWidth - rect.right,
-        maxHeight: Math.max(140, rect.top - gap - 16),
-      });
-    };
-    update();
-    window.addEventListener("scroll", update, true);
-    window.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("resize", update);
-    };
-  }, [showReadSettings]);
-
-  useEffect(() => {
     const list = splitIntoSentences(text);
     setSentences(list);
 
@@ -368,7 +315,6 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
       window.speechSynthesis.cancel();
     }
     setIsPlaying(false);
-    setShowReadSettings(false);
   }, [text, positionStorageKey]);
 
   useEffect(() => {
@@ -482,8 +428,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
     }
     const list = sentencesRef.current;
     if (list.length === 0) return;
-    const start =
-      currentIndex >= 0 && currentIndex < list.length ? currentIndex : 0;
+    const start = currentIndex >= 0 && currentIndex < list.length ? currentIndex : 0;
     speakFrom(start);
   }, [currentIndex, speakFrom, stopSpeech]);
 
@@ -512,14 +457,11 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
     window.speechSynthesis.cancel();
     const list = sentencesRef.current;
     if (list.length === 0) return;
-    const idx = Math.min(
-      Math.max(0, currentIndexRef.current),
-      list.length - 1,
-    );
+    const idx = Math.min(Math.max(0, currentIndexRef.current), list.length - 1);
     speakFrom(idx);
   }, [rate, voiceUri, volume, speechLang, speakFrom]);
 
-  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVolumeChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
     setVolume(v);
     saveAudioReadPrefs({ volume: v });
@@ -530,215 +472,311 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
     saveAudioReadPrefs({ playbackRate: speed });
   }, []);
 
+  const skipSentences = useCallback(
+    (delta: number) => {
+      const list = sentencesRef.current;
+      if (list.length === 0) return;
+      const base = currentIndexRef.current >= 0 ? currentIndexRef.current : 0;
+      seekTo(base + delta);
+    },
+    [seekTo],
+  );
+
+  const seekProgressBar = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      const list = sentencesRef.current;
+      if (list.length === 0) return;
+      const rect = progressTrackRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const max = list.length - 1;
+      const idx = max <= 0 ? 0 : Math.round(pct * max);
+      seekTo(idx);
+    },
+    [seekTo],
+  );
+
   const sliderMax = Math.max(0, sentences.length - 1);
   const sliderValue = currentIndex < 0 ? 0 : Math.min(currentIndex, sliderMax);
+  const progressPct = sentences.length <= 1 ? (currentIndex >= 0 ? 100 : 0) : (sliderValue / sliderMax) * 100;
+
+  const displaySentence = sentences.length === 0 ? 0 : sliderValue + 1;
+  const timerPct =
+    sleepTimer > 0 && sleepTimeLeft != null && sleepTimeLeft > 0
+      ? (sleepTimeLeft / (sleepTimer * 60)) * 100
+      : 0;
+
+  const volumePercent = Math.round(volume * 100);
 
   return (
     <div
-      className={`mx-auto flex max-w-2xl flex-col rounded-2xl border border-indigo-200/40 bg-gradient-to-b from-indigo-50/90 via-white to-violet-50/50 shadow-lg dark:border-indigo-900/40 dark:from-indigo-950/40 dark:via-zinc-950 dark:to-violet-950/20 ${className}`}
+      className={`w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 ${className}`}
     >
-      <div className="flex flex-col gap-3 p-4">
-        <div className="flex min-w-0 items-center justify-between gap-2">
+      <div className="px-5 py-4">
+        <div className="mb-4 max-h-24 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+          <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+            {currentIndex >= 0 && sentences[currentIndex]
+              ? sentences[currentIndex]
+              : sentences.length > 0
+                ? "Chọn Phát hoặc bấm một câu trong bài để bắt đầu."
+                : "Không có nội dung để đọc."}
+          </p>
+        </div>
+
+        <div className="mb-4">
+          <div className="mb-1.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+            <span>
+              Câu {displaySentence}
+              {sentences.length > 0 ? ` / ${sentences.length}` : ""}
+            </span>
+            <span className="tabular-nums">{rate}×</span>
+            <span>
+              {sentences.length > 1
+                ? `Còn ${Math.max(0, sentences.length - sliderValue - 1)} câu`
+                : ""}
+            </span>
+          </div>
+          <div
+            ref={progressTrackRef}
+            onClick={seekProgressBar}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+              }
+            }}
+            role="slider"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progressPct)}
+            tabIndex={0}
+            className="relative h-1.5 cursor-pointer rounded-full border border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-700"
+          >
+            <div
+              className="h-full rounded-full bg-blue-500 transition-[width] duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+            <div
+              className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-500 bg-white transition-[left] duration-300 dark:bg-gray-900"
+              style={{ left: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="mb-4 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => skipSentences(-1)}
+            disabled={sentences.length === 0}
+            aria-label="Câu trước"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            <SkipBackIcon />
+          </button>
+
           <button
             type="button"
             onClick={togglePlay}
             disabled={sentences.length === 0}
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 px-5 text-sm font-semibold text-white shadow-md transition hover:from-indigo-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={isPlaying ? "Tạm dừng" : "Phát"}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-500 transition hover:bg-blue-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isPlaying ? "Tạm dừng" : "Phát"}
+            {isPlaying ? <PauseIcon /> : <PlayIcon />}
           </button>
-          <div className="relative shrink-0" ref={readSettingsRef}>
-            <button
-              type="button"
-              aria-expanded={showReadSettings}
-              aria-haspopup="true"
-              aria-label="Cài đặt đọc"
-              title="Cài đặt"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowReadSettings((v) => !v);
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/90 bg-white/90 text-zinc-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-800 dark:border-zinc-600 dark:bg-zinc-900/85 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-200 ${
-                sleepTimer > 0 || rate !== 1 || !isVietnameseLangTag(speechLang)
-                  ? "ring-2 ring-indigo-400/35 dark:ring-indigo-500/30"
-                  : ""
-              }`}
-            >
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
-              </svg>
-            </button>
+
+          <button
+            type="button"
+            onClick={() => skipSentences(1)}
+            disabled={sentences.length === 0}
+            aria-label="Câu sau"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            <SkipForwardIcon />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Âm lượng
+              </span>
+              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{volumePercent}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={handleVolumeChange}
+              aria-label="Âm lượng"
+              className="w-full accent-blue-500"
+            />
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Tốc độ
+              </span>
+              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{rate}×</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {SPEED_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleSpeedPick(s)}
+                  className={chipClass(rate === s)}
+                >
+                  {s}×
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Hẹn giờ tắt
+              </span>
+              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">
+                {sleepTimer > 0 ? `${sleepTimer} phút` : "Tắt"}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {SLEEP_OPTIONS.map((t) => (
+                <button
+                  key={t.minutes}
+                  type="button"
+                  onClick={() => setSleepTimer(t.minutes)}
+                  className={chipClass(sleepTimer === t.minutes)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Còn lại
+              </span>
+              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">
+                {sleepTimer > 0 && sleepTimeLeft != null && sleepTimeLeft > 0
+                  ? formatSleepTime(sleepTimeLeft)
+                  : "--:--"}
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-[width] duration-1000"
+                style={{ width: `${timerPct}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+              {sleepTimer > 0 ? "Tự động tắt sau khi hết giờ" : "Không hẹn giờ"}
+            </p>
           </div>
         </div>
-        <div>
-          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            Câu ({sentences.length}){rate !== 1 ? ` · ${rate}×` : ""}
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={sliderMax || 0}
-            step={1}
-            value={sentences.length === 0 ? 0 : sliderValue}
-            disabled={sentences.length === 0}
-            onChange={(e) => seekTo(parseInt(e.target.value, 10))}
-            className="w-full cursor-pointer accent-indigo-600 disabled:cursor-not-allowed dark:accent-indigo-400"
-            aria-label="Chọn câu"
-          />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 bg-gray-50 px-5 py-3 dark:border-gray-700 dark:bg-gray-800">
+        <div
+          className={`h-2 w-2 shrink-0 rounded-full ${
+            isPlaying ? "animate-pulse bg-green-500" : "bg-gray-400 dark:bg-gray-500"
+          }`}
+        />
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          {isPlaying ? "Đang đọc…" : "Sẵn sàng"}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+          <select
+            aria-label="Ngôn ngữ đọc"
+            value={speechLang}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSpeechLang(v);
+              try {
+                localStorage.setItem(AUDIO_WEB_SPEECH_LANG_KEY, v);
+              } catch {
+                /* ignore */
+              }
+            }}
+            className="max-w-[min(11rem,42vw)] shrink rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+          >
+            {langOptions.map((o) => (
+              <option key={normalizeSpeechLang(o.value)} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {voiceList.length > 0 ? (
+            <select
+              aria-label="Chọn giọng đọc"
+              className="max-w-[min(11rem,42vw)] shrink truncate rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+              value={voiceUri}
+              onChange={(e) => {
+                const v = e.target.value;
+                setVoiceUri(v);
+                try {
+                  if (v) localStorage.setItem(BROWSER_SPEECH_VOICE_URI_KEY, v);
+                  else localStorage.removeItem(BROWSER_SPEECH_VOICE_URI_KEY);
+                } catch {
+                  /* ignore */
+                }
+              }}
+            >
+              <option value="">Mặc định</option>
+              {voiceList.map((v) => (
+                <option key={v.voiceURI} value={v.voiceURI} title={`${v.name} (${v.lang})`}>
+                  {v.name.length > 24 ? `${v.name.slice(0, 22)}…` : v.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-xs text-gray-400">Không có giọng cho ngôn ngữ này</span>
+          )}
         </div>
       </div>
-      {showReadSettings && readMenuPlacement && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              ref={readSettingsPopoverRef}
-              role="menu"
-              className="z-[100] w-[min(17.5rem,calc(100vw-1.5rem))] space-y-3 overflow-y-auto rounded-xl border border-zinc-200/90 bg-white/98 p-3 shadow-2xl ring-1 ring-black/5 backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/98 dark:ring-white/10"
-              style={{
-                position: "fixed",
-                right: readMenuPlacement.right,
-                bottom: readMenuPlacement.bottom,
-                maxHeight: readMenuPlacement.maxHeight,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Âm lượng
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden>
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-                    </svg>
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    className="h-1 min-w-0 flex-1 cursor-pointer accent-indigo-600 dark:accent-indigo-500"
-                    aria-label="Âm lượng"
-                  />
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="audioweb-lang-settings"
-                  className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
-                >
-                  Ngôn ngữ đọc
-                </label>
-                <select
-                  id="audioweb-lang-settings"
-                  aria-label="Ngôn ngữ đọc"
-                  value={speechLang}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setSpeechLang(v);
-                    try {
-                      localStorage.setItem(AUDIO_WEB_SPEECH_LANG_KEY, v);
-                    } catch {
-                      /* ignore */
-                    }
-                  }}
-                  className="w-full cursor-pointer rounded-lg border border-zinc-200/90 bg-white py-1.5 pl-2 pr-8 text-xs font-medium text-zinc-800 shadow-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-                >
-                  {langOptions.map((o) => (
-                    <option key={normalizeSpeechLang(o.value)} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Tốc độ
-                </p>
-                <div className="grid grid-cols-4 gap-1">
-                  {SPEED_OPTIONS.map((speed) => (
-                    <button
-                      key={speed}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => handleSpeedPick(speed)}
-                      className={`rounded-lg border px-1 py-1.5 text-center text-[10px] font-bold tabular-nums transition ${
-                        rate === speed
-                          ? "border-indigo-400 bg-indigo-600 text-white shadow-sm dark:border-indigo-500"
-                          : "border-zinc-200/90 bg-zinc-50/80 text-zinc-700 hover:border-indigo-200 dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-200"
-                      }`}
-                    >
-                      {speed}x
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Hẹn giờ tắt
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {SLEEP_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.minutes}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => setSleepTimer(opt.minutes)}
-                      className={`rounded-lg border px-2 py-1 text-[10px] font-medium transition ${
-                        sleepTimer === opt.minutes
-                          ? "border-sky-400 bg-sky-50 text-sky-900 dark:border-sky-600 dark:bg-sky-950/60 dark:text-sky-100"
-                          : "border-zinc-200/90 bg-white text-zinc-600 hover:border-indigo-200 dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-300"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                {sleepTimeLeft !== null && sleepTimeLeft > 0 ? (
-                  <p className="mt-1.5 font-mono text-[10px] text-sky-700 dark:text-sky-300">
-                    Còn {formatSleepTime(sleepTimeLeft)}
-                  </p>
-                ) : null}
-              </div>
-              {voiceList.length > 0 ? (
-                <div>
-                  <label
-                    htmlFor="audioweb-voice-settings"
-                    className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
-                  >
-                    Giọng đọc
-                  </label>
-                  <select
-                    id="audioweb-voice-settings"
-                    aria-label="Giọng đọc trình duyệt"
-                    title="Giọng đọc trình duyệt"
-                    className="w-full max-w-full cursor-pointer truncate rounded-lg border border-zinc-200/90 bg-white py-1.5 pl-2 pr-8 text-xs font-medium text-zinc-800 shadow-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-                    value={voiceUri}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setVoiceUri(v);
-                      try {
-                        if (v) localStorage.setItem(BROWSER_SPEECH_VOICE_URI_KEY, v);
-                        else localStorage.removeItem(BROWSER_SPEECH_VOICE_URI_KEY);
-                      } catch {
-                        /* ignore */
-                      }
-                    }}
-                  >
-                    <option value="">Mặc định (tiếng Việt)</option>
-                    {voiceList.map((v) => (
-                      <option key={v.voiceURI} value={v.voiceURI} title={`${v.name} (${v.lang})`}>
-                        {v.name.length > 28 ? `${v.name.slice(0, 26)}…` : v.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-            </div>,
-            document.body,
-          )
-        : null}
     </div>
   );
 });
+
+AudioWeb.displayName = "AudioWeb";
+
+function PlayIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden>
+      <polygon points="5,3 19,12 5,21" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden>
+      <rect x="6" y="4" width="4" height="16" />
+      <rect x="14" y="4" width="4" height="16" />
+    </svg>
+  );
+}
+
+function SkipBackIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <polyline points="11 18 6 12 11 6" />
+      <polyline points="18 18 13 12 18 6" />
+    </svg>
+  );
+}
+
+function SkipForwardIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <polyline points="13 18 18 12 13 6" />
+      <polyline points="6 18 11 12 6 6" />
+    </svg>
+  );
+}

@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
+import { AudioWeb, type AudioWebHandle } from "@/components/AudioWeb";
 import { apiFetch } from "@/lib/api";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
 
@@ -100,7 +101,7 @@ async function fetchReadSlice(storySlug: string, chapterId: number): Promise<Sto
   return res.data;
 }
 
-function ReadStoryPageContent() {
+function ListenStoryPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,12 +117,11 @@ function ReadStoryPageContent() {
   const [tocLastPage, setTocLastPage] = useState(1);
   const [tocLoadedPage, setTocLoadedPage] = useState(0);
   const [loadingTocMore, setLoadingTocMore] = useState(false);
-  const [fontSize, setFontSize] = useState(18);
   const [showToc, setShowToc] = useState(false);
-  const mainScrollRef = useRef<HTMLElement | null>(null);
 
   const chaptersRef = useRef<Chapter[]>([]);
   const loadedChapterIdRef = useRef<number | null>(null);
+  const audioWebRef = useRef<AudioWebHandle | null>(null);
 
   useEffect(() => {
     chaptersRef.current = chapters;
@@ -208,7 +208,7 @@ function ReadStoryPageContent() {
           const pathSlug = encodeURIComponent(storySlug);
           const wantQs = `?chapter=${targetId}`;
           if (typeof window !== "undefined" && window.location.search !== wantQs) {
-            router.replace(`/stories/${pathSlug}/read${wantQs}`, { scroll: false });
+            router.replace(`/stories/${pathSlug}/listen${wantQs}`, { scroll: false });
           }
           return;
         }
@@ -288,41 +288,29 @@ function ReadStoryPageContent() {
   const hasPrev = Boolean(readNav?.prev) || currentChapterIndex > 0;
   const hasNext = Boolean(readNav?.next) || currentChapterIndex < chapters.length - 1;
 
-  const scrollReadPaneToTop = useCallback((behavior: ScrollBehavior = "smooth") => {
-    const main = mainScrollRef.current;
-    if (main) {
-      main.scrollTo({ top: 0, behavior });
-    } else {
-      window.scrollTo({ top: 0, behavior });
-    }
-  }, []);
-
   const goToPrev = useCallback(() => {
     const id = readNav?.prev?.id ?? chapters[currentChapterIndex - 1]?.id;
     if (!id) return;
     loadedChapterIdRef.current = null;
-    router.replace(`/stories/${pathSlugEnc}/read?chapter=${id}`, { scroll: false });
-    scrollReadPaneToTop("smooth");
-  }, [readNav?.prev?.id, chapters, currentChapterIndex, router, pathSlugEnc, scrollReadPaneToTop]);
+    router.replace(`/stories/${pathSlugEnc}/listen?chapter=${id}`, { scroll: false });
+  }, [readNav?.prev?.id, chapters, currentChapterIndex, router, pathSlugEnc]);
 
   const goToNext = useCallback(() => {
     const id = readNav?.next?.id ?? chapters[currentChapterIndex + 1]?.id;
     if (!id) return;
     loadedChapterIdRef.current = null;
-    router.replace(`/stories/${pathSlugEnc}/read?chapter=${id}`, { scroll: false });
-    scrollReadPaneToTop("smooth");
-  }, [readNav?.next?.id, chapters, currentChapterIndex, router, pathSlugEnc, scrollReadPaneToTop]);
+    router.replace(`/stories/${pathSlugEnc}/listen?chapter=${id}`, { scroll: false });
+  }, [readNav?.next?.id, chapters, currentChapterIndex, router, pathSlugEnc]);
 
   const goToChapter = useCallback(
     (index: number) => {
       const ch = chapters[index];
       if (!ch) return;
       loadedChapterIdRef.current = null;
-      router.replace(`/stories/${pathSlugEnc}/read?chapter=${ch.id}`, { scroll: false });
+      router.replace(`/stories/${pathSlugEnc}/listen?chapter=${ch.id}`, { scroll: false });
       setShowToc(false);
-      scrollReadPaneToTop("smooth");
     },
-    [chapters, router, pathSlugEnc, scrollReadPaneToTop],
+    [chapters, router, pathSlugEnc],
   );
 
   if (loading) {
@@ -365,7 +353,7 @@ function ReadStoryPageContent() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden">
+    <div className="flex min-h-[100dvh] flex-col">
       <header className="z-20 shrink-0 border-b border-white/60 bg-white/85 px-3 py-2.5 shadow-sm backdrop-blur-md dark:border-zinc-800/70 dark:bg-zinc-950/80 sm:px-4 sm:py-3 md:px-6">
         <div className="mx-auto flex max-w-4xl flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
@@ -387,12 +375,6 @@ function ReadStoryPageContent() {
             </div>
           </div>
           <div className="flex w-full min-w-0 shrink-0 items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
-            <Link
-              href={`/stories/${pathSlugEnc}/listen?chapter=${currentChapter.id}`}
-              className="min-h-[2.75rem] rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:text-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
-            >
-              Nghe truyện
-            </Link>
             <button
               type="button"
               onClick={() => setShowToc((v) => !v)}
@@ -406,25 +388,6 @@ function ReadStoryPageContent() {
               <span className="text-zinc-400 dark:text-zinc-500">Mục lục · </span>
               {currentChapter?.title ?? "Chương"}
             </button>
-            <div className="flex shrink-0 items-center self-center rounded-xl border border-zinc-200 bg-zinc-50/90 p-0.5 dark:border-zinc-700 dark:bg-zinc-900/80">
-              <button
-                type="button"
-                onClick={() => setFontSize((s) => Math.max(14, s - 2))}
-                className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-white dark:text-zinc-400 dark:hover:bg-zinc-800"
-                aria-label="Giảm cỡ chữ"
-              >
-                A-
-              </button>
-              <span className="px-1 text-[10px] font-medium tabular-nums text-zinc-400">{fontSize}</span>
-              <button
-                type="button"
-                onClick={() => setFontSize((s) => Math.min(28, s + 2))}
-                className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-white dark:text-zinc-400 dark:hover:bg-zinc-800"
-                aria-label="Tăng cỡ chữ"
-              >
-                A+
-              </button>
-            </div>
           </div>
         </div>
       </header>
@@ -479,27 +442,21 @@ function ReadStoryPageContent() {
         </>
       ) : null}
 
-      <main
-        ref={mainScrollRef}
-        className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-10 pt-6 md:px-8 md:pb-12 md:pt-10"
-      >
-        <article className={`relative z-0 ${shell} mx-auto max-w-3xl px-6 py-8 md:px-10 md:py-10`}>
-          <h2
-            className="mb-8 text-balance text-center text-base font-semibold text-zinc-600 dark:text-zinc-400 md:text-lg"
-            style={{ fontSize: `${Math.min(fontSize + 2, 22)}px` }}
-          >
-            {currentChapter.title}
-          </h2>
-          <div
-            className="whitespace-pre-wrap text-pretty leading-[1.85] text-zinc-800 selection:bg-indigo-200/60 selection:text-zinc-900 dark:text-zinc-200 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100"
-            style={{ fontSize: `${fontSize}px` }}
-          >
-            {currentChapter.content}
-          </div>
-        </article>
+      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center px-4 py-6 md:px-6">
+        <AudioWeb
+          ref={audioWebRef}
+          text={currentChapter.content ?? ""}
+          onReadthroughEnd={() => {
+            if (readNav?.next?.id) {
+              loadedChapterIdRef.current = null;
+              router.replace(`/stories/${pathSlugEnc}/listen?chapter=${readNav.next.id}`, { scroll: false });
+            }
+          }}
+          positionStorageKey={story?.id != null ? `story-audioweb:${story.id}:${currentChapter.id}` : undefined}
+        />
       </main>
 
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-2 px-4 pb-4 pt-2 md:px-8">
+      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-2 px-4 pb-5 md:px-6">
         <button
           type="button"
           onClick={goToPrev}
@@ -532,7 +489,7 @@ function ReadStoryPageContent() {
   );
 }
 
-function ReadStoryPageFallback() {
+function ListenStoryPageFallback() {
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4">
       <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
@@ -545,10 +502,10 @@ function ReadStoryPageFallback() {
   );
 }
 
-export default function ReadStoryPage() {
+export default function ListenStoryPage() {
   return (
-    <Suspense fallback={<ReadStoryPageFallback />}>
-      <ReadStoryPageContent />
+    <Suspense fallback={<ListenStoryPageFallback />}>
+      <ListenStoryPageContent />
     </Suspense>
   );
 }

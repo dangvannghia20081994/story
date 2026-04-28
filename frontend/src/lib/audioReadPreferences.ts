@@ -1,15 +1,30 @@
-/** Cài đặt chung cho trang đọc (volume, tốc độ, hẹn giờ) — lưu localStorage để giữ khi đổi chương. */
+/**
+ * Cài đặt đọc (volume, tốc độ) + tiến độ theo chương — một key localStorage.
+ * Hẹn giờ tắt (`sleepPresetMinutes` / `sleepDeadlineAt`) là toàn app: đếm wall-clock, không reset khi đổi chương.
+ */
 
 const STORAGE_KEY = "story-audio-read-prefs:v1";
 
 const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const;
 const SLEEP_PRESETS = new Set([0, 15, 30, 45, 60, 90]);
 
+const MAX_TTS_SENTENCE_INDEX = 2_000_000;
+const MAX_AUDIO_SEC = 36 * 3600;
+
 export type AudioReadPrefs = {
   volume: number;
   playbackRate: number;
   sleepPresetMinutes: number;
   sleepDeadlineAt: number | null;
+  /** AudioWeb: chỉ số câu, key ví dụ `story-audioweb:{storyId}:{chapterId}` */
+  chapterTtsSentence: Record<string, number>;
+  /** File audio (AudioPlayer): giây, key ví dụ `story-audiofile:{storyId}:{chapterId}` */
+  chapterAudioSec: Record<string, number>;
+};
+
+export type SaveAudioReadPrefsPatch = Partial<AudioReadPrefs> & {
+  removeChapterTtsSentenceKeys?: string[];
+  removeChapterAudioSecKeys?: string[];
 };
 
 export function defaultAudioReadPrefs(): AudioReadPrefs {
@@ -18,7 +33,25 @@ export function defaultAudioReadPrefs(): AudioReadPrefs {
     playbackRate: 1,
     sleepPresetMinutes: 0,
     sleepDeadlineAt: null,
+    chapterTtsSentence: {},
+    chapterAudioSec: {},
   };
+}
+
+function sanitizeChapterNumberMap(
+  raw: unknown,
+  opts: { max: number; integerOnly: boolean },
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof k !== "string" || k.length > 160) continue;
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    const n = opts.integerOnly ? Math.floor(v) : v;
+    if (n < 0 || n > opts.max) continue;
+    out[k] = n;
+  }
+  return out;
 }
 
 export function clampVolume(v: number): number {
@@ -66,23 +99,55 @@ export function loadAudioReadPrefs(): AudioReadPrefs {
     if (sleepPresetMinutes <= 0) {
       sleepDeadlineAt = null;
     }
-    return { volume, playbackRate, sleepPresetMinutes, sleepDeadlineAt };
+    const chapterTtsSentence = sanitizeChapterNumberMap(o.chapterTtsSentence, {
+      max: MAX_TTS_SENTENCE_INDEX,
+      integerOnly: true,
+    });
+    const chapterAudioSec = sanitizeChapterNumberMap(o.chapterAudioSec, {
+      max: MAX_AUDIO_SEC,
+      integerOnly: false,
+    });
+    return { volume, playbackRate, sleepPresetMinutes, sleepDeadlineAt, chapterTtsSentence, chapterAudioSec };
   } catch {
     return d;
   }
 }
 
-export function saveAudioReadPrefs(patch: Partial<AudioReadPrefs>): void {
+export function saveAudioReadPrefs(patch: SaveAudioReadPrefsPatch): void {
   if (typeof window === "undefined") return;
   const cur = loadAudioReadPrefs();
+
+  let chapterTtsSentence = cur.chapterTtsSentence;
+  if (patch.chapterTtsSentence && Object.keys(patch.chapterTtsSentence).length > 0) {
+    chapterTtsSentence = { ...cur.chapterTtsSentence, ...patch.chapterTtsSentence };
+  }
+  if (patch.removeChapterTtsSentenceKeys?.length) {
+    chapterTtsSentence = { ...chapterTtsSentence };
+    for (const k of patch.removeChapterTtsSentenceKeys) {
+      delete chapterTtsSentence[k];
+    }
+  }
+
+  let chapterAudioSec = cur.chapterAudioSec;
+  if (patch.chapterAudioSec && Object.keys(patch.chapterAudioSec).length > 0) {
+    chapterAudioSec = { ...cur.chapterAudioSec, ...patch.chapterAudioSec };
+  }
+  if (patch.removeChapterAudioSecKeys?.length) {
+    chapterAudioSec = { ...chapterAudioSec };
+    for (const k of patch.removeChapterAudioSecKeys) {
+      delete chapterAudioSec[k];
+    }
+  }
+
   const next: AudioReadPrefs = {
     volume: clampVolume(patch.volume ?? cur.volume),
     playbackRate: clampPlaybackRate(patch.playbackRate ?? cur.playbackRate),
     sleepPresetMinutes: clampSleepPreset(
       patch.sleepPresetMinutes !== undefined ? patch.sleepPresetMinutes : cur.sleepPresetMinutes,
     ),
-    sleepDeadlineAt:
-      patch.sleepDeadlineAt !== undefined ? patch.sleepDeadlineAt : cur.sleepDeadlineAt,
+    sleepDeadlineAt: patch.sleepDeadlineAt !== undefined ? patch.sleepDeadlineAt : cur.sleepDeadlineAt,
+    chapterTtsSentence,
+    chapterAudioSec,
   };
   if (next.sleepPresetMinutes <= 0) {
     next.sleepDeadlineAt = null;

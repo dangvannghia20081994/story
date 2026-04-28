@@ -106,13 +106,25 @@ export function resolveVoiceForLang(
   return list[0] ?? null;
 }
 
-/** Dev: log sau khi danh sách giọng cập nhật (voiceschanged). */
+let devLogLastViVoiceUri = "";
+
+/** Dev: log khi danh sách giọng đã có dữ liệu (tránh báo sai khi getVoices() rỗng lần đầu). */
 export function logVietnameseVoiceAvailability(voices: SpeechSynthesisVoice[]): void {
   if (process.env.NODE_ENV !== "development") return;
+  if (voices.length === 0) {
+    console.debug(
+      "[TTS] getVoices() đang rỗng — Edge/Chrome thường nạp giọng sau voiceschanged; chưa kết luận thiếu tiếng Việt.",
+    );
+    return;
+  }
   const best = pickBestVietnameseVoice(voices);
   if (best) {
+    if (best.voiceURI === devLogLastViVoiceUri) return;
+    devLogLastViVoiceUri = best.voiceURI;
     console.log("[TTS] Giọng tiếng Việt ưu tiên:", best.name, best.lang);
   } else {
+    if (devLogLastViVoiceUri === "__no_vi__") return;
+    devLogLastViVoiceUri = "__no_vi__";
     console.warn(
       "[TTS] Không có giọng tiếng Việt (vi / vi-VN). Cài thêm gói ngôn ngữ hoặc dùng Edge/Chrome trên Windows.",
     );

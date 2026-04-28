@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { storyReadHref } from "@/lib/storyPath";
+import { storyListenHref, storyReadHref } from "@/lib/storyPath";
 
 export type StoryChapterListRow = {
   id: number;
@@ -96,12 +96,18 @@ export function StoryChapterList({
               <p className="font-medium text-zinc-900 dark:text-zinc-100">{chapter.title}</p>
               <p className="text-xs tabular-nums text-zinc-500 dark:text-zinc-500">{chapterListDateTime(chapter)}</p>
             </div>
-            <div className="flex shrink-0 sm:pl-2">
+            <div className="flex shrink-0 gap-2 sm:pl-2">
               <Link
                 href={storyReadHref(story, chapter.id)}
                 className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-800 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-200"
               >
                 Đọc
+              </Link>
+              <Link
+                href={storyListenHref(story, chapter.id)}
+                className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
+              >
+                Nghe
               </Link>
             </div>
           </li>

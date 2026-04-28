@@ -56,6 +56,8 @@ interface AudioPlayerProps {
    * Trình duyệt có thể chặn (autoplay policy). Không dùng khi đọc bằng giọng trình duyệt (`speechEnabled`).
    */
   autoAdvanceChapter?: AudioChapterItem | null;
+  /** Lưu/khôi phục vị trí file audio (giây) trong prefs trang đọc — ví dụ `story-audiofile:{storyId}:{chapterId}`. */
+  audioPositionStorageKey?: string | null;
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
@@ -82,6 +84,7 @@ export function AudioPlayer({
   onSeekComplete,
   durationHintSec = null,
   autoAdvanceChapter = null,
+  audioPositionStorageKey = null,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const speedMenuRef = useRef<HTMLDivElement>(null);
@@ -92,6 +95,9 @@ export function AudioPlayer({
   const onPlaybackProgressRef = useRef(onPlaybackProgress);
   const onSeekCompleteRef = useRef(onSeekComplete);
   const progressEmitAtRef = useRef(0);
+  const audioPositionStorageKeyRef = useRef<string | null>(null);
+  const restoreAudioChapterMarkRef = useRef("");
+  const lastAudioChapterSaveAtRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -111,6 +117,7 @@ export function AudioPlayer({
   const isFirstSleepEffectRef = useRef(true);
   /** Chỉ dùng lần đầu effect [sleepTimer] chạy — tránh phụ thuộc `sleepTimeLeft` làm effect chạy lại mỗi giây. */
   const initialSleepLeftRef = useRef<number | null>(sleepInit.left);
+  const prevSleepTimerRef = useRef<number | null>(null);
   const [currentChapterId, setCurrentChapterId] = useState<number | null>(initialChapterId);
   /** Chỉ bật khi vừa hết file và chuyển chương kế — dùng với `canplay` để gọi `play()` (Chrome có thể chặn nếu không còn tương tác). */
   const autoplayAfterSrcChangeRef = useRef(false);
@@ -201,6 +208,63 @@ export function AudioPlayer({
     onSeekCompleteRef.current = onSeekComplete;
   }, [onSeekComplete]);
 
+  useEffect(() => {
+    audioPositionStorageKeyRef.current = audioPositionStorageKey?.trim() || null;
+  }, [audioPositionStorageKey]);
+
+  /** Khôi phục vị trí file audio từ prefs (sau khi có duration). */
+  useEffect(() => {
+    if (speechEnabled || !audioPositionStorageKey?.trim()) return;
+    const key = audioPositionStorageKey.trim();
+    const el = audioRef.current;
+    if (!el) return;
+    const mark = `${activeSrc}|${key}`;
+    restoreAudioChapterMarkRef.current = "";
+
+    const tryRestore = () => {
+      if (restoreAudioChapterMarkRef.current === mark) return;
+      const d = normalizeMediaDuration(el.duration);
+      if (d <= 0) return;
+      const tSaved = loadAudioReadPrefs().chapterAudioSec[key];
+      if (!Number.isFinite(tSaved) || tSaved < 0.25) return;
+      const t = Math.min(tSaved, d - 0.25);
+      el.currentTime = t;
+      setCurrentTime(t);
+      restoreAudioChapterMarkRef.current = mark;
+    };
+
+    el.addEventListener("loadedmetadata", tryRestore);
+    el.addEventListener("durationchange", tryRestore);
+    queueMicrotask(tryRestore);
+
+    return () => {
+      el.removeEventListener("loadedmetadata", tryRestore);
+      el.removeEventListener("durationchange", tryRestore);
+    };
+  }, [activeSrc, audioPositionStorageKey, speechEnabled]);
+
+  /** Ghi vị trí khi tạm dừng / seek (bổ sung cho throttle timeupdate). */
+  useEffect(() => {
+    if (speechEnabled || !audioPositionStorageKey?.trim()) return;
+    const key = audioPositionStorageKey.trim();
+    const el = audioRef.current;
+    if (!el) return;
+
+    const flush = () => {
+      const d = normalizeMediaDuration(el.duration);
+      const ct = el.currentTime;
+      if (d <= 0 || ct < 0.5 || ct >= d - 0.35) return;
+      saveAudioReadPrefs({ chapterAudioSec: { [key]: Math.min(ct, d - 0.25) } });
+    };
+
+    el.addEventListener("pause", flush);
+    el.addEventListener("seeked", flush);
+    return () => {
+      el.removeEventListener("pause", flush);
+      el.removeEventListener("seeked", flush);
+    };
+  }, [speechEnabled, audioPositionStorageKey, activeSrc]);
+
   /**
    * Đồng bộ prop `src` vào state trong phase layout (trước các effect metadata/canplay).
    * Nếu dùng `useEffect`, một render `src` đã mới còn `activeSrc` cũ → `<audio>` và effect [activeSrc] lệch,
@@ -287,6 +351,10 @@ export function AudioPlayer({
     }
     const onEnded = () => {
       setIsPlaying(false);
+      const posKey = audioPositionStorageKeyRef.current;
+      if (posKey) {
+        saveAudioReadPrefs({ removeChapterAudioSecKeys: [posKey] });
+      }
       const adv = autoAdvanceChapterRef.current;
       const url = adv?.audio_url?.trim();
       if (!adv || !url) {
@@ -304,9 +372,13 @@ export function AudioPlayer({
     if (sleepTimer <= 0) {
       setSleepTimeLeft(null);
       saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
-      isFirstSleepEffectRef.current = false;
+      isFirstSleepEffectRef.current = true;
+      prevSleepTimerRef.current = sleepTimer;
       return;
     }
+
+    const prevTimer = prevSleepTimerRef.current;
+    const userChangedPreset = prevTimer !== null && prevTimer !== sleepTimer;
 
     if (isFirstSleepEffectRef.current) {
       isFirstSleepEffectRef.current = false;
@@ -316,36 +388,40 @@ export function AudioPlayer({
         sleepPresetMinutes: sleepTimer,
         sleepDeadlineAt: Date.now() + leftNow * 1000,
       });
-    } else {
+    } else if (userChangedPreset) {
       const full = sleepTimer * 60;
-      setSleepTimeLeft(full);
       saveAudioReadPrefs({
         sleepPresetMinutes: sleepTimer,
         sleepDeadlineAt: Date.now() + full * 1000,
       });
     }
 
+    const pSync = loadAudioReadPrefs();
+    if (pSync.sleepDeadlineAt != null && pSync.sleepDeadlineAt > Date.now()) {
+      setSleepTimeLeft(Math.max(0, Math.ceil((pSync.sleepDeadlineAt - Date.now()) / 1000)));
+    }
+
+    prevSleepTimerRef.current = sleepTimer;
+
     const interval = setInterval(() => {
-      setSleepTimeLeft((prev) => {
-        if (prev === null || prev <= 1) {
-          if (audioRef.current) {
-            audioRef.current.pause();
-          }
-          if (typeof window !== "undefined" && window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-          }
-          saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
-          return 0;
+      const cur = loadAudioReadPrefs();
+      if (
+        cur.sleepPresetMinutes <= 0 ||
+        cur.sleepDeadlineAt == null ||
+        cur.sleepDeadlineAt <= Date.now()
+      ) {
+        if (audioRef.current) {
+          audioRef.current.pause();
         }
-        const next = prev - 1;
-        if (next > 0 && next % 12 === 0) {
-          saveAudioReadPrefs({
-            sleepPresetMinutes: sleepTimer,
-            sleepDeadlineAt: Date.now() + next * 1000,
-          });
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
         }
-        return next;
-      });
+        saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
+        setSleepTimeLeft(null);
+        setSleepTimer(0);
+        return;
+      }
+      setSleepTimeLeft(Math.max(0, Math.ceil((cur.sleepDeadlineAt - Date.now()) / 1000)));
     }, 1000);
 
     return () => clearInterval(interval);
@@ -447,6 +523,14 @@ export function AudioPlayer({
     progressEmitAtRef.current = now;
     const d = normalizeMediaDuration(el.duration);
     cb(ct, d, !el.paused);
+
+    const posKey = audioPositionStorageKeyRef.current;
+    if (posKey && !el.paused && d > 0 && ct >= 0.5 && ct < d - 0.35) {
+      if (now - lastAudioChapterSaveAtRef.current > 2500) {
+        lastAudioChapterSaveAtRef.current = now;
+        saveAudioReadPrefs({ chapterAudioSec: { [posKey]: Math.min(ct, d - 0.25) } });
+      }
+    }
   }, []);
 
   const handleLoadedMetadata = useCallback(() => {

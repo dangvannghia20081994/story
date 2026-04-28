@@ -10,6 +10,7 @@ import { storyGenreSlugs } from "@/lib/storyGenres";
 import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { StoryReadPrimaryButton } from "./StoryReadPrimaryButton";
+import { StoryListenPrimaryButton } from "./StoryListenPrimaryButton";
 
 type ChapterRow = {
   id: number;
@@ -94,77 +95,93 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
 
         <section className={`${shell} overflow-hidden`}>
           <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500" aria-hidden />
-          <div className="flex flex-col gap-6 p-6 md:flex-row md:items-start md:justify-between md:p-8">
-            <div className="min-w-0 flex-1 space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {genreSlugs.map((slug) => {
-                  const lab = genreLabel(slug);
-                  return lab ? (
-                    <span
-                      key={slug}
-                      className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-200"
-                    >
-                      {lab}
-                    </span>
-                  ) : null;
-                })}
-                {serialLabel ? (
+          <div className="flex flex-col gap-5 p-6 md:gap-6 md:p-8">
+            {/* 1 — Tên truyện */}
+            <h1 className="text-balance text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
+              {s.title}
+            </h1>
+            {/* 2 — Thể loại + tình trạng */}
+            <div className="flex flex-wrap items-center gap-2">
+              {genreSlugs.map((gSlug) => {
+                const lab = genreLabel(gSlug);
+                return lab ? (
                   <span
-                    className={`rounded-full border px-3 py-0.5 text-xs font-semibold tracking-wide ${serialStatusBadgeClass(s.serial_status ?? undefined)}`}
+                    key={gSlug}
+                    className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-200"
                   >
-                    {serialLabel}
+                    {lab}
                   </span>
-                ) : null}
-                {typeof s.chapters_count === "number" ? (
-                  <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-0.5 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-400">
-                    {s.chapters_count} chương
-                  </span>
-                ) : null}
-                {typeof s.characters_count === "number" && s.characters_count > 0 ? (
-                  <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-0.5 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-400">
-                    {s.characters_count} nhân vật
-                  </span>
-                ) : null}
-              </div>
-              <h1 className="text-balance text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
-                {s.title}
-              </h1>
-              {s.description ? (
-                <p className="max-w-2xl text-pretty text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 md:text-base">
-                  {s.description}
-                </p>
-              ) : (
-                <p className="text-sm text-zinc-500 dark:text-zinc-500">
-                  Chưa có mô tả ngắn cho truyện này.
-                </p>
-              )}
-              {chaptersTotal > 0 ? (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{withAudioTotal}</span> /{" "}
-                  {chaptersTotal} chương đã có file audio.
-                </p>
+                ) : null;
+              })}
+              {serialLabel ? (
+                <span
+                  className={`rounded-full border px-3 py-0.5 text-xs font-semibold tracking-wide ${serialStatusBadgeClass(s.serial_status ?? undefined)}`}
+                >
+                  {serialLabel}
+                </span>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-col gap-2 md:pt-1 sm:flex-row sm:items-stretch">
-              {chaptersTotal > 0 ? <StoryReadPrimaryButton storyKey={slug} story={s} /> : null}
+            {/* 3 — Đọc truyện / Đọc tiếp (+ nghe, thêm chương) */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch">
+              {chaptersTotal > 0 ? (
+                <>
+                  <StoryReadPrimaryButton storyKey={slug} story={s} />
+                  <StoryListenPrimaryButton storyKey={slug} story={s} />
+                </>
+              ) : null}
               <StoryAddChapterButton
                 storyKey={slug}
                 storyTitle={s.title}
                 variant={chaptersTotal > 0 ? "secondary" : "primary"}
               />
             </div>
+            {/* 4 — Mô tả */}
+            <div className="min-w-0">
+              {s.description ? (
+                <p className="max-w-2xl text-pretty text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 md:text-base">
+                  {s.description}
+                </p>
+              ) : (
+                <p className="text-sm text-zinc-500 dark:text-zinc-500">Chưa có mô tả ngắn cho truyện này.</p>
+              )}
+            </div>
           </div>
         </section>
 
+        {/* 5 — Thông tin & danh sách chương */}
         {chaptersTotal > 0 ? (
-          <StoryChaptersBlock
-            key={slug}
-            storyKey={slug}
-            story={s}
-            initialChapters={chapters}
-            initialChaptersTotal={chaptersTotal}
-            shell={shell}
-          />
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {typeof s.chapters_count === "number" ? (
+                <>
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{s.chapters_count}</span> chương
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{chaptersTotal}</span> chương
+                </>
+              )}
+              {typeof s.characters_count === "number" && s.characters_count > 0 ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{s.characters_count}</span> nhân vật
+                </>
+              ) : null}
+              {" "}
+              ·{" "}
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">{withAudioTotal}</span> / {chaptersTotal}{" "}
+              chương đã có file audio
+            </p>
+            <StoryChaptersBlock
+              key={slug}
+              storyKey={slug}
+              story={s}
+              initialChapters={chapters}
+              initialChaptersTotal={chaptersTotal}
+              shell={shell}
+            />
+          </div>
         ) : (
           <section className={`${shell} p-6 text-center`}>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Truyện này chưa có chương.</p>
