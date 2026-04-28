@@ -98,7 +98,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
           <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500" aria-hidden />
           <div className="flex flex-col gap-5 p-6 md:gap-6 md:p-8">
             {/* 1 — Tên truyện */}
-            <h1 className="text-balance text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
               {s.title}
             </h1>
             {/* 2 — Thể loại + tình trạng */}

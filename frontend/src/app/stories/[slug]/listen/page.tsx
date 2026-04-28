@@ -49,6 +49,9 @@ type ChaptersPage = {
   last_page: number;
 };
 
+/** Cùng chiều cao vùng nội dung với Navbar cố định `h-14` (3.5rem) — tránh 100dvh + header gây scrollbar trang. */
+const PAGE_FRAME = "flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden";
+
 const shell =
   "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
 
@@ -386,7 +389,7 @@ function ListenStoryPageContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4">
+      <div className={`${PAGE_FRAME} items-center justify-center px-4`}>
         <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
           <div className="h-2 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
           <div className="h-2 w-full animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
@@ -399,7 +402,7 @@ function ListenStoryPageContent() {
 
   if (!storySlug) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-4">
+      <div className={`${PAGE_FRAME} items-center justify-center gap-4 px-4`}>
         <div className={`${shell} max-w-md p-8 text-center`}>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Thiếu slug truyện trong đường dẫn.</p>
         </div>
@@ -409,7 +412,7 @@ function ListenStoryPageContent() {
 
   if (!story || chapters.length === 0 || !currentChapter) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-4">
+      <div className={`${PAGE_FRAME} items-center justify-center gap-4 px-4`}>
         <div className={`${shell} max-w-md p-8 text-center`}>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Không tìm thấy truyện hoặc chưa có chương.</p>
           <Link
@@ -424,7 +427,7 @@ function ListenStoryPageContent() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className={PAGE_FRAME}>
       <header className="z-20 shrink-0 border-b border-white/60 bg-white/85 px-3 py-2.5 shadow-sm backdrop-blur-md dark:border-zinc-800/70 dark:bg-zinc-950/80 sm:px-4 sm:py-3 md:px-6">
         <div className="mx-auto flex max-w-4xl flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
@@ -542,7 +545,7 @@ function ListenStoryPageContent() {
         </>
       ) : null}
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-stretch justify-center gap-3 px-4 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom,0.75rem))] md:px-6 md:pb-[max(1.5rem,env(safe-area-inset-bottom,0.75rem))]">
+      <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col items-stretch justify-center gap-3 overflow-y-auto overscroll-contain px-4 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom,0.75rem))] md:px-6 md:pb-[max(1.5rem,env(safe-area-inset-bottom,0.75rem))]">
         <div className="sm:hidden">
           <div
             className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
@@ -576,7 +579,7 @@ function ListenStoryPageContent() {
 
 function ListenStoryPageFallback() {
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4">
+    <div className={`${PAGE_FRAME} items-center justify-center px-4`}>
       <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
         <div className="h-2 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
         <div className="h-2 w-full animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />

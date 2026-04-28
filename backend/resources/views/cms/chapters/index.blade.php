@@ -72,7 +72,7 @@
                                     class="icon-btn js-enqueue-tts"
                                     data-url="{{ route('cms.stories.chapters.enqueue-tts', [$story, $chapter]) }}"
                                     data-chapter-id="{{ $chapter->id }}"
-                                    title="{{ $chapter->canEnqueueWorkerTts() ? 'Đưa chương vào hàng Redis (worker-tts)' : 'Không có nội dung text để TTS' }}"
+                                    title="{{ $chapter->canEnqueueWorkerTts() ? 'Đưa chương vào Redis list cho worker-tts (worker_redis.py — chạy ./run-dev.sh --with-worker hoặc run_worker_redis.cmd)' : 'Không có nội dung text để TTS' }}"
                                     aria-label="Đưa vào hàng TTS"
                                     @disabled(! $chapter->canEnqueueWorkerTts())
                                 >

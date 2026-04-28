@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Chạy trên Windows (Git Bash) hoặc tương tự. Redis: redis/redis-server.exe + redis.windows.conf
 #
-# Crawler (tuỳ chọn): truyền --with-crawler để chạy worker khi có crawler/.env VÀ crawler/.venv
-# (Python trong .venv — tránh ModuleNotFoundError: playwright khi dùng python global).
-# Chuẩn bị: xem crawler/README.md — venv + pip install -r requirements.txt + playwright install chromium
-# Sao chép crawler/.env.example → crawler/.env và đặt CRAWLER_INTERNAL_TOKEN trùng backend/.env
-# Tắt crawler dù có --with-crawler: SKIP_CRAWLER_WORKER=1 ./run-dev.sh --with-crawler
+# Tuỳ chọn:
+#   --with-crawler  Python crawler (cần crawler/.env + crawler/.venv)
+#   --with-worker   worker-tts Python (worker_redis.py — BLPOP Redis; luồng CMS «enqueue TTS»)
+# Chuẩn bị crawler: crawler/README.md
+# Tắt crawler: SKIP_CRAWLER_WORKER=1 ./run-dev.sh --with-crawler
+# Tắt worker:  SKIP_WORKER=1 ./run-dev.sh --with-worker  (alias: SKIP_WORKER_TTS / SKIP_QUEUE_WORKER)
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,14 +14,20 @@ REDIS_DIR="$ROOT_DIR/redis"
 REDIS_SERVER="$REDIS_DIR/redis-server.exe"
 
 WITH_CRAWLER=0
+WITH_WORKER=0
 for arg in "$@"; do
   if [[ "$arg" == "--with-crawler" ]]; then
     WITH_CRAWLER=1
+  elif [[ "$arg" == "--with-worker" || "$arg" == "--with-worker-tts" ]]; then
+    WITH_WORKER=1
   elif [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
-    echo "Usage: $0 [--with-crawler]"
-    echo "  --with-crawler  Khởi động crawler worker (cần crawler/.env + crawler/.venv)."
-    echo "  Mặc định chỉ Redis (nếu có), backend, frontend."
-    echo "  SKIP_CRAWLER_WORKER=1 vẫn bỏ qua worker kể cả khi có --with-crawler."
+    echo "Usage: $0 [--with-crawler] [--with-worker]"
+    echo "  Mặc định: Redis (nếu có), backend (php artisan serve), frontend (npm run dev)."
+    echo "  --with-crawler   Crawler Python worker.py (cần crawler/.env + crawler/.venv)."
+    echo "  --with-worker    worker-tts/worker_redis.py (VieNeu; cùng Redis list với nút enqueue TTS CMS)."
+    echo "  (--with-worker-tts được coi như --with-worker, tương thích cũ.)"
+    echo "  SKIP_CRAWLER_WORKER=1  bỏ qua crawler dù có --with-crawler."
+    echo "  SKIP_WORKER=1          bỏ qua worker-tts dù có --with-worker (alias: SKIP_WORKER_TTS, SKIP_QUEUE_WORKER)."
     exit 0
   fi
 done
@@ -33,9 +40,13 @@ start_service() {
   local cmd="$3"
 
   (
-    cd "$dir"
+    cd "$dir" || {
+      echo "[$name] Lỗi: không cd được $dir" >&2
+      exit 1
+    }
     echo "[$name] Starting: $cmd"
-    exec bash -lc "$cmd"
+    # bash -c (không -l): giữ PATH từ Git Bash/Windows — bash -lc thường làm mất binary trong PATH.
+    exec bash -c "$cmd"
   ) &
 
   local pid=$!
@@ -63,6 +74,25 @@ fi
 
 start_service "backend" "$ROOT_DIR/backend" "php artisan serve --host=localhost --port=8000"
 start_service "frontend" "$ROOT_DIR/frontend" "npm run dev"
+
+skip_worker=0
+if [[ "${SKIP_WORKER:-}" == "1" || "${SKIP_WORKER_TTS:-}" == "1" || "${SKIP_QUEUE_WORKER:-}" == "1" ]]; then
+  skip_worker=1
+fi
+
+if [[ "$WITH_WORKER" == "1" && "$skip_worker" != "1" ]]; then
+  TTS_PY=""
+  if [[ -f "$ROOT_DIR/worker-tts/.venv/Scripts/python.exe" ]]; then
+    TTS_PY="$ROOT_DIR/worker-tts/.venv/Scripts/python.exe"
+  elif [[ -f "$ROOT_DIR/worker-tts/.venv/bin/python" ]]; then
+    TTS_PY="$ROOT_DIR/worker-tts/.venv/bin/python"
+  fi
+  if [[ -n "$TTS_PY" ]]; then
+    start_service "worker-tts" "$ROOT_DIR/worker-tts" "$TTS_PY worker_redis.py"
+  else
+    echo "Warning: --with-worker nhưng không thấy worker-tts/.venv — bỏ qua. cd worker-tts && python -m venv .venv && pip install -r requirements.txt"
+  fi
+fi
 
 if [[ "$WITH_CRAWLER" == "1" && "${SKIP_CRAWLER_WORKER:-}" != "1" && -f "$ROOT_DIR/crawler/.env" ]]; then
   CRAWLER_PY=""

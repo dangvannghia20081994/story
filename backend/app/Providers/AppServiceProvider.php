@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Chapter;
 use App\Models\Character;
+use App\Models\CrawlerJob;
 use App\Models\Story;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -66,6 +67,23 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return Character::query()->whereKey($value)->firstOrFail();
+        });
+
+        Route::bind('crawlerJob', function (string $value): CrawlerJob {
+            if ($value === '' || ! ctype_digit($value)) {
+                abort(404);
+            }
+            $job = CrawlerJob::query()->find((int) $value);
+            if ($job === null) {
+                abort(404, sprintf(
+                    'Không có crawler job #%s (đã xóa hoặc DB mới sau migrate:fresh). '
+                    .'Nếu worker Python vẫn gọi API: xóa message cũ trên Redis (list %s) hoặc đẩy job id còn tồn tại.',
+                    $value,
+                    (string) config('crawler.redis_queue_list', 'crawler:queue')
+                ));
+            }
+
+            return $job;
         });
     }
 }

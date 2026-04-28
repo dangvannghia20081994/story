@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { storyListenAudioHref, storyListenHref, storyReadHref } from "@/lib/storyPath";
 
@@ -51,6 +54,9 @@ function SortCreatedIcon({ ascending }: { ascending: boolean }) {
   );
 }
 
+const ttsDisabledClass =
+  "inline-flex cursor-not-allowed items-center rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-400 opacity-70 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-500";
+
 export function StoryChapterList({
   story,
   chapters,
@@ -63,6 +69,14 @@ export function StoryChapterList({
   expandMoreLoading,
   onExpandMore,
 }: Props) {
+  const [ttsSupported, setTtsSupported] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setTtsSupported(isSpeechSynthesisSupported());
+  }, []);
+
+  const ttsUsable = ttsSupported !== false;
+
   return (
     <section className={`${shell} p-5 md:p-6`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -108,12 +122,23 @@ export function StoryChapterList({
                 >
                   Đọc
                 </Link>
-                <Link
-                  href={storyListenHref(story, chapter.id)}
-                  className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
-                >
-                  TTS
-                </Link>
+                {ttsUsable ? (
+                  <Link
+                    href={storyListenHref(story, chapter.id)}
+                    className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
+                  >
+                    TTS
+                  </Link>
+                ) : (
+                  <span
+                    role="button"
+                    aria-disabled
+                    title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
+                    className={ttsDisabledClass}
+                  >
+                    TTS
+                  </span>
+                )}
                 {audioHrefUrl ? (
                   <Link
                     href={storyListenAudioHref(story, chapter.id)}

@@ -111,7 +111,7 @@ class ChapterController extends Controller
             WorkerTtsQueue::push($chapter);
         } catch (\Throwable $e) {
             report($e);
-            $msg = 'Không đẩy được job lên Redis (kiểm tra REDIS_* và queue worker-tts).';
+            $msg = 'Không đẩy được job lên Redis (kiểm tra REDIS_* và worker worker_redis.py / ./run-dev.sh --with-worker).';
             if ($wantsJson) {
                 return response()->json(['message' => $msg], 503);
             }

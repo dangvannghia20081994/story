@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { getSavedChapterId, READING_PROGRESS_EVENT, type ReadingProgressDetail } from "@/lib/readingProgress";
 import { storyListenHref } from "@/lib/storyPath";
 
@@ -13,10 +14,15 @@ type Props = {
 
 export function StoryListenPrimaryButton({ storyKey, story }: Props) {
   const [savedChapterId, setSavedChapterId] = useState<number | null>(null);
+  const [ttsSupported, setTtsSupported] = useState<boolean | null>(null);
 
   const refresh = useCallback(() => {
     setSavedChapterId(getSavedChapterId(storyKey));
   }, [storyKey]);
+
+  useEffect(() => {
+    setTtsSupported(isSpeechSynthesisSupported());
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -41,6 +47,21 @@ export function StoryListenPrimaryButton({ storyKey, story }: Props) {
 
   const hasProgress = savedChapterId != null;
   const href = storyListenHref(story, hasProgress ? savedChapterId : undefined);
+  const ttsUsable = ttsSupported !== false;
+
+  if (!ttsUsable) {
+    return (
+      <span
+        role="button"
+        aria-disabled
+        title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
+        className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-5 py-3 text-sm font-semibold text-zinc-400 opacity-80 sm:w-auto dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-500"
+      >
+        <span aria-hidden>🎧</span>
+        {hasProgress ? "Nghe tiếp" : "Nghe truyện"}
+      </span>
+    );
+  }
 
   return (
     <Link

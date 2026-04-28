@@ -32,6 +32,22 @@ export function pickBestVietnameseVoice(voices: SpeechSynthesisVoice[]): SpeechS
   return [...vi].sort((a, b) => vietnameseVoicePriorityScore(b) - vietnameseVoicePriorityScore(a))[0] ?? null;
 }
 
+/**
+ * Khi không có giọng đúng locale (vd. chưa cài tiếng Việt): ưu tiên giọng mặc định,
+ * rồi tiếng Anh, rồi phần tử đầu — tránh engine im lặng với `lang` không khớp giọng.
+ */
+export function pickFallbackSpeechVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  if (voices.length === 0) return null;
+  const marked = voices.find((v) => v.default);
+  if (marked) return marked;
+  const en = voices.find((v) => {
+    const n = normalizeSpeechLang(v.lang);
+    return n === "en" || n.startsWith("en-");
+  });
+  if (en) return en;
+  return voices[0] ?? null;
+}
+
 /** Giọng đọc: URI đã lưu nếu vẫn là tiếng Việt, không thì giọng Việt tốt nhất. */
 export function resolveVietnameseVoice(
   voices: SpeechSynthesisVoice[],
@@ -87,7 +103,8 @@ export function filterVoicesByLang(
 
 /**
  * Chọn giọng theo ngôn ngữ đọc: tiếng Việt dùng `resolveVietnameseVoice`,
- * ngôn ngữ khác — giọng trong `filterVoicesByLang` + URI đã lưu nếu khớp.
+ * không có giọng Việt hoặc không khớp locale — `pickFallbackSpeechVoice`.
+ * Ngôn ngữ khác: `filterVoicesByLang`, rồi fallback tương tự nếu rỗng.
  */
 export function resolveVoiceForLang(
   voices: SpeechSynthesisVoice[],
@@ -95,10 +112,14 @@ export function resolveVoiceForLang(
   preferredUri: string,
 ): SpeechSynthesisVoice | null {
   if (isVietnameseLangTag(langTag)) {
-    return resolveVietnameseVoice(voices, preferredUri);
+    const vi = resolveVietnameseVoice(voices, preferredUri);
+    if (vi) return vi;
+    return pickFallbackSpeechVoice(voices);
   }
   const list = filterVoicesByLang(voices, langTag);
-  if (list.length === 0) return null;
+  if (list.length === 0) {
+    return pickFallbackSpeechVoice(voices);
+  }
   if (preferredUri) {
     const found = list.find((x) => x.voiceURI === preferredUri);
     if (found) return found;
@@ -125,8 +146,11 @@ export function logVietnameseVoiceAvailability(voices: SpeechSynthesisVoice[]): 
   } else {
     if (devLogLastViVoiceUri === "__no_vi__") return;
     devLogLastViVoiceUri = "__no_vi__";
-    console.warn(
-      "[TTS] Không có giọng tiếng Việt (vi / vi-VN). Cài thêm gói ngôn ngữ hoặc dùng Edge/Chrome trên Windows.",
+    const fb = pickFallbackSpeechVoice(voices);
+    console.info(
+      "[TTS] Chưa có giọng tiếng Việt (vi / vi-VN). Phát sẽ dùng giọng dự phòng" +
+        (fb ? `: ${fb.name} (${fb.lang}).` : ".") +
+        " Cài gói ngôn ngữ Windows / dùng Edge hoặc Chrome để có giọng Việt chuẩn.",
     );
   }
 }
@@ -149,3 +173,13 @@ export const BROWSER_SPEECH_VOICE_URI_KEY = "story-browser-tts-voice-uri";
 
 /** Mã ngôn ngữ đọc cho AudioWeb (BCP 47), ví dụ `vi-VN`. */
 export const AUDIO_WEB_SPEECH_LANG_KEY = "story-audioweb-speech-lang";
+
+/** Trình duyệt có Web Speech API (đọc TTS) hay không — gọi an toàn từ `useEffect` / handler (không gọi trong render SSR). */
+export function isSpeechSynthesisSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    "speechSynthesis" in window &&
+    typeof window.speechSynthesis !== "undefined" &&
+    typeof SpeechSynthesisUtterance !== "undefined"
+  );
+}

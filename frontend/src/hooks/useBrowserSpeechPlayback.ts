@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   estimateSpeechDurationSec,
   logVietnameseVoiceAvailability,
+  pickFallbackSpeechVoice,
   plainTextForSpeech,
   resolveVietnameseVoice,
 } from "@/lib/browserSpeech";
@@ -48,13 +49,16 @@ export function useBrowserSpeechPlayback({ enabled, text, rate, volume, voiceUri
     window.speechSynthesis.cancel();
     const voices = window.speechSynthesis.getVoices();
     const u = new SpeechSynthesisUtterance(plain);
-    u.lang = "vi-VN";
     u.rate = Math.max(0.5, Math.min(2, rate));
     u.volume = Math.max(0, Math.min(1, volume));
 
-    const chosen = resolveVietnameseVoice(voices, voiceUri);
+    const chosen = resolveVietnameseVoice(voices, voiceUri) ?? pickFallbackSpeechVoice(voices);
     if (chosen) {
       u.voice = chosen;
+      const vl = (chosen.lang || "").trim();
+      u.lang = vl || "vi-VN";
+    } else {
+      u.lang = "vi-VN";
     }
 
     startedAtRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();

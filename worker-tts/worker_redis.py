@@ -57,7 +57,20 @@ def queue_key() -> str:
 
 
 def reference_audio_path() -> Path:
-    return Path(os.environ.get("REFERENCE_AUDIO_PATH", str(SCRIPT_DIR / "input.mp3"))).expanduser().resolve()
+    """
+    Đường dẫn file giọng mẫu. Biến môi trường REFERENCE_AUDIO_PATH:
+    - Tuyệt đối (Docker: /app/input.wav) — dùng nguyên.
+    - Tương đối (Windows/macOS host: input.wav) — resolve theo thư mục chứa worker_redis.py,
+      không phụ thuộc cwd khi chạy `python worker_redis.py`.
+    """
+    raw = (os.environ.get("REFERENCE_AUDIO_PATH") or "").strip()
+    if raw:
+        p = Path(raw).expanduser()
+        if not p.is_absolute():
+            p = SCRIPT_DIR / p
+    else:
+        p = SCRIPT_DIR / "input.wav"
+    return p.resolve()
 
 
 def backend_base_url() -> str:
@@ -70,6 +83,16 @@ def internal_token() -> str:
 
 
 _ZW_RE = re.compile("[\u200b\u200c\u200d\ufeff]")
+
+
+def normalize_upload_format_env_value(raw: str | None) -> str:
+    """Chuẩn hoá WORKER_TTS_UPLOAD_FORMAT: khoảng trắng, zero-width, ngoặc 'mp3' / \"mp3\" / dấu ngoặc typographic."""
+    s = _ZW_RE.sub("", (raw or "")).strip().lower()
+    for curly, asc in (("\u2018", "'"), ("\u2019", "'"), ("\u201c", '"'), ("\u201d", '"')):
+        s = s.replace(curly, asc)
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in "'\"":
+        s = s[1:-1].strip().lower()
+    return s
 
 
 def normalize_tts_text(text: str) -> str:
@@ -88,12 +111,28 @@ def normalize_tts_text(text: str) -> str:
     return out.strip()
 
 
+def _ffmpeg_binary_available() -> bool:
+    raw = (os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"
+    p = Path(raw)
+    if p.is_file():
+        return True
+    return shutil.which(raw) is not None
+
+
 def upload_audio_format() -> str:
     """Định dạng gửi API: wav | mp3 | m4a (WORKER_TTS_UPLOAD_FORMAT)."""
-    raw = (os.environ.get("WORKER_TTS_UPLOAD_FORMAT") or "wav").strip().lower()
-    if raw in ("mav", "aac"):  # typo / alias
+    raw_in = os.environ.get("WORKER_TTS_UPLOAD_FORMAT")
+    raw = normalize_upload_format_env_value(raw_in or "")
+    if not raw:
+        return "wav"
+    if raw == "aac":
         raw = "m4a"
     if raw not in ("wav", "mp3", "m4a"):
+        if (raw_in or "").strip():
+            print(
+                f"[worker-tts] Cảnh báo: WORKER_TTS_UPLOAD_FORMAT={raw_in!r} không phải wav|mp3|m4a — dùng wav.",
+                flush=True,
+            )
         return "wav"
     return raw
 
@@ -266,10 +305,13 @@ def main() -> int:
         return 1
 
     fmt = upload_audio_format()
-    if fmt != "wav" and not shutil.which((os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"):
+    if fmt != "wav" and not _ffmpeg_binary_available():
         print(
-            "[worker-tts] WORKER_TTS_UPLOAD_FORMAT=%s nhưng không tìm thấy ffmpeg trong PATH.\n"
-            "  Cài: Debian/Ubuntu `apt install ffmpeg`, hoặc đặt FFMPEG_PATH đến binary."
+            "[worker-tts] WORKER_TTS_UPLOAD_FORMAT=%s nhưng không tìm thấy ffmpeg.\n"
+            "  • Debian/Ubuntu: sudo apt install ffmpeg\n"
+            "  • Windows: winget install ffmpeg (hoặc https://www.gyan.dev/ffmpeg/builds/ — thêm thư mục `bin` vào PATH),\n"
+            "    hoặc trong worker-tts/.env đặt FFMPEG_PATH=C:\\\\đường\\\\dẫn\\\\ffmpeg.exe\n"
+            "  • Hoặc đặt WORKER_TTS_UPLOAD_FORMAT=wav để gửi WAV thẳng (không cần ffmpeg)."
             % (fmt,),
             file=sys.stderr,
         )
@@ -278,7 +320,18 @@ def main() -> int:
     try:
         from vieneu import Vieneu
     except ImportError as e:
-        print(e, file=sys.stderr)
+        exe = Path(sys.executable).name
+        venv_hint = ""
+        vpy = SCRIPT_DIR / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / f"python{'.exe' if sys.platform == 'win32' else ''}"
+        if vpy.is_file() and Path(sys.executable).resolve() != vpy.resolve():
+            rel = vpy.relative_to(SCRIPT_DIR) if SCRIPT_DIR in vpy.parents else vpy
+            venv_hint = (
+                f"\n  Bạn đang dùng: {sys.executable}\n"
+                f"  Chạy worker bằng venv: {rel} worker_redis.py\n"
+                "  Hoặc: .venv\\Scripts\\activate rồi python worker_redis.py (Windows)\n"
+                "  Nếu chưa có venv: python -m venv .venv && .venv\\Scripts\\pip install -r requirements.txt\n"
+            )
+        print(f"{e}{venv_hint}", file=sys.stderr)
         return 1
 
     key = queue_key()

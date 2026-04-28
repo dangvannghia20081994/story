@@ -23,6 +23,14 @@ espeak-ng --version
 
 Sau đó mới tạo venv và cài `requirements.txt` (mục dưới). `python check_install.py` cũng nhắc nếu thiếu `espeak-ng` trong `PATH`.
 
+### Windows (chạy worker trên host, không Docker)
+
+1. **eSpeak NG:** [Releases](https://github.com/espeak-ng/espeak-ng/releases) → cài bản `.msi`, chọn thêm vào **PATH** (hoặc thêm tay `C:\Program Files\eSpeak NG\`). Mở **terminal mới** rồi `espeak-ng --version`.
+2. **Redis:** phải chạy (vd. `redis/redis-server.exe` như `run-dev.sh`), cùng `REDIS_HOST` / cổng với `.env` Laravel.
+3. **`worker-tts/.env`:** `REFERENCE_AUDIO_PATH=input.wav` (file đặt trong thư mục `worker-tts`) hoặc đường dẫn Windows đầy đủ. **Không** để `REFERENCE_AUDIO_PATH=/app/input.mp3` khi chạy ngoài Docker — trên Windows đó được hiểu là đường dẫn tuyệt đối trên ổ hiện tại (`C:\app\...`) và **không tồn tại**, worker sẽ báo *Không thấy file giọng mẫu* rồi bỏ qua job.
+4. **`pip install -r requirements.txt`:** nếu `llama-cpp-python` không có wheel khớp Python/CPU, pip có thể cần **Visual Studio Build Tools** (C++) để biên dịch — hoặc thử cài `vieneu` + `--extra-index-url` như [GUIDE.md](GUIDE.md) mục Windows.
+5. **`WORKER_TTS_UPLOAD_FORMAT=mp3|m4a`:** cần `ffmpeg` trong PATH (`winget install ffmpeg` hoặc gói tương đương).
+
 ---
 
 ## Yêu cầu khác
@@ -57,6 +65,8 @@ python check_install.py
 ```
 
 `requirements.txt` có dòng `--extra-index-url` để pip lấy **llama-cpp-python** bản CPU đã build (tránh phải compile). Nếu môi trường của bạn đã ổn, có thể thử chỉ `pip install vieneu`.
+
+**Windows:** sau khi có `.venv`, chạy **`run_worker_redis.cmd`** (cùng thư mục `worker-tts`) hoặc từ gốc repo Git Bash: **`./run-dev.sh --with-worker`** (cùng Redis + backend + worker TTS).
 
 Nếu `python3 -m venv` báo thiếu `ensurepip`: cài gói venv cho đúng phiên bản Python, ví dụ `sudo apt install python3.12-venv` (đổi số cho khớp `python3 --version`).
 

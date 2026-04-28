@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { AudioPlayer, type AudioChapterItem } from "@/components/AudioPlayer";
+import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
@@ -137,6 +138,7 @@ function ListenAudioStoryPageContent() {
   const [loadingTocMore, setLoadingTocMore] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [audioBarRatio, setAudioBarRatio] = useState(0);
+  const [ttsSupported, setTtsSupported] = useState<boolean | null>(null);
 
   const chaptersRef = useRef<Chapter[]>([]);
   const loadedChapterIdRef = useRef<number | null>(null);
@@ -144,6 +146,10 @@ function ListenAudioStoryPageContent() {
   useEffect(() => {
     chaptersRef.current = chapters;
   }, [chapters]);
+
+  useEffect(() => {
+    setTtsSupported(isSpeechSynthesisSupported());
+  }, []);
 
   useEffect(() => {
     setAudioBarRatio(0);
@@ -467,12 +473,23 @@ function ListenAudioStoryPageContent() {
             </div>
           </div>
           <div className="flex w-full min-w-0 shrink-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
-            <Link
-              href={storyListenHref(storyForLinks, currentChapter.id)}
-              className="inline-flex min-h-[2.75rem] items-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
-            >
-              Giọng trình duyệt
-            </Link>
+            {ttsSupported !== false ? (
+              <Link
+                href={storyListenHref(storyForLinks, currentChapter.id)}
+                className="inline-flex min-h-[2.75rem] items-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
+              >
+                Giọng trình duyệt
+              </Link>
+            ) : (
+              <span
+                role="button"
+                aria-disabled
+                title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
+                className="inline-flex min-h-[2.75rem] cursor-not-allowed items-center rounded-xl bg-zinc-300 px-3 py-2 text-xs font-semibold text-zinc-500 opacity-90 dark:bg-zinc-800 dark:text-zinc-500"
+              >
+                Giọng trình duyệt
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setShowToc((v) => !v)}
@@ -597,12 +614,23 @@ function ListenAudioStoryPageContent() {
               >
                 Đọc chương
               </Link>
-              <Link
-                href={storyListenHref(storyForLinks, currentChapter.id)}
-                className="inline-flex justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/40"
-              >
-                Nghe (TTS)
-              </Link>
+              {ttsSupported !== false ? (
+                <Link
+                  href={storyListenHref(storyForLinks, currentChapter.id)}
+                  className="inline-flex justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/40"
+                >
+                  Nghe (TTS)
+                </Link>
+              ) : (
+                <span
+                  role="button"
+                  aria-disabled
+                  title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
+                  className="inline-flex cursor-not-allowed justify-center rounded-xl bg-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-500 opacity-90 dark:bg-zinc-800 dark:text-zinc-500"
+                >
+                  Nghe (TTS)
+                </span>
+              )}
             </div>
           </div>
         )}

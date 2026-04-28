@@ -1061,7 +1061,7 @@ export function AudioPlayer({
               ) : null}
               {title && !readCompact ? (
                 <h3
-                  className={`text-balance font-bold tracking-tight text-zinc-900 dark:text-zinc-50 ${
+                  className={`font-bold tracking-tight text-zinc-900 dark:text-zinc-50 ${
                     readCompact ? "text-base md:text-lg" : "text-lg md:text-xl"
                   }`}
                 >

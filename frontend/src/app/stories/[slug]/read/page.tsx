@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
+import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
@@ -125,6 +126,7 @@ function ReadStoryPageContent() {
   const [loadingTocMore, setLoadingTocMore] = useState(false);
   const [fontSize, setFontSize] = useState(18);
   const [showToc, setShowToc] = useState(false);
+  const [ttsSupported, setTtsSupported] = useState<boolean | null>(null);
   const mainScrollRef = useRef<HTMLElement | null>(null);
 
   const chaptersRef = useRef<Chapter[]>([]);
@@ -133,6 +135,10 @@ function ReadStoryPageContent() {
   useEffect(() => {
     chaptersRef.current = chapters;
   }, [chapters]);
+
+  useEffect(() => {
+    setTtsSupported(isSpeechSynthesisSupported());
+  }, []);
 
   function applySliceToList(prevList: Chapter[], slice: StoryShowRead): { chapters: Chapter[]; index: number } {
     const rc = slice.read_chapter;
@@ -400,12 +406,23 @@ function ReadStoryPageContent() {
             </div>
           </div>
           <div className="flex w-full min-w-0 shrink-0 items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
-            <Link
-              href={storyListenHref(storyForListenLinks, currentChapter.id)}
-              className="min-h-[2.75rem] rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:text-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
-            >
-              Nghe (TTS)
-            </Link>
+            {ttsSupported !== false ? (
+              <Link
+                href={storyListenHref(storyForListenLinks, currentChapter.id)}
+                className="min-h-[2.75rem] rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:text-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
+              >
+                Nghe (TTS)
+              </Link>
+            ) : (
+              <span
+                role="button"
+                aria-disabled
+                title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
+                className="inline-flex min-h-[2.75rem] cursor-not-allowed items-center rounded-xl border border-zinc-200 bg-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-400 opacity-80 sm:text-sm dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-500"
+              >
+                Nghe (TTS)
+              </span>
+            )}
             {readChapterAudioUrl ? (
               <Link
                 href={storyListenAudioHref(storyForListenLinks, currentChapter.id)}
@@ -506,7 +523,7 @@ function ReadStoryPageContent() {
       >
         <article className={`relative z-0 ${shell} mx-auto max-w-3xl px-6 py-8 md:px-10 md:py-10`}>
           <h2
-            className="mb-8 text-balance text-center text-base font-semibold text-zinc-600 dark:text-zinc-400 md:text-lg"
+            className="mb-8 text-center text-base font-semibold text-zinc-600 dark:text-zinc-400 md:text-lg"
             style={{ fontSize: `${Math.min(fontSize + 2, 22)}px` }}
           >
             {currentChapter.title}

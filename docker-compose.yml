@@ -96,7 +96,7 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # Cần `worker-tts/.env` (WORKER_TTS_INTERNAL_TOKEN trùng backend) + file giọng mẫu mount `input.mp3`.
+  # Cần `worker-tts/.env` (WORKER_TTS_INTERNAL_TOKEN trùng backend) + file giọng mẫu mount `input.wav`.
   # Bật: docker compose --profile worker-tts up -d
   worker-tts:
     profiles: ["worker-tts"]

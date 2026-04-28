@@ -20,6 +20,7 @@ import {
   isVietnameseLangTag,
   logVietnameseVoiceAvailability,
   normalizeSpeechLang,
+  pickFallbackSpeechVoice,
   resolveVoiceForLang,
 } from "@/lib/browserSpeech";
 import {
@@ -166,6 +167,13 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
     }
     return filterVoicesByLang(voices, speechLang);
   }, [voices, speechLang]);
+
+  /** Đang chọn tiếng Việt nhưng máy không có giọng vi — phát sẽ dùng giọng dự phòng. */
+  const speechFallbackVoice = useMemo(() => {
+    if (!isVietnameseLangTag(speechLang)) return null;
+    if (filterVietnameseVoices(voices).length > 0) return null;
+    return pickFallbackSpeechVoice(voices);
+  }, [speechLang, voices]);
 
   const sentencesRef = useRef<string[]>([]);
   const rateRef = useRef(rate);
@@ -410,10 +418,16 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
         const v = resolveVoiceForLang(voices, lang, voiceUriRef.current);
 
         const utterance = new SpeechSynthesisUtterance(sentenceText);
-        utterance.lang = lang;
         utterance.rate = safeRate;
         utterance.volume = safeVol;
-        if (v) utterance.voice = v;
+        if (v) {
+          utterance.voice = v;
+          // Khớp lang với giọng thật — nếu để vi-VN mà không có gói Vi, nhiều engine không phát âm thanh.
+          const vl = (v.lang || "").trim();
+          utterance.lang = vl || lang;
+        } else {
+          utterance.lang = lang;
+        }
 
         utterance.onstart = () => {
           setCurrentIndex(i);
@@ -566,14 +580,16 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
       className={`w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 ${className}`}
     >
       <div className="px-5 py-4">
-        <div className="mb-4 max-h-24 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-          <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-            {currentIndex >= 0 && sentences[currentIndex]
-              ? sentences[currentIndex]
-              : sentences.length > 0
-                ? "Chọn Phát hoặc bấm một câu trong bài để bắt đầu."
-                : "Không có nội dung để đọc."}
-          </p>
+        <div className="mb-4 h-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+          <div className="h-full overflow-y-auto overscroll-contain px-3 py-2.5 [scrollbar-gutter:stable]">
+            <p className="text-left text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+              {currentIndex >= 0 && sentences[currentIndex]
+                ? sentences[currentIndex]
+                : sentences.length > 0
+                  ? "Chọn Phát hoặc bấm một câu trong bài để bắt đầu."
+                  : "Không có nội dung để đọc."}
+            </p>
+          </div>
         </div>
 
         <div className="mb-4">
@@ -814,6 +830,16 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
                 </option>
               ))}
             </select>
+          ) : speechFallbackVoice ? (
+            <span
+              className="max-w-[min(14rem,48vw)] truncate text-xs text-amber-800 dark:text-amber-200/90"
+              title="Máy chưa có giọng tiếng Việt; đang đọc bằng giọng hệ thống (phát âm tiếng Việt sẽ lạ). Cài gói ngôn ngữ hoặc chọn English trong «Ngôn ngữ đọc» nếu có giọng EN."
+            >
+              Giọng tạm:{" "}
+              {speechFallbackVoice.name.length > 22
+                ? `${speechFallbackVoice.name.slice(0, 20)}…`
+                : speechFallbackVoice.name}
+            </span>
           ) : (
             <span className="text-xs text-gray-400">Không có giọng cho ngôn ngữ này</span>
           )}

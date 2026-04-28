@@ -116,7 +116,7 @@ python worker.py
 
 `worker.py` nạp **`crawler/.env`** qua dotenv.
 
-**Git Bash — [`run-dev.sh`](run-dev.sh):** `./run-dev.sh` (Redis + backend + frontend). Thêm crawler: **`./run-dev.sh --with-crawler`** (cần `crawler/.env` + `crawler/.venv`). `./run-dev.sh --help`. Tắt worker: `SKIP_CRAWLER_WORKER=1 ./run-dev.sh --with-crawler`.
+**Git Bash — [`run-dev.sh`](run-dev.sh):** `./run-dev.sh` (Redis + backend + frontend). **`./run-dev.sh --with-crawler`** — crawler Python (cần `crawler/.env` + `crawler/.venv`). **`./run-dev.sh --with-worker`** — `worker-tts/worker_redis.py` (VieNeu, cùng Redis list với nút «enqueue TTS» CMS). Có thể gộp cờ. `./run-dev.sh --help`. Tắt crawler / worker TTS: `SKIP_CRAWLER_WORKER=1` / `SKIP_WORKER=1` (alias cũ: `SKIP_WORKER_TTS`, `SKIP_QUEUE_WORKER`).
 
 ---
 
@@ -132,12 +132,14 @@ pip install -U pip
 pip install -r requirements.txt
 copy .env.example .env
 REM WORKER_TTS_INTERNAL_TOKEN=... (trùng backend), BACKEND_API_BASE_URL=http://127.0.0.1:8000,
-REM REDIS_HOST=127.0.0.1, REFERENCE_AUDIO_PATH=... (file giọng mẫu WAV/MP3)
+REM REDIS_HOST=127.0.0.1, REFERENCE_AUDIO_PATH=input.wav (file trong worker-tts; KHÔNG dùng /app/... khi chạy host Windows)
 python worker_redis.py
 ```
 
+**Lưu ý:** `python` phải là interpreter **trong `.venv`** (đã `pip install -r requirements.txt`). Nếu báo `No module named 'vieneu'`: dùng `.venv\Scripts\python worker_redis.py` hoặc double-click **`worker-tts/run_worker_redis.cmd`**.
+
 - **eSpeak NG:** cần cho VieNeu — xem `worker-tts/README.md` (Windows: tải bản portable hoặc WSL).
-- **Luồng:** Redis list `WORKER_TTS_REDIS_QUEUE` → tổng hợp giọng → POST `/api/internal/tts/chapters/{id}/audio` (**`X-Worker-Tts-Token`**, field file **`audio`**).
+- **Luồng:** Redis list `WORKER_TTS_REDIS_QUEUE` → tổng hợp giọng → POST `/api/internal/tts/chapters/{id}/audio` (**`X-Worker-Tts-Token`**, field file **`audio`**). CMS «enqueue TTS» chỉ `RPUSH` vào list này — cần `./run-dev.sh --with-worker` hoặc `run_worker_redis.cmd`.
 
 ---
 
