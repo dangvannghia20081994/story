@@ -44,7 +44,7 @@
 
             <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem 1.25rem; margin-bottom: 1rem;">
                 <div style="flex: 1 1 12rem; min-width: 0;">
-                    <label for="pick-story" style="display: block; margin-bottom: 0.25rem;">Truyện (tuỳ chọn)</label>
+                    <label for="pick-story" style="display: block; margin-bottom: 0.25rem;">Truyện (tùy chọn)</label>
                     <select id="pick-story" name="source_story_id" style="width: 100%; max-width: 100%;">
                         <option value="">— Chọn truyện —</option>
                         @foreach ($stories as $s)

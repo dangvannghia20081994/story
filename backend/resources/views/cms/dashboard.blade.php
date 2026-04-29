@@ -362,7 +362,7 @@
     <div class="card dashboard-hero">
         <div class="dashboard-hero__inner">
             <div>
-                <span class="dashboard-hero__eyebrow">CMS operations</span>
+                <span class="dashboard-hero__eyebrow">Vận hành CMS</span>
                 <h1>Bảng điều khiển</h1>
                 <p class="dashboard-hero__lead">Một màn hình điều hành gọn hơn cho việc tạo truyện, xử lý chương, theo dõi crawler và quay lại đúng chỗ cần làm ngay.</p>
                 <div class="dashboard-hero__actions">
@@ -404,9 +404,9 @@
             <div class="dashboard-stat__meta">Các quy tắc thay thế từ / tên / lọc đang lưu.</div>
         </a>
         <a href="{{ route('cms.crawler-jobs.index') }}" class="card dashboard-stat dashboard-stat--warn">
-            <div class="dashboard-stat__label"><span>Crawler job</span><strong>Theo dõi hàng đợi</strong></div>
+            <div class="dashboard-stat__label"><span>Job crawl</span><strong>Theo dõi hàng đợi</strong></div>
             <div class="dashboard-stat__value">{{ $crawlerJobCount }}</div>
-            <div class="dashboard-stat__meta">Job lưu DB và được đẩy vào Redis để worker xử lý.</div>
+            <div class="dashboard-stat__meta">Job lưu trong cơ sở dữ liệu và được đẩy vào Redis để worker xử lý.</div>
         </a>
     </div>
 
@@ -436,8 +436,8 @@
                     <span class="dashboard-action__desc">Lấy danh sách từ cần thay thế từ nội dung chương.</span>
                 </a>
                 <a href="{{ route('cms.crawler-jobs.index') }}" class="dashboard-action">
-                    <span class="dashboard-action__title">Quản lý crawler</span>
-                    <span class="dashboard-action__desc">Xem trạng thái, lỗi, sao chép, hoặc gửi lại Redis.</span>
+                    <span class="dashboard-action__title">Quản lý job crawl</span>
+                    <span class="dashboard-action__desc">Xem trạng thái, lỗi, sao chép hoặc đẩy lại Redis.</span>
                 </a>
                 <a href="{{ url('/docs/api') }}" target="_blank" rel="noopener" class="dashboard-action">
                     <span class="dashboard-action__title">Mở tài liệu API</span>
@@ -470,8 +470,8 @@
                 </div>
                 <div class="dashboard-alert">
                     <div class="dashboard-alert__copy">
-                        <strong>Job crawler đang chạy hoặc chờ xử lý</strong>
-                        <span>Bao gồm pending, queued và processing.</span>
+                        <strong>Job crawl đang chạy hoặc chờ xử lý</strong>
+                        <span>Bao gồm chờ đẩy, đã xếp hàng và đang xử lý.</span>
                     </div>
                     <div class="dashboard-alert__value">
                         {{ ($crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0) + ($crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0) + ($crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0) }}
@@ -495,37 +495,37 @@
             </div>
             <div class="dashboard-status-card__grid">
                 <div class="dashboard-mini-card">
-                    <span class="dashboard-mini-card__label">Pending</span>
+                    <span class="dashboard-mini-card__label">Chờ đẩy</span>
                     <div class="dashboard-mini-card__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0 }}</div>
                     <div class="dashboard-kpi-help">Chưa đẩy vào Redis.</div>
                 </div>
                 <div class="dashboard-mini-card">
-                    <span class="dashboard-mini-card__label">Queued</span>
+                    <span class="dashboard-mini-card__label">Đã xếp hàng</span>
                     <div class="dashboard-mini-card__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0 }}</div>
                     <div class="dashboard-kpi-help">Đã vào hàng đợi worker.</div>
                 </div>
                 <div class="dashboard-mini-card">
-                    <span class="dashboard-mini-card__label">Processing</span>
+                    <span class="dashboard-mini-card__label">Đang xử lý</span>
                     <div class="dashboard-mini-card__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0 }}</div>
                     <div class="dashboard-kpi-help">Worker đang crawl.</div>
                 </div>
                 <div class="dashboard-mini-card">
-                    <span class="dashboard-mini-card__label">Completed</span>
+                    <span class="dashboard-mini-card__label">Hoàn tất</span>
                     <div class="dashboard-mini-card__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_COMPLETED] ?? 0 }}</div>
                     <div class="dashboard-kpi-help">Đã nhập xong nội dung.</div>
                 </div>
                 <div class="dashboard-mini-card">
-                    <span class="dashboard-mini-card__label">Failed</span>
+                    <span class="dashboard-mini-card__label">Thất bại</span>
                     <div class="dashboard-mini-card__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_FAILED] ?? 0 }}</div>
                     <div class="dashboard-kpi-help">Cần kiểm tra URL / selector / lỗi worker.</div>
                 </div>
             </div>
             <div class="dashboard-status-badges" style="margin-top: 0.75rem;">
-                <span class="cms-badge cms-badge--job-pending">pending {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0 }}</span>
-                <span class="cms-badge cms-badge--job-queued">queued {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0 }}</span>
-                <span class="cms-badge cms-badge--job-processing">processing {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0 }}</span>
-                <span class="cms-badge cms-badge--job-completed">completed {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_COMPLETED] ?? 0 }}</span>
-                <span class="cms-badge cms-badge--job-failed">failed {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_FAILED] ?? 0 }}</span>
+                <span class="cms-badge cms-badge--job-pending">chờ đẩy {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0 }}</span>
+                <span class="cms-badge cms-badge--job-queued">đã xếp hàng {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0 }}</span>
+                <span class="cms-badge cms-badge--job-processing">đang xử lý {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0 }}</span>
+                <span class="cms-badge cms-badge--job-completed">hoàn tất {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_COMPLETED] ?? 0 }}</span>
+                <span class="cms-badge cms-badge--job-failed">thất bại {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_FAILED] ?? 0 }}</span>
             </div>
         </section>
 

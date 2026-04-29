@@ -176,11 +176,11 @@
     <div class="card crawler-jobs-hero">
         <div class="crawler-jobs-hero__inner">
             <div>
-                <span class="crawler-jobs-hero__eyebrow">Crawler control</span>
-                <h1>Crawler</h1>
-                <p class="crawler-jobs-hero__lead">Quản lý job crawl, theo dõi hàng đợi Redis và xử lý lỗi ngay từ một màn hình thay vì phải mở từng job.</p>
+                <span class="crawler-jobs-hero__eyebrow">Quản lý crawl</span>
+                <h1>Quản lý job crawl</h1>
+                <p class="crawler-jobs-hero__lead">Quản lý job crawl, theo dõi hàng đợi Redis và xử lý lỗi từ một màn hình duy nhất thay vì phải mở từng job.</p>
                 <div class="crawler-jobs-hero__actions">
-                    <a href="{{ route('cms.crawler-jobs.create') }}" class="btn btn-primary">Tạo job mới</a>
+                    <a href="{{ route('cms.crawler-jobs.create') }}" class="btn btn-primary">Tạo job crawl</a>
                     <a href="{{ route('cms.stories.index') }}" class="btn">Về danh sách truyện</a>
                 </div>
             </div>
@@ -191,7 +191,7 @@
                     <div class="crawler-jobs-note__sub">Đang lưu trong bảng <code>crawler_jobs</code>.</div>
                 </div>
                 <div class="crawler-jobs-note">
-                    <span class="crawler-jobs-note__label">Redis queue</span>
+                    <span class="crawler-jobs-note__label">Hàng đợi Redis</span>
                     <div class="crawler-jobs-note__value">{{ config('crawler.redis_queue_list') }}</div>
                     <div class="crawler-jobs-note__sub">Worker Python lấy payload từ hàng đợi này.</div>
                 </div>
@@ -200,34 +200,34 @@
     </div>
     <div class="crawler-jobs-grid">
         <div class="card crawler-jobs-stat">
-            <div class="crawler-jobs-stat__label"><span>Pending</span><strong>Chờ đẩy</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Chờ đẩy</span><strong>Chờ đẩy</strong></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0 }}</div>
-            <div class="crawler-jobs-stat__meta">Job mới tạo, chưa vào Redis.</div>
+            <div class="crawler-jobs-stat__meta">Job mới tạo, chưa đưa vào Redis.</div>
         </div>
         <div class="card crawler-jobs-stat crawler-jobs-stat--accent">
-            <div class="crawler-jobs-stat__label"><span>Queued</span><strong>Đã xếp hàng</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Đã xếp hàng</span><strong>Đã xếp hàng</strong></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0 }}</div>
             <div class="crawler-jobs-stat__meta">Có thể đang chờ worker xử lý.</div>
         </div>
         <div class="card crawler-jobs-stat crawler-jobs-stat--warn">
-            <div class="crawler-jobs-stat__label"><span>Processing</span><strong>Đang crawl</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Đang xử lý</span><strong>Đang xử lý</strong></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0 }}</div>
             <div class="crawler-jobs-stat__meta">Cần tránh sửa trong lúc chạy.</div>
         </div>
         <div class="card crawler-jobs-stat crawler-jobs-stat--success">
-            <div class="crawler-jobs-stat__label"><span>Completed</span><strong>Xong</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Hoàn tất</span><strong>Hoàn tất</strong></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_COMPLETED] ?? 0 }}</div>
             <div class="crawler-jobs-stat__meta">Đã nhập xong nội dung.</div>
         </div>
     </div>
     <div class="crawler-jobs-status-badges">
-        <span class="cms-badge cms-badge--job-pending">pending {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0 }}</span>
-        <span class="cms-badge cms-badge--job-queued">queued {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0 }}</span>
-        <span class="cms-badge cms-badge--job-processing">processing {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0 }}</span>
-        <span class="cms-badge cms-badge--job-completed">completed {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_COMPLETED] ?? 0 }}</span>
-        <span class="cms-badge cms-badge--job-failed">failed {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_FAILED] ?? 0 }}</span>
+        <span class="cms-badge cms-badge--job-pending">chờ đẩy {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0 }}</span>
+        <span class="cms-badge cms-badge--job-queued">đã xếp hàng {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0 }}</span>
+        <span class="cms-badge cms-badge--job-processing">đang xử lý {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0 }}</span>
+        <span class="cms-badge cms-badge--job-completed">hoàn tất {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_COMPLETED] ?? 0 }}</span>
+        <span class="cms-badge cms-badge--job-failed">thất bại {{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_FAILED] ?? 0 }}</span>
     </div>
-    <p class="content-lead">Job lưu trong bảng <code>crawler_jobs</code>, đẩy ID lên Redis (<code>{{ config('crawler.redis_queue_list') }}</code>). Worker Python lấy nội dung và gọi API nội bộ để ghi chương. <strong>Sửa</strong> cập nhật cấu hình trong DB (không tự đẩy queue). <strong>Sao chép</strong> mở form tạo job với cùng selector / truyện — chỉ cần đổi URL nguồn. <strong>Gửi lại Redis</strong> (pending / queued / failed / completed) đẩy thêm payload và đặt lại <code>queued</code> — chương trùng tiêu đề sẽ được cập nhật nội dung; job <code>queued</code> có thể bị xử lý hai lần nếu queue cũ vẫn còn tin.</p>
+    <p class="content-lead">Job lưu trong bảng <code>crawler_jobs</code>, đẩy ID lên Redis (<code>{{ config('crawler.redis_queue_list') }}</code>). Worker Python lấy nội dung và gọi API nội bộ để ghi chương. <strong>Sửa</strong> cập nhật cấu hình trong cơ sở dữ liệu (không tự đẩy hàng đợi). <strong>Sao chép</strong> mở form tạo job với cùng selector / truyện — chỉ cần đổi URL nguồn. <strong>Đẩy lại Redis</strong> (chờ đẩy / đã xếp hàng / thất bại / hoàn tất) đẩy thêm payload và đặt lại <code>queued</code> — chương trùng tiêu đề sẽ được cập nhật nội dung; job <code>queued</code> có thể bị xử lý hai lần nếu hàng đợi cũ vẫn còn tin.</p>
 
     @include('cms.partials.pagination', ['paginator' => $jobs, 'variant' => 'toolbar'])
     <div class="card card--table">
@@ -236,11 +236,11 @@
                 <thead>
                     <tr>
                         <th>URL nguồn</th>
-                        <th>Chương đã nhập</th>
+                        <th>Số chương đã nhập</th>
                         <th>Truyện</th>
                         <th>Trạng thái</th>
                         <th>Lỗi</th>
-                        <th>Tạo</th>
+                        <th>Ngày tạo</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -274,14 +274,14 @@
                                             style="font-size: 0.78rem; padding: 0.28rem 0.55rem;"
                                             data-url="{{ route('cms.crawler-jobs.resend', $job) }}"
                                             data-job-id="{{ $job->id }}"
-                                        >Gửi lại Redis</button>
+                                        >Đẩy lại Redis</button>
                                     @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="muted">Chưa có job.</td>
+                            <td colspan="7" class="muted">Chưa có job crawl.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -329,7 +329,7 @@
                         errCell.textContent = le ? le : '—';
                         errCell.setAttribute('title', le ? le : '');
                     }
-                    notify('ok', d.message || 'Đã đẩy lại job lên Redis.');
+                    notify('ok', d.message || 'Đã đẩy lại job crawl lên Redis.');
                 }).catch(function (err) {
                     var msg = 'Lỗi mạng hoặc máy chủ.';
                     if (err.response && err.response.data) {

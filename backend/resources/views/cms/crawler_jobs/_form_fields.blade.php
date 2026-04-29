@@ -12,12 +12,12 @@
     <fieldset class="crawler-job-form__panel">
         <legend class="crawler-job-form__legend">CSS selector</legend>
         <div class="field">
-            <label for="chapter_links_selector">Link từng chương (tuỳ chọn)</label>
+            <label for="chapter_links_selector">Liên kết từng chương (tùy chọn)</label>
             <input type="text" name="chapter_links_selector" id="chapter_links_selector" value="{{ old('chapter_links_selector', $d['chapter_links_selector'] ?? '') }}" placeholder="vd: ul.list-chapter a">
             <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Để trống: chỉ crawl đúng <code>source_url</code> như một chương.</span>
         </div>
         <div class="field">
-            <label for="chapter_list_next_page_selector">Trang mục lục kế (tuỳ chọn)</label>
+            <label for="chapter_list_next_page_selector">Trang mục lục tiếp theo (tùy chọn)</label>
             <input type="text" name="chapter_list_next_page_selector" id="chapter_list_next_page_selector" value="{{ old('chapter_list_next_page_selector', $d['chapter_list_next_page_selector'] ?? '') }}" placeholder="vd: li.custom-page-item.nav-next a.custom-page-link">
             <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Để trống: một trang mục lục. Có giá trị: lặp next cho đến hết.</span>
         </div>
@@ -35,7 +35,7 @@
     <fieldset class="crawler-job-form__panel">
         <legend class="crawler-job-form__legend">Truyện &amp; tham số crawl</legend>
         <div class="field">
-            <label for="story_id">Gắn vào truyện có sẵn (tuỳ chọn)</label>
+            <label for="story_id">Gắn vào truyện có sẵn (tùy chọn)</label>
             <select name="story_id" id="story_id">
                 <option value="">— Truyện mới —</option>
                 @foreach ($stories as $s)
@@ -44,12 +44,12 @@
             </select>
         </div>
         <div class="field">
-            <label for="new_story_title">Tiêu đề truyện mới (tuỳ chọn)</label>
+            <label for="new_story_title">Tiêu đề truyện mới (tùy chọn)</label>
             <input type="text" name="new_story_title" id="new_story_title" value="{{ old('new_story_title', $d['new_story_title'] ?? '') }}" maxlength="255">
             <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Khi không chọn truyện có sẵn: có thể để trống nếu đã điền <strong>Selector tên truyện</strong> bên dưới (worker lấy tên từ trang nguồn). Nếu điền tay, cùng một tiêu đề áp cho mọi job khi nhập nhiều URL.</span>
         </div>
         <div class="field">
-            <label for="story_title_selector">Selector tên truyện trên trang nguồn (tuỳ chọn)</label>
+            <label for="story_title_selector">Selector tên truyện trên trang nguồn (tùy chọn)</label>
             <input type="text" name="story_title_selector" id="story_title_selector" value="{{ old('story_title_selector', $d['story_title_selector'] ?? '') }}" maxlength="2000" placeholder="vd: h1.title, .breadcrumb li:last-child a">
             <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Chỉ dùng khi <strong>truyện mới</strong> và không nhập tiêu đề tay. Worker mở <code>source_url</code>, đọc văn bản phần tử khớp selector rồi lưu làm tên truyện (tối đa 255 ký tự).</span>
         </div>
@@ -67,7 +67,7 @@
             <input type="number" name="delay_seconds" id="delay_seconds" value="{{ old('delay_seconds', $d['delay_seconds'] ?? '1.5') }}" min="0" max="120" step="0.1">
         </div>
         <div class="field">
-            <label for="chapter_fetch_concurrency">Số chương tải song song (tuỳ chọn)</label>
+            <label for="chapter_fetch_concurrency">Số chương tải song song (tùy chọn)</label>
             <input type="number" name="chapter_fetch_concurrency" id="chapter_fetch_concurrency" value="{{ old('chapter_fetch_concurrency', array_key_exists('chapter_fetch_concurrency', $d) && $d['chapter_fetch_concurrency'] !== null ? $d['chapter_fetch_concurrency'] : '') }}" min="1" max="16" step="1" placeholder="Trống = 1 hoặc .env">
             <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Ví dụ 5: nhiều tab chương cùng lúc; lưu API vẫn đúng thứ tự mục lục.</span>
         </div>

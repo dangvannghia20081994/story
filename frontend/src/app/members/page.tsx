@@ -1,40 +1,25 @@
 import Link from "next/link";
 import { FullWidthLayout } from "@/components/layouts";
-import { loadMemberDirectory } from "@/lib/members";
 
-export default async function MembersPage() {
-  const members = await loadMemberDirectory();
-
+export default function MembersPage() {
   return (
     <FullWidthLayout>
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6 md:p-10">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6 md:p-10">
         <header className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/70">
-          <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Danh sách thành viên</h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Danh sách nhân vật từ các truyện trong hệ thống.
+          <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Thành viên</h1>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            Trang này dành cho danh sách người dùng đăng ký trên site và sẽ được bổ sung sau. Nhân vật trong từng truyện nằm ở mục{" "}
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">Nhân vật</span> trên trang chi tiết truyện.
+          </p>
+          <p className="mt-4">
+            <Link
+              href="/stories"
+              className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-800 transition hover:border-indigo-300 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-200 dark:hover:border-indigo-600"
+            >
+              Danh sách truyện
+            </Link>
           </p>
         </header>
-
-        {members.length === 0 ? (
-          <section className="rounded-2xl border border-dashed border-zinc-300 bg-white/70 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900/70">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Chưa có thành viên để hiển thị.</p>
-          </section>
-        ) : (
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {members.map((member) => (
-              <Link
-                key={member.id}
-                href={`/members/${member.id}?story=${member.story_id}`}
-                className="rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-indigo-600"
-              >
-                <h2 className="text-base font-semibold text-zinc-800 dark:text-zinc-100">{member.name}</h2>
-                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-                  Truyện: <span className="font-medium">{member.story_title ?? `#${member.story_id}`}</span>
-                </p>
-              </Link>
-            ))}
-          </section>
-        )}
       </div>
     </FullWidthLayout>
   );
