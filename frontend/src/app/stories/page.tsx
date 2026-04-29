@@ -1,9 +1,41 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { FullWidthLayout } from "@/components/layouts";
-import { StoriesListClient } from "../StoriesListClient";
+import { apiFetch } from "@/lib/api";
+import { STORIES_LIST_PER_PAGE } from "@/lib/storiesListConfig";
+import { StoriesListClient, type StoriesListPaginated } from "../StoriesListClient";
 import { CreateStoryButton } from "./CreateStoryButton";
 
-export default function StoriesPage() {
+function parseListPage(raw: string | undefined): number {
+  const n = parseInt(raw ?? "1", 10);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
+async function loadStoriesPage(page: number): Promise<StoriesListPaginated | null> {
+  try {
+    const q = new URLSearchParams({
+      page: String(page),
+      per_page: String(STORIES_LIST_PER_PAGE),
+    });
+    return await apiFetch<StoriesListPaginated>(`/api/stories?${q}`);
+  } catch {
+    return null;
+  }
+}
+
+export default async function StoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const sp = await searchParams;
+  const page = parseListPage(sp.page);
+  const initialList = await loadStoriesPage(page);
+  const last = initialList?.last_page ?? 1;
+  if (initialList && page > last) {
+    redirect(last >= 1 ? `/stories?page=${last}` : "/stories");
+  }
+
   return (
     <FullWidthLayout>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-6 pb-16 md:p-10 xl:max-w-7xl min-[1920px]:max-w-[min(90rem,calc(100vw-5rem)))]">
@@ -41,7 +73,7 @@ export default function StoriesPage() {
           </header>
 
           <div className="relative pt-8">
-            <StoriesListClient />
+            <StoriesListClient key={page} currentPage={page} initialList={initialList} />
           </div>
         </div>
       </div>

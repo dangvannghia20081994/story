@@ -19,6 +19,10 @@ Route::get('/stories/{story}/chapters', [ChapterController::class, 'index']);
 Route::post('/stories/{story}/chapters', [ChapterController::class, 'store']);
 Route::get('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'show']);
 
+Route::get('/stories/{story}/chapters/{chapter_slug}/audio/stream', [ChapterAudioStreamController::class, 'streamForStoryChapterSlug'])
+    ->middleware(['signed', 'throttle:chapter-audio-stream'])
+    ->name('api.stories.chapters.audio.stream');
+
 Route::get('/chapters/{chapter}/audio/stream', [ChapterAudioStreamController::class, 'stream'])
     ->middleware(['signed', 'throttle:chapter-audio-stream'])
     ->name('api.chapters.audio.stream');

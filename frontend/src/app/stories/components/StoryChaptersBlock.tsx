@@ -8,6 +8,7 @@ import { StoryChapterList } from "./StoryChapterList";
 type ChapterRow = {
   id: number;
   title: string;
+  slug?: string | null;
   content: string;
   audio_path: string | null;
   audio_url?: string | null;

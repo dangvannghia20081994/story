@@ -13,6 +13,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::redirect('/dashboard', '/admin', 302);
+
 Route::get('/login', static fn () => redirect()->route('cms.login'))->name('login');
 
 Route::prefix('admin')->name('cms.')->group(function (): void {

@@ -2,7 +2,6 @@
 
 /**
  * Nghe truyện bằng file audio (AudioPlayer).
- * Sau này có thể giới hạn chỉ tài khoản trả phí (middleware / entitlement).
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,12 +12,14 @@ import { AudioPlayer, type AudioChapterItem } from "@/components/AudioPlayer";
 import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
+import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
-import { storyListenHref, storyReadHref } from "@/lib/storyPath";
+import { chapterKey, storyDetailHref, storyListenHref, storyReadHref } from "@/lib/storyPath";
 
 type Chapter = {
   id: number;
   title: string;
+  slug?: string | null;
   content: string;
   audio_path: string | null;
   audio_url?: string | null;
@@ -53,8 +54,6 @@ type ChaptersPage = {
 const shell =
   "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
 
-const LISTEN_AUDIO_PATH = "listen-audio";
-
 /** Navbar `h-14` (3.5rem) sticky — tránh `min-h-screen` + nav làm nội dung vượt viewport. */
 const PAGE_FRAME =
   "flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden overscroll-none bg-gradient-to-b from-indigo-50/55 via-white to-violet-50/30 dark:from-zinc-950 dark:via-zinc-950 dark:to-indigo-950/25";
@@ -71,18 +70,41 @@ function chapterReadOrder(a: Chapter, b: Chapter): number {
   return a.id - b.id;
 }
 
-function resolveInitialChapterId(storySlug: string, list: Chapter[]): number | null {
-  if (list.length === 0) return null;
-  try {
-    const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("chapter") : null;
-    if (q) {
-      const id = parseInt(q, 10);
-      if (Number.isFinite(id)) return id;
+function resolveChapterIdFromPathSegment(chapterSeg: string, list: Chapter[]): number | null {
+  const t = chapterSeg.trim();
+  if (t === "") return null;
+  const asId = parseInt(t, 10);
+  if (Number.isFinite(asId)) {
+    const byId = list.find((c) => c.id === asId);
+    if (byId) return byId.id;
+  }
+  const byKey = list.find((c) => chapterKey(c) === t);
+  return byKey?.id ?? null;
+}
+
+function listenAudioPath(storySlug: string, ch: { id: number; slug?: string | null }): string {
+  return `/${encodeURIComponent(storySlug)}/${encodeURIComponent(chapterKey(ch))}/listen-audio`;
+}
+
+function resolveListenTargetId(
+  chapterSlugParam: string,
+  chapterQuery: string | null,
+  storySlug: string,
+  list: Chapter[],
+): number | null {
+  const fromPath = resolveChapterIdFromPathSegment(chapterSlugParam, list);
+  if (fromPath != null) return fromPath;
+  if (chapterQuery) {
+    const qid = parseInt(chapterQuery, 10);
+    if (Number.isFinite(qid)) {
+      const hit = list.find((c) => c.id === qid);
+      if (hit) return hit.id;
     }
-    const saved = getSavedChapterId(storySlug);
-    if (saved != null) return saved;
-  } catch {
-    /* ignore */
+  }
+  const saved = getSavedChapterId(storySlug);
+  if (saved != null) {
+    const hit = list.find((c) => c.id === saved);
+    if (hit) return hit.id;
   }
   return list[0]?.id ?? null;
 }
@@ -123,10 +145,14 @@ async function fetchReadSlice(storySlug: string, chapterId: number): Promise<Sto
 function ListenAudioStoryPageContent() {
   const params = useParams();
   const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const searchParams = useSearchParams();
-  const chapterParam = searchParams.get("chapter");
+  const chapterQuery = searchParams.get("chapter");
   const rawSlug = params?.slug;
+  const rawChapterSlug = params?.chapterSlug;
   const storySlug = Array.isArray(rawSlug) ? (rawSlug[0] ?? "") : (rawSlug ?? "");
+  const chapterSlugParam = Array.isArray(rawChapterSlug) ? (rawChapterSlug[0] ?? "") : (rawChapterSlug ?? "");
 
   const [story, setStory] = useState<Story | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -153,7 +179,7 @@ function ListenAudioStoryPageContent() {
 
   useEffect(() => {
     setAudioBarRatio(0);
-  }, [chapterParam]);
+  }, [chapterSlugParam, chapterQuery]);
 
   function applySliceToList(prevList: Chapter[], slice: StoryShowRead): { chapters: Chapter[]; index: number } {
     const rc = slice.read_chapter;
@@ -204,10 +230,8 @@ function ListenAudioStoryPageContent() {
     async function run() {
       setLoading(true);
       try {
-        const pid = chapterParam ? parseInt(chapterParam, 10) : Number.NaN;
-
         if (chaptersRef.current.length === 0) {
-          const toc = await fetchTocPage(storySlug, 1);
+          const toc = await inFlightDedupe(`story-toc:${storySlug}:p1`, () => fetchTocPage(storySlug, 1));
           if (cancelled) return;
           const shellList = toc.data.map((c) => ({ ...c, content: "" }));
           setChapters(shellList);
@@ -215,15 +239,16 @@ function ListenAudioStoryPageContent() {
           setTocLastPage(toc.last_page ?? 1);
           setTocLoadedPage(1);
 
-          const targetId =
-            Number.isFinite(pid) ? pid : resolveInitialChapterId(storySlug, shellList) ?? shellList[0]?.id ?? Number.NaN;
-          if (!Number.isFinite(targetId)) {
+          const targetId = resolveListenTargetId(chapterSlugParam, chapterQuery, storySlug, shellList);
+          if (targetId == null || !Number.isFinite(targetId)) {
             setStory(null);
             setReadNav(null);
             return;
           }
 
-          const slice = await fetchReadSlice(storySlug, targetId);
+          const slice = await inFlightDedupe(`story-read:${storySlug}:ch${targetId}`, () =>
+            fetchReadSlice(storySlug, targetId),
+          );
           if (cancelled) return;
           const { chapters: merged, index } = applySliceToList(shellList, slice);
           setChapters(merged);
@@ -233,18 +258,23 @@ function ListenAudioStoryPageContent() {
           setCurrentChapterIndex(index);
           loadedChapterIdRef.current = targetId;
 
-          const pathSlug = encodeURIComponent(storySlug);
-          const wantQs = `?chapter=${targetId}`;
-          if (typeof window !== "undefined" && window.location.search !== wantQs) {
-            router.replace(`/stories/${pathSlug}/${LISTEN_AUDIO_PATH}${wantQs}`, { scroll: false });
+          const rc = slice.read_chapter;
+          if (rc && typeof window !== "undefined") {
+            const wantPath = listenAudioPath(storySlug, rc);
+            if (window.location.pathname !== wantPath || window.location.search !== "") {
+              routerRef.current.replace(wantPath, { scroll: false });
+            }
           }
           return;
         }
 
+        const fromPath = resolveChapterIdFromPathSegment(chapterSlugParam, chaptersRef.current);
+        const fromQs = chapterQuery ? parseInt(chapterQuery, 10) : Number.NaN;
+        const pid = fromPath ?? (Number.isFinite(fromQs) ? fromQs : Number.NaN);
         if (!Number.isFinite(pid)) return;
         if (loadedChapterIdRef.current === pid) return;
 
-        const slice = await fetchReadSlice(storySlug, pid);
+        const slice = await inFlightDedupe(`story-read:${storySlug}:ch${pid}`, () => fetchReadSlice(storySlug, pid));
         if (cancelled) return;
         const { chapters: merged, index } = applySliceToList(chaptersRef.current, slice);
         setChapters(merged);
@@ -266,14 +296,14 @@ function ListenAudioStoryPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [storySlug, chapterParam, router]);
+  }, [storySlug, chapterSlugParam, chapterQuery]);
 
   const loadMoreToc = useCallback(async () => {
     if (!storySlug || loadingTocMore || tocLoadedPage >= tocLastPage) return;
     setLoadingTocMore(true);
     try {
       const nextPage = tocLoadedPage + 1;
-      const toc = await fetchTocPage(storySlug, nextPage);
+      const toc = await inFlightDedupe(`story-toc:${storySlug}:p${nextPage}`, () => fetchTocPage(storySlug, nextPage));
       const batch = toc.data.map((c) => ({ ...c, content: "" }));
       setChapters((prev: Chapter[]) => mergeChapterList(prev, batch));
       setTocLoadedPage(nextPage);
@@ -294,13 +324,20 @@ function ListenAudioStoryPageContent() {
 
   useEffect(() => {
     if (!storySlug || loading) return;
-    const fromQs = chapterParam ? parseInt(chapterParam, 10) : Number.NaN;
-    const id = Number.isFinite(fromQs) ? fromQs : chapters[currentChapterIndex]?.id;
+    const fromPath = resolveChapterIdFromPathSegment(chapterSlugParam, chapters);
+    const fromQs = chapterQuery ? parseInt(chapterQuery, 10) : Number.NaN;
+    const id = fromPath ?? (Number.isFinite(fromQs) ? fromQs : chapters[currentChapterIndex]?.id);
     if (!Number.isFinite(id)) return;
     setSavedChapterId(storySlug, id);
-  }, [storySlug, chapterParam, chapters, currentChapterIndex, loading]);
+  }, [storySlug, chapterSlugParam, chapterQuery, chapters, currentChapterIndex, loading]);
 
-  const chapterIdFromUrl = chapterParam ? parseInt(chapterParam, 10) : Number.NaN;
+  const chapterIdFromUrl = useMemo(() => {
+    if (chapters.length === 0) return Number.NaN;
+    const fromPath = resolveChapterIdFromPathSegment(chapterSlugParam, chapters);
+    if (fromPath != null) return fromPath;
+    const fromQs = chapterQuery ? parseInt(chapterQuery, 10) : Number.NaN;
+    return Number.isFinite(fromQs) ? fromQs : Number.NaN;
+  }, [chapters, chapterSlugParam, chapterQuery]);
   const currentChapter = useMemo(() => {
     if (Number.isFinite(chapterIdFromUrl)) {
       const hit = chapters.find((c) => c.id === chapterIdFromUrl);
@@ -311,7 +348,6 @@ function ListenAudioStoryPageContent() {
 
   const chaptersTotalDisplay = readNav?.chapters_total ?? chapters.length;
   const chapterOrdinal = readNav?.chapter_index ?? currentChapterIndex + 1;
-  const pathSlugEnc = encodeURIComponent(storySlug);
 
   const audioUrl = useMemo(() => chapterAudioUrl(currentChapter), [currentChapter]);
 
@@ -378,18 +414,21 @@ function ListenAudioStoryPageContent() {
       const ch = chapters[index];
       if (!ch) return;
       loadedChapterIdRef.current = null;
-      router.replace(`/stories/${pathSlugEnc}/${LISTEN_AUDIO_PATH}?chapter=${ch.id}`, { scroll: false });
+      routerRef.current.replace(listenAudioPath(storySlug, ch), { scroll: false });
       setShowToc(false);
     },
-    [chapters, router, pathSlugEnc],
+    [chapters, storySlug],
   );
 
   const onChapterChange = useCallback(
     (id: number) => {
+      const ch = chapters.find((c) => c.id === id);
       loadedChapterIdRef.current = null;
-      router.replace(`/stories/${pathSlugEnc}/${LISTEN_AUDIO_PATH}?chapter=${id}`, { scroll: false });
+      routerRef.current.replace(ch ? listenAudioPath(storySlug, ch) : listenAudioPath(storySlug, { id, slug: null }), {
+        scroll: false,
+      });
     },
-    [router, pathSlugEnc],
+    [storySlug, chapters],
   );
 
   if (loading) {
@@ -421,7 +460,7 @@ function ListenAudioStoryPageContent() {
         <div className={`${shell} max-w-md p-8 text-center`}>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Không tìm thấy truyện hoặc chưa có chương.</p>
           <Link
-            href={`/stories/${encodeURIComponent(storySlug)}`}
+            href={storyDetailHref({ id: story?.id ?? 0, slug: storySlug })}
             className="mt-4 inline-flex rounded-xl border border-indigo-200/70 bg-gradient-to-r from-white to-indigo-50/90 px-4 py-2 text-sm font-semibold text-indigo-900 shadow-sm transition hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-100 dark:hover:to-violet-950/35"
           >
             ← Về trang truyện
@@ -439,7 +478,7 @@ function ListenAudioStoryPageContent() {
         <div className="mx-auto flex max-w-4xl flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
             <Link
-              href={`/stories/${encodeURIComponent(storySlug)}`}
+              href={storyDetailHref({ id: story?.id ?? 0, slug: storySlug })}
               className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-indigo-200/60 bg-gradient-to-r from-white to-indigo-50/80 px-3 text-xs font-medium text-indigo-800 shadow-sm transition hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-200 dark:hover:to-violet-950/40 sm:text-sm"
             >
               ← Truyện
@@ -475,7 +514,7 @@ function ListenAudioStoryPageContent() {
           <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             {ttsSupported !== false ? (
               <Link
-                href={storyListenHref(storyForLinks, currentChapter.id)}
+                href={storyListenHref(storyForLinks, currentChapter)}
                 className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
               >
                 Giọng trình duyệt
@@ -611,14 +650,14 @@ function ListenAudioStoryPageContent() {
             </p>
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
               <Link
-                href={storyReadHref(storyForLinks, currentChapter.id)}
+                href={storyReadHref(storyForLinks, currentChapter)}
                 className="inline-flex w-full min-h-[2.75rem] items-center justify-center rounded-xl border border-indigo-200/70 bg-gradient-to-r from-white to-indigo-50/90 px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm transition hover:from-indigo-50 hover:to-violet-50 sm:w-auto dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-100 dark:hover:to-violet-950/35"
               >
                 Đọc chương
               </Link>
               {ttsSupported !== false ? (
                 <Link
-                  href={storyListenHref(storyForLinks, currentChapter.id)}
+                  href={storyListenHref(storyForLinks, currentChapter)}
                   className="inline-flex w-full min-h-[2.75rem] items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg sm:w-auto dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/40"
                 >
                   Nghe (TTS)

@@ -109,7 +109,7 @@
                             <td class="cms-story-row-actions">
                                 <a
                                     class="icon-btn"
-                                    href="{{ $story->frontendReadChapterUrl((int) $chapter->id) }}"
+                                    href="{{ $story->frontendReadChapterUrl($chapter) }}"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     title="Mở trang đọc chương trên web"

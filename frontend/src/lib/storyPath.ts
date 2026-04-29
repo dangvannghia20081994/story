@@ -5,25 +5,63 @@ export function storyKey(story: { id: number; slug?: string | null }): string {
   return String(story.id);
 }
 
+/** Slug chương trong URL; fallback id nếu chưa có slug. */
+export function chapterKey(chapter: { id: number; slug?: string | null }): string {
+  const s = chapter.slug;
+  if (typeof s === "string" && s.trim() !== "") return s.trim();
+  return String(chapter.id);
+}
+
+export type ChapterLinkRef = { id: number; slug?: string | null };
+
+/**
+ * Chọn chương để build URL: tiến độ đọc chỉ lưu id — map sang bản ghi có `slug` nếu có trong `chapters`.
+ * Chương không nằm trong danh sách (chưa tải trang) thì fallback `{ id }` (URL dạng số).
+ */
+export function chapterForStoryHref(
+  savedChapterId: number | null,
+  firstChapter: ChapterLinkRef,
+  chapters: ChapterLinkRef[],
+): ChapterLinkRef {
+  if (savedChapterId == null) return firstChapter;
+  const hit = chapters.find((c) => c.id === savedChapterId);
+  return hit ?? { id: savedChapterId };
+}
+
+/** Trang truyện: `/{storyKey}` (rewrite → `/stories/...` trong next.config). */
 export function storyDetailHref(story: { id: number; slug?: string | null }): string {
-  return `/stories/${encodeURIComponent(storyKey(story))}`;
+  return `/${encodeURIComponent(storyKey(story))}`;
 }
 
-export function storyReadHref(story: { id: number; slug?: string | null }, chapterId?: number): string {
-  const base = `${storyDetailHref(story)}/read`;
-  if (chapterId == null) return base;
-  return `${base}?chapter=${chapterId}`;
+/** Trang đọc: `/{storyKey}/{chapterKey}/read` (rewrite → `/stories/.../read`). */
+export function storyReadHref(
+  story: { id: number; slug?: string | null },
+  chapter: number | { id: number; slug?: string | null },
+): string {
+  const sk = storyKey(story);
+  const ch = typeof chapter === "number" ? { id: chapter } : chapter;
+  const ck = chapterKey(ch);
+  return `/${encodeURIComponent(sk)}/${encodeURIComponent(ck)}/read`;
 }
 
-export function storyListenHref(story: { id: number; slug?: string | null }, chapterId?: number): string {
-  const base = `${storyDetailHref(story)}/listen`;
-  if (chapterId == null) return base;
-  return `${base}?chapter=${chapterId}`;
+/** Nghe TTS: `/{story}/{chapter}/listen` (rewrite → `/stories/.../listen`). */
+export function storyListenHref(
+  story: { id: number; slug?: string | null },
+  chapter: number | { id: number; slug?: string | null },
+): string {
+  const sk = storyKey(story);
+  const ch = typeof chapter === "number" ? { id: chapter } : chapter;
+  const ck = chapterKey(ch);
+  return `/${encodeURIComponent(sk)}/${encodeURIComponent(ck)}/listen`;
 }
 
-/** Nghe bằng file audio (AudioPlayer). TODO: có thể giới hạn tài khoản trả phí. */
-export function storyListenAudioHref(story: { id: number; slug?: string | null }, chapterId?: number): string {
-  const base = `${storyDetailHref(story)}/listen-audio`;
-  if (chapterId == null) return base;
-  return `${base}?chapter=${chapterId}`;
+/** Nghe file audio: `/{story}/{chapter}/listen-audio` (rewrite → `/stories/.../listen-audio`). */
+export function storyListenAudioHref(
+  story: { id: number; slug?: string | null },
+  chapter: number | { id: number; slug?: string | null },
+): string {
+  const sk = storyKey(story);
+  const ch = typeof chapter === "number" ? { id: chapter } : chapter;
+  const ck = chapterKey(ch);
+  return `/${encodeURIComponent(sk)}/${encodeURIComponent(ck)}/listen-audio`;
 }

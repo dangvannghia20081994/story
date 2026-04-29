@@ -10,6 +10,7 @@ import { storyListenAudioHref, storyListenHref, storyReadHref } from "@/lib/stor
 export type StoryChapterListRow = {
   id: number;
   title: string;
+  slug?: string | null;
   audio_path?: string | null;
   audio_url?: string | null;
   created_at?: string;
@@ -117,14 +118,14 @@ export function StoryChapterList({
               </div>
               <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end sm:pl-2">
                 <Link
-                  href={storyReadHref(story, chapter.id)}
+                  href={storyReadHref(story, chapter)}
                   className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-800 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-200"
                 >
                   Đọc
                 </Link>
                 {ttsUsable ? (
                   <Link
-                    href={storyListenHref(story, chapter.id)}
+                    href={storyListenHref(story, chapter)}
                     className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
                   >
                     TTS
@@ -141,7 +142,7 @@ export function StoryChapterList({
                 )}
                 {audioHrefUrl ? (
                   <Link
-                    href={storyListenAudioHref(story, chapter.id)}
+                    href={storyListenAudioHref(story, chapter)}
                     className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/55"
                   >
                     Audio

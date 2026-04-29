@@ -1,14 +1,18 @@
 import { HomeStoryCard, type HomeStoryCardStory } from "@/components/HomeStoryCard";
 import { apiFetch } from "@/lib/api";
+import { STORIES_LIST_PER_PAGE } from "@/lib/storiesListConfig";
 
 type StoryRow = HomeStoryCardStory;
 
 type Paginated = {
   data: StoryRow[];
+  current_page?: number;
+  last_page?: number;
 };
 
 async function loadStories(): Promise<Paginated> {
-  return apiFetch<Paginated>("/api/stories");
+  const q = new URLSearchParams({ page: "1", per_page: String(STORIES_LIST_PER_PAGE) });
+  return apiFetch<Paginated>(`/api/stories?${q}`);
 }
 
 export async function StoriesList() {
@@ -34,7 +38,7 @@ export async function StoriesList() {
   return (
     <ul className="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {payload.data.map((s) => (
-        <li key={s.id} className="min-w-0">
+        <li key={s.id} className="flex min-h-0 min-w-0">
           <HomeStoryCard story={s} />
         </li>
       ))}

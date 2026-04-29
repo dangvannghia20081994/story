@@ -9,14 +9,27 @@ const backend =
   stripTrailingSlash(process.env.NEXT_PUBLIC_API_URL) ||
   "http://localhost:8000";
 
+/** Slug cấp 1: không trùng route tĩnh / từ khóa dành riêng (tránh khớp /stories/... khi strip prefix). */
+const storySeg = ":story((?!^(?:stories|about|members|rankings|api|_next|favicon.ico)$)[^/]+)";
+const chapterSeg = ":chapter([^/]+)";
+
 const nextConfig: NextConfig = {
   // Dev: cho phép truy cập qua reverse proxy (nginx) với Host story.test — tránh 502 / chặn asset dev
   allowedDevOrigins: ["story.test", "www.story.test"],
   async rewrites() {
-    return [
-      { source: "/api/:path*", destination: `${backend}/api/:path*` },
-      { source: "/storage/:path*", destination: `${backend}/storage/:path*` },
-    ];
+    return {
+      beforeFiles: [
+        { source: "/api/:path*", destination: `${backend}/api/:path*` },
+        { source: "/storage/:path*", destination: `${backend}/storage/:path*` },
+      ],
+      // URL ngắn (không /stories) → route trong app/stories/... — thứ tự: pattern dài/specific trước.
+      afterFiles: [
+        { source: `/${storySeg}/${chapterSeg}/read`, destination: "/stories/:story/:chapter/read" },
+        { source: `/${storySeg}/${chapterSeg}/listen-audio`, destination: "/stories/:story/:chapter/listen-audio" },
+        { source: `/${storySeg}/${chapterSeg}/listen`, destination: "/stories/:story/:chapter/listen" },
+        { source: `/${storySeg}`, destination: "/stories/:story" },
+      ],
+    };
   },
 };
 

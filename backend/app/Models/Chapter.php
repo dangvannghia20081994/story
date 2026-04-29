@@ -280,11 +280,22 @@ SQL;
         }
 
         $minutes = (int) config('chapter_audio.signed_url_ttl_minutes', 30);
+        $this->loadMissing('story');
+        $story = $this->story;
+        if ($story === null) {
+            return null;
+        }
+
+        $storyKey = $story->getRouteKey();
+        $chapterKey = (is_string($this->slug) && $this->slug !== '') ? $this->slug : (string) $this->getKey();
 
         return URL::temporarySignedRoute(
-            'api.chapters.audio.stream',
+            'api.stories.chapters.audio.stream',
             now()->addMinutes(max(1, $minutes)),
-            ['chapter' => $this->getKey()],
+            [
+                'story' => $storyKey,
+                'chapter_slug' => $chapterKey,
+            ],
         );
     }
 

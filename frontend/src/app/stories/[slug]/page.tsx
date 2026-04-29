@@ -2,20 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SidebarLayout } from "@/components/layouts";
-import { StoryAddChapterButton } from "./StoryAddChapterButton";
-import { StoryChaptersBlock } from "./StoryChaptersBlock";
+import { StoryAddChapterButton } from "@/app/stories/components/StoryAddChapterButton";
+import { StoryChaptersBlock } from "@/app/stories/components/StoryChaptersBlock";
 import { apiFetch } from "@/lib/api";
 import { genreLabel } from "@/lib/genreLabels";
 import { storyGenreSlugs } from "@/lib/storyGenres";
 import { serialStatusBadgeClass, serialStatusLabel } from "@/lib/serialStatusLabels";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
-import { StoryListenAudioPrimaryButton } from "./StoryListenAudioPrimaryButton";
-import { StoryReadPrimaryButton } from "./StoryReadPrimaryButton";
-import { StoryListenPrimaryButton } from "./StoryListenPrimaryButton";
+import { StoryListenAudioPrimaryButton } from "@/app/stories/components/StoryListenAudioPrimaryButton";
+import { StoryReadPrimaryButton } from "@/app/stories/components/StoryReadPrimaryButton";
+import { StoryListenPrimaryButton } from "@/app/stories/components/StoryListenPrimaryButton";
 
 type ChapterRow = {
   id: number;
   title: string;
+  slug?: string | null;
   content: string;
   audio_path: string | null;
   audio_url?: string | null;
@@ -77,11 +78,13 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   const serialLabel = serialStatusLabel(s.serial_status ?? undefined);
   const chaptersTotal = s.chapters_total ?? chapters.length;
   const withAudioTotal = s.chapters_with_audio_total ?? chapters.filter((c) => chapterAudioUrl(c)).length;
+  const firstChapter = chapters[0];
+  const chaptersForHref = chapters.map((c) => ({ id: c.id, slug: c.slug }));
   const shell =
     "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
 
   return (
-    <SidebarLayout storyId={s.id}>
+    <SidebarLayout storyId={s.id} storyGenreSlugs={genreSlugs}>
       <div className="flex flex-col gap-6">
         <nav className="flex flex-wrap items-center gap-2 text-sm">
           <Link
@@ -124,11 +127,13 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
             </div>
             {/* 3 — Đọc truyện / Đọc tiếp (+ nghe, thêm chương) */}
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch">
-              {chaptersTotal > 0 ? (
+              {chaptersTotal > 0 && firstChapter ? (
                 <>
-                  <StoryReadPrimaryButton storyKey={slug} story={s} />
-                  <StoryListenPrimaryButton storyKey={slug} story={s} />
-                  {withAudioTotal > 0 ? <StoryListenAudioPrimaryButton storyKey={slug} story={s} /> : null}
+                  <StoryReadPrimaryButton storyKey={slug} story={s} firstChapter={firstChapter} chapters={chaptersForHref} />
+                  <StoryListenPrimaryButton storyKey={slug} story={s} firstChapter={firstChapter} chapters={chaptersForHref} />
+                  {withAudioTotal > 0 ? (
+                    <StoryListenAudioPrimaryButton storyKey={slug} story={s} firstChapter={firstChapter} chapters={chaptersForHref} />
+                  ) : null}
                 </>
               ) : null}
               <StoryAddChapterButton

@@ -71,7 +71,9 @@ export default async function Home() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {genre.stories.map((story) => (
-                  <HomeStoryCard key={story.id} story={story} />
+                  <div key={story.id} className="flex min-h-0 min-w-0">
+                    <HomeStoryCard story={story} />
+                  </div>
                 ))}
               </div>
             )}

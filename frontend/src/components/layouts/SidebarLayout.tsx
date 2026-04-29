@@ -9,19 +9,48 @@ type Story = {
   title: string;
 };
 
+const RELATED_STORIES_LIMIT = 5;
+
+type StoriesIndexJson = {
+  data: Story[];
+};
+
 interface SidebarLayoutProps {
   children: ReactNode;
   storyId?: number;
+  /** Slug thể loại của truyện đang xem (ưu tiên gợi ý cùng thể loại). */
+  storyGenreSlugs?: string[];
 }
 
-async function loadRelatedStories(storyId?: number): Promise<Story[]> {
-  if (!storyId) return [];
+function relatedStoriesQuery(excludeId: number, anyGenreCsv?: string): string {
+  const q = new URLSearchParams({
+    per_page: String(RELATED_STORIES_LIMIT),
+    exclude: String(excludeId),
+    page: "1",
+  });
+  if (anyGenreCsv && anyGenreCsv.trim() !== "") {
+    q.set("any_genre", anyGenreCsv);
+  }
+  return `/api/stories?${q.toString()}`;
+}
 
+/** Cùng thể loại (tối đa 5 mới nhất); nếu rỗng thì truyện khác (5 mới nhất). */
+async function loadRelatedStories(
+  storyId: number,
+  genreSlugs: string[],
+): Promise<{ stories: Story[]; mode: "genre" | "fallback" }> {
   try {
-    const res = await apiFetch<{ data: Story[] }>("/api/stories?limit=5");
-    return (res.data ?? []).filter((story) => story.id !== storyId);
+    if (genreSlugs.length > 0) {
+      const res = await apiFetch<StoriesIndexJson>(relatedStoriesQuery(storyId, genreSlugs.join(",")));
+      const rows = res.data ?? [];
+      if (rows.length > 0) {
+        return { stories: rows, mode: "genre" };
+      }
+    }
+    const resAll = await apiFetch<StoriesIndexJson>(relatedStoriesQuery(storyId));
+    return { stories: resAll.data ?? [], mode: "fallback" };
   } catch {
-    return [];
+    return { stories: [], mode: "fallback" };
   }
 }
 
@@ -40,14 +69,32 @@ function RelatedStoriesSkeleton({ panelClass }: { panelClass: string }) {
   );
 }
 
-async function RelatedStoriesPanel({ panelClass, storyId }: { panelClass: string; storyId?: number }) {
-  const relatedStories = await loadRelatedStories(storyId);
+async function RelatedStoriesPanel({
+  panelClass,
+  storyId,
+  storyGenreSlugs = [],
+}: {
+  panelClass: string;
+  storyId?: number;
+  storyGenreSlugs?: string[];
+}) {
+  if (!storyId) {
+    return (
+      <div className={panelClass}>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          Truyện khác
+        </h3>
+        <p className="text-xs text-zinc-500">Không có gợi ý.</p>
+      </div>
+    );
+  }
+
+  const { stories: relatedStories, mode } = await loadRelatedStories(storyId, storyGenreSlugs);
+  const heading = mode === "genre" ? "Cùng thể loại" : "Truyện khác";
 
   return (
     <div className={panelClass}>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-        Truyện khác
-      </h3>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{heading}</h3>
       {relatedStories.length > 0 ? (
         <ul className="space-y-2">
           {relatedStories.map((story) => (
@@ -68,8 +115,7 @@ async function RelatedStoriesPanel({ panelClass, storyId }: { panelClass: string
   );
 }
 
-export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
-
+export function SidebarLayout({ children, storyId, storyGenreSlugs }: SidebarLayoutProps) {
   const panel =
     "rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
 
@@ -83,7 +129,7 @@ export function SidebarLayout({ children, storyId }: SidebarLayoutProps) {
         <aside className="space-y-6 lg:pt-0">
           {/* Related Stories */}
           <Suspense fallback={<RelatedStoriesSkeleton panelClass={panel} />}>
-            <RelatedStoriesPanel panelClass={panel} storyId={storyId} />
+            <RelatedStoriesPanel panelClass={panel} storyId={storyId} storyGenreSlugs={storyGenreSlugs} />
           </Suspense>
 
           {/* Quick Links */}

@@ -2,17 +2,19 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
+import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
-import { storyListenAudioHref, storyListenHref } from "@/lib/storyPath";
+import { chapterKey, storyDetailHref, storyListenAudioHref, storyListenHref } from "@/lib/storyPath";
 
 type Chapter = {
   id: number;
   title: string;
+  slug?: string | null;
   content: string;
   audio_path: string | null;
   audio_url?: string | null;
@@ -23,13 +25,14 @@ type Chapter = {
 type ReadNav = {
   chapter_index: number;
   chapters_total: number;
-  prev: { id: number; title: string; audio_url?: string | null; duration?: number } | null;
-  next: { id: number; title: string; audio_url?: string | null; duration?: number } | null;
+  prev: { id: number; title: string; slug?: string | null; audio_url?: string | null; duration?: number } | null;
+  next: { id: number; title: string; slug?: string | null; audio_url?: string | null; duration?: number } | null;
 };
 
 type Story = {
   id: number;
   title: string;
+  slug?: string | null;
   chapters?: Chapter[];
 };
 
@@ -47,6 +50,10 @@ type ChaptersPage = {
 const shell =
   "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
 
+/** Không chiếm thêm chiều cao trong flow (tránh nav + 100dvh → 2 scrollbar); trùng với `top-14` của Navbar. */
+const readViewportFrame =
+  "fixed inset-x-0 bottom-0 top-14 z-0 flex min-h-0 flex-col overflow-hidden overscroll-none";
+
 function chapterReadOrder(a: Chapter, b: Chapter): number {
   const aN = a.chapter_number;
   const bN = b.chapter_number;
@@ -59,20 +66,23 @@ function chapterReadOrder(a: Chapter, b: Chapter): number {
   return a.id - b.id;
 }
 
-function resolveInitialChapterId(storySlug: string, list: Chapter[]): number | null {
-  if (list.length === 0) return null;
-  try {
-    const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("chapter") : null;
-    if (q) {
-      const id = parseInt(q, 10);
-      if (Number.isFinite(id)) return id;
+function resolveChapterSlugForInitialLoad(storySlug: string, list: Chapter[], urlChapterSlug: string): string {
+  const trimmed = urlChapterSlug.trim();
+  if (trimmed !== "") {
+    const bySlug = list.find((c) => chapterKey(c) === trimmed);
+    if (bySlug) return chapterKey(bySlug);
+    const asId = parseInt(trimmed, 10);
+    if (Number.isFinite(asId)) {
+      const byId = list.find((c) => c.id === asId);
+      if (byId) return chapterKey(byId);
     }
-    const saved = getSavedChapterId(storySlug);
-    if (saved != null) return saved;
-  } catch {
-    /* ignore */
   }
-  return list[0]?.id ?? null;
+  const saved = getSavedChapterId(storySlug);
+  if (saved != null) {
+    const hit = list.find((c) => c.id === saved);
+    if (hit) return chapterKey(hit);
+  }
+  return list[0] ? chapterKey(list[0]) : "";
 }
 
 function mergeChapterList(prev: Chapter[], incoming: Chapter[]): Chapter[] {
@@ -97,9 +107,10 @@ async function fetchTocPage(storySlug: string, page: number): Promise<ChaptersPa
   return apiFetch<ChaptersPage>(`/api/stories/${key}/chapters?omit_content=1&per_page=100&page=${page}`);
 }
 
-async function fetchReadSlice(storySlug: string, chapterId: number): Promise<StoryShowRead> {
+async function fetchReadSlice(storySlug: string, chapterSlug: string): Promise<StoryShowRead> {
   const key = encodeURIComponent(storySlug);
-  const res = await apiFetch<{ data: StoryShowRead }>(`/api/stories/${key}?read_chapter=${chapterId}`);
+  const cs = encodeURIComponent(chapterSlug);
+  const res = await apiFetch<{ data: StoryShowRead }>(`/api/stories/${key}?read_chapter_slug=${cs}`);
   return res.data;
 }
 
@@ -108,13 +119,19 @@ function chapterAudioUrl(c: Chapter | undefined): string | null {
   return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
 }
 
+function readPath(storySlug: string, ch: { id: number; slug?: string | null }): string {
+  return `/${encodeURIComponent(storySlug)}/${encodeURIComponent(chapterKey(ch))}/read`;
+}
+
 function ReadStoryPageContent() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const chapterParam = searchParams.get("chapter");
-  const rawSlug = params?.slug;
-  const storySlug = Array.isArray(rawSlug) ? (rawSlug[0] ?? "") : (rawSlug ?? "");
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const rawStory = params?.slug;
+  const rawChapter = params?.chapterSlug;
+  const storySlug = Array.isArray(rawStory) ? (rawStory[0] ?? "") : (rawStory ?? "");
+  const chapterSlug = Array.isArray(rawChapter) ? (rawChapter[0] ?? "") : (rawChapter ?? "");
 
   const [story, setStory] = useState<Story | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -130,7 +147,7 @@ function ReadStoryPageContent() {
   const mainScrollRef = useRef<HTMLElement | null>(null);
 
   const chaptersRef = useRef<Chapter[]>([]);
-  const loadedChapterIdRef = useRef<number | null>(null);
+  const loadedRouteKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     chaptersRef.current = chapters;
@@ -150,6 +167,7 @@ function ReadStoryPageContent() {
       stubs.push({
         id: nav.prev.id,
         title: nav.prev.title,
+        slug: nav.prev.slug ?? null,
         content: "",
         audio_path: null,
         duration: nav.prev.duration ?? 0,
@@ -160,6 +178,7 @@ function ReadStoryPageContent() {
       stubs.push({
         id: nav.next.id,
         title: nav.next.title,
+        slug: nav.next.slug ?? null,
         content: "",
         audio_path: null,
         duration: nav.next.duration ?? 0,
@@ -175,24 +194,27 @@ function ReadStoryPageContent() {
   useEffect(() => {
     setChapters([]);
     chaptersRef.current = [];
-    loadedChapterIdRef.current = null;
+    loadedRouteKeyRef.current = null;
   }, [storySlug]);
 
   useEffect(() => {
-    if (!storySlug) {
+    if (!storySlug || !chapterSlug) {
       setLoading(false);
       return;
     }
 
     let cancelled = false;
+    const routeKey = `${storySlug}|${chapterSlug}`;
 
     async function run() {
+      if (chaptersRef.current.length > 0 && loadedRouteKeyRef.current === routeKey) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        const pid = chapterParam ? parseInt(chapterParam, 10) : Number.NaN;
-
         if (chaptersRef.current.length === 0) {
-          const toc = await fetchTocPage(storySlug, 1);
+          const toc = await inFlightDedupe(`story-toc:${storySlug}:p1`, () => fetchTocPage(storySlug, 1));
           if (cancelled) return;
           const shellList = toc.data.map((c) => ({ ...c, content: "" }));
           setChapters(shellList);
@@ -200,15 +222,16 @@ function ReadStoryPageContent() {
           setTocLastPage(toc.last_page ?? 1);
           setTocLoadedPage(1);
 
-          const targetId =
-            Number.isFinite(pid) ? pid : resolveInitialChapterId(storySlug, shellList) ?? shellList[0]?.id ?? Number.NaN;
-          if (!Number.isFinite(targetId)) {
+          const targetSlug = resolveChapterSlugForInitialLoad(storySlug, shellList, chapterSlug);
+          if (targetSlug === "") {
             setStory(null);
             setReadNav(null);
             return;
           }
 
-          const slice = await fetchReadSlice(storySlug, targetId);
+          const slice = await inFlightDedupe(`story-read-slug:${storySlug}:${targetSlug}`, () =>
+            fetchReadSlice(storySlug, targetSlug),
+          );
           if (cancelled) return;
           const { chapters: merged, index } = applySliceToList(shellList, slice);
           setChapters(merged);
@@ -216,20 +239,17 @@ function ReadStoryPageContent() {
           setStory(slice);
           setReadNav(slice.read_navigation ?? null);
           setCurrentChapterIndex(index);
-          loadedChapterIdRef.current = targetId;
-
-          const pathSlug = encodeURIComponent(storySlug);
-          const wantQs = `?chapter=${targetId}`;
-          if (typeof window !== "undefined" && window.location.search !== wantQs) {
-            router.replace(`/stories/${pathSlug}/read${wantQs}`, { scroll: false });
+          const canonical = slice.read_chapter ? chapterKey(slice.read_chapter) : targetSlug;
+          loadedRouteKeyRef.current = `${storySlug}|${canonical}`;
+          if (typeof window !== "undefined" && canonical !== chapterSlug) {
+            routerRef.current.replace(readPath(storySlug, slice.read_chapter!), { scroll: false });
           }
           return;
         }
 
-        if (!Number.isFinite(pid)) return;
-        if (loadedChapterIdRef.current === pid) return;
-
-        const slice = await fetchReadSlice(storySlug, pid);
+        const slice = await inFlightDedupe(`story-read-slug:${storySlug}:${chapterSlug}`, () =>
+          fetchReadSlice(storySlug, chapterSlug),
+        );
         if (cancelled) return;
         const { chapters: merged, index } = applySliceToList(chaptersRef.current, slice);
         setChapters(merged);
@@ -237,7 +257,11 @@ function ReadStoryPageContent() {
         setCurrentChapterIndex(index);
         setStory(slice);
         setReadNav(slice.read_navigation ?? null);
-        loadedChapterIdRef.current = pid;
+        const canonical = slice.read_chapter ? chapterKey(slice.read_chapter) : chapterSlug;
+        loadedRouteKeyRef.current = `${storySlug}|${canonical}`;
+        if (typeof window !== "undefined" && canonical !== chapterSlug) {
+          routerRef.current.replace(readPath(storySlug, slice.read_chapter!), { scroll: false });
+        }
       } catch (e) {
         if (!cancelled) {
           console.error("Failed to load:", e);
@@ -251,14 +275,14 @@ function ReadStoryPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [storySlug, chapterParam, router]);
+  }, [storySlug, chapterSlug]);
 
   const loadMoreToc = useCallback(async () => {
     if (!storySlug || loadingTocMore || tocLoadedPage >= tocLastPage) return;
     setLoadingTocMore(true);
     try {
       const nextPage = tocLoadedPage + 1;
-      const toc = await fetchTocPage(storySlug, nextPage);
+      const toc = await inFlightDedupe(`story-toc:${storySlug}:p${nextPage}`, () => fetchTocPage(storySlug, nextPage));
       const batch = toc.data.map((c) => ({ ...c, content: "" }));
       setChapters((prev: Chapter[]) => mergeChapterList(prev, batch));
       setTocLoadedPage(nextPage);
@@ -279,24 +303,24 @@ function ReadStoryPageContent() {
 
   useEffect(() => {
     if (!storySlug || loading) return;
-    const fromQs = chapterParam ? parseInt(chapterParam, 10) : Number.NaN;
-    const id = Number.isFinite(fromQs) ? fromQs : chapters[currentChapterIndex]?.id;
+    const id = chapters[currentChapterIndex]?.id;
     if (!Number.isFinite(id)) return;
     setSavedChapterId(storySlug, id);
-  }, [storySlug, chapterParam, chapters, currentChapterIndex, loading]);
+  }, [storySlug, chapters, currentChapterIndex, loading]);
 
-  const chapterIdFromUrl = chapterParam ? parseInt(chapterParam, 10) : Number.NaN;
   const currentChapter = useMemo(() => {
-    if (Number.isFinite(chapterIdFromUrl)) {
-      const hit = chapters.find((c) => c.id === chapterIdFromUrl);
+    const bySlug = chapters.find((c) => chapterKey(c) === chapterSlug);
+    if (bySlug) return bySlug;
+    const asId = parseInt(chapterSlug, 10);
+    if (Number.isFinite(asId)) {
+      const hit = chapters.find((c) => c.id === asId);
       if (hit) return hit;
     }
     return chapters[currentChapterIndex];
-  }, [chapters, chapterIdFromUrl, currentChapterIndex]);
+  }, [chapters, chapterSlug, currentChapterIndex]);
 
   const chaptersTotalDisplay = readNav?.chapters_total ?? chapters.length;
   const chapterOrdinal = readNav?.chapter_index ?? currentChapterIndex + 1;
-  const pathSlugEnc = encodeURIComponent(storySlug);
 
   const readChapterAudioUrl = useMemo(() => chapterAudioUrl(currentChapter), [currentChapter]);
   const storyForListenLinks = useMemo(
@@ -317,36 +341,36 @@ function ReadStoryPageContent() {
   }, []);
 
   const goToPrev = useCallback(() => {
-    const id = readNav?.prev?.id ?? chapters[currentChapterIndex - 1]?.id;
-    if (!id) return;
-    loadedChapterIdRef.current = null;
-    router.replace(`/stories/${pathSlugEnc}/read?chapter=${id}`, { scroll: false });
+    const prev = readNav?.prev ?? chapters[currentChapterIndex - 1];
+    if (!prev) return;
+    loadedRouteKeyRef.current = null;
+    routerRef.current.replace(readPath(storySlug, prev), { scroll: false });
     scrollReadPaneToTop("smooth");
-  }, [readNav?.prev?.id, chapters, currentChapterIndex, router, pathSlugEnc, scrollReadPaneToTop]);
+  }, [readNav?.prev, chapters, currentChapterIndex, storySlug, scrollReadPaneToTop]);
 
   const goToNext = useCallback(() => {
-    const id = readNav?.next?.id ?? chapters[currentChapterIndex + 1]?.id;
-    if (!id) return;
-    loadedChapterIdRef.current = null;
-    router.replace(`/stories/${pathSlugEnc}/read?chapter=${id}`, { scroll: false });
+    const next = readNav?.next ?? chapters[currentChapterIndex + 1];
+    if (!next) return;
+    loadedRouteKeyRef.current = null;
+    routerRef.current.replace(readPath(storySlug, next), { scroll: false });
     scrollReadPaneToTop("smooth");
-  }, [readNav?.next?.id, chapters, currentChapterIndex, router, pathSlugEnc, scrollReadPaneToTop]);
+  }, [readNav?.next, chapters, currentChapterIndex, storySlug, scrollReadPaneToTop]);
 
   const goToChapter = useCallback(
     (index: number) => {
       const ch = chapters[index];
       if (!ch) return;
-      loadedChapterIdRef.current = null;
-      router.replace(`/stories/${pathSlugEnc}/read?chapter=${ch.id}`, { scroll: false });
+      loadedRouteKeyRef.current = null;
+      routerRef.current.replace(readPath(storySlug, ch), { scroll: false });
       setShowToc(false);
       scrollReadPaneToTop("smooth");
     },
-    [chapters, router, pathSlugEnc, scrollReadPaneToTop],
+    [chapters, storySlug, scrollReadPaneToTop],
   );
 
   if (loading) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4">
+      <div className={`${readViewportFrame} items-center justify-center px-4`}>
         <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
           <div className="h-2 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
           <div className="h-2 w-full animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
@@ -357,11 +381,11 @@ function ReadStoryPageContent() {
     );
   }
 
-  if (!storySlug) {
+  if (!storySlug || !chapterSlug) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-4">
+      <div className={`${readViewportFrame} items-center justify-center gap-4 px-4`}>
         <div className={`${shell} max-w-md p-8 text-center`}>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Thiếu slug truyện trong đường dẫn.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Thiếu đường dẫn truyện hoặc chương.</p>
         </div>
       </div>
     );
@@ -369,11 +393,11 @@ function ReadStoryPageContent() {
 
   if (!story || chapters.length === 0 || !currentChapter) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-4">
+      <div className={`${readViewportFrame} items-center justify-center gap-4 px-4`}>
         <div className={`${shell} max-w-md p-8 text-center`}>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Không tìm thấy truyện hoặc chưa có chương.</p>
           <Link
-            href={`/stories/${encodeURIComponent(storySlug)}`}
+            href={storyDetailHref({ id: story?.id ?? 0, slug: storySlug })}
             className="mt-4 inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             ← Về trang truyện
@@ -384,12 +408,12 @@ function ReadStoryPageContent() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden">
+    <div className={readViewportFrame}>
       <header className="z-20 shrink-0 border-b border-white/60 bg-white/85 px-3 py-2.5 shadow-sm backdrop-blur-md dark:border-zinc-800/70 dark:bg-zinc-950/80 sm:px-4 sm:py-3 md:px-6">
         <div className="mx-auto flex max-w-4xl flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
             <Link
-              href={`/stories/${encodeURIComponent(storySlug)}`}
+              href={storyDetailHref({ id: story?.id ?? 0, slug: storySlug })}
               className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-zinc-200/90 bg-white/80 px-3 text-xs font-medium text-zinc-600 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-indigo-800 dark:hover:text-indigo-300 sm:text-sm"
             >
               ← Truyện
@@ -408,7 +432,7 @@ function ReadStoryPageContent() {
           <div className="flex w-full min-w-0 shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
             {ttsSupported !== false ? (
               <Link
-                href={storyListenHref(storyForListenLinks, currentChapter.id)}
+                href={storyListenHref(storyForListenLinks, currentChapter)}
                 className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:text-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
               >
                 Nghe (TTS)
@@ -425,7 +449,7 @@ function ReadStoryPageContent() {
             )}
             {readChapterAudioUrl ? (
               <Link
-                href={storyListenAudioHref(storyForListenLinks, currentChapter.id)}
+                href={storyListenAudioHref(storyForListenLinks, currentChapter)}
                 className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:text-sm dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/55"
               >
                 Nghe audio
@@ -541,7 +565,7 @@ function ReadStoryPageContent() {
         </article>
       </main>
 
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-2 px-4 pb-4 pt-2 md:px-8">
+      <div className="mx-auto flex w-full max-w-3xl shrink-0 items-center justify-between gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 md:px-8">
         <button
           type="button"
           onClick={goToPrev}
@@ -576,7 +600,7 @@ function ReadStoryPageContent() {
 
 function ReadStoryPageFallback() {
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4">
+    <div className={`${readViewportFrame} items-center justify-center px-4`}>
       <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
         <div className="h-2 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
         <div className="h-2 w-full animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />

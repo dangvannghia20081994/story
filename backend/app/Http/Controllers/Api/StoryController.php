@@ -18,19 +18,50 @@ class StoryController extends Controller
         $request->validate([
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            /** Loại trừ truyện (vd. sidebar “truyện khác”). */
+            'exclude' => ['sometimes', 'integer', 'min:1'],
+            /** Danh sách slug thể loại cách nhau bởi dấu phẩy — lọc truyện có ít nhất một slug trong JSON `genres`. */
+            'any_genre' => ['sometimes', 'string', 'max:500'],
         ]);
 
         $perPage = (int) $request->input('per_page', 20);
         $perPage = min(100, max(1, $perPage));
 
-        $paginator = Story::query()
+        $excludeId = $request->filled('exclude') ? (int) $request->input('exclude') : null;
+
+        $genreSlugs = [];
+        $anyGenreRaw = $request->input('any_genre');
+        if (is_string($anyGenreRaw) && trim($anyGenreRaw) !== '') {
+            foreach (explode(',', $anyGenreRaw) as $part) {
+                $s = trim((string) $part);
+                if ($s !== '' && in_array($s, Story::GENRES, true)) {
+                    $genreSlugs[] = $s;
+                }
+            }
+            $genreSlugs = array_values(array_unique($genreSlugs));
+        }
+
+        $query = Story::query()
             ->with(['firstAudibleChapter' => fn ($q) => $q->select(['id', 'story_id', 'audio_path'])])
             ->withCount([
                 'chapters',
                 'chapters as chapters_with_audio_count' => fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
             ])
-            ->orderByDesc('id')
-            ->paginate($perPage);
+            ->orderByDesc('id');
+
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        if ($genreSlugs !== []) {
+            $query->where(function ($q) use ($genreSlugs): void {
+                foreach ($genreSlugs as $slug) {
+                    $q->orWhereJsonContains('genres', $slug);
+                }
+            });
+        }
+
+        $paginator = $query->paginate($perPage);
 
         return response()->json($paginator);
     }
@@ -97,6 +128,8 @@ class StoryController extends Controller
             'chapters_omit_content' => ['sometimes', 'boolean'],
             /** Chỉ tải một chương đầy đủ + meta lân cận (tránh chapters_full với hàng nghìn chương). */
             'read_chapter' => ['sometimes', 'integer', 'min:1'],
+            /** Cùng mục đích read_chapter — URL thân thiện theo cột chapters.slug. */
+            'read_chapter_slug' => ['sometimes', 'string', 'max:191'],
         ]);
 
         $chaptersWithAudioTotal = $story->chapters()
@@ -104,7 +137,19 @@ class StoryController extends Controller
             ->where('audio_path', '<>', '')
             ->count();
 
+        $readChapterSlug = isset($data['read_chapter_slug']) ? trim((string) $data['read_chapter_slug']) : '';
         $readChapterId = isset($data['read_chapter']) ? (int) $data['read_chapter'] : null;
+        if ($readChapterSlug !== '') {
+            $bySlug = Chapter::query()
+                ->where('story_id', $story->id)
+                ->where('slug', $readChapterSlug)
+                ->first();
+            if ($bySlug === null) {
+                abort(404);
+            }
+            $readChapterId = (int) $bySlug->id;
+        }
+
         if ($readChapterId !== null) {
             $nav = Chapter::readNavigationFor($story, $readChapterId);
             if ($nav === null) {
@@ -118,7 +163,7 @@ class StoryController extends Controller
                 if ($meta === null) {
                     return null;
                 }
-                $row = Chapter::query()->where('id', $meta['id'])->first(['id', 'title', 'audio_path', 'duration']);
+                $row = Chapter::query()->where('id', $meta['id'])->first(['id', 'title', 'slug', 'audio_path', 'duration']);
                 if ($row === null) {
                     return null;
                 }
@@ -126,6 +171,7 @@ class StoryController extends Controller
                 return [
                     'id' => $row->id,
                     'title' => $row->title,
+                    'slug' => (string) ($row->slug ?? ''),
                     'duration' => (int) $row->duration,
                     'audio_url' => $row->signedAudioStreamUrl(),
                 ];
@@ -161,7 +207,7 @@ class StoryController extends Controller
             $q->reorder()->chapterNumberSort($chaptersOrder);
             if ($chaptersOmitContent) {
                 $q->select([
-                    'id', 'story_id', 'title', 'chapter_number', 'audio_path',
+                    'id', 'story_id', 'title', 'slug', 'chapter_number', 'audio_path',
                     'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
                 ]);
             }

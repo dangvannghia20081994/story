@@ -315,18 +315,24 @@ class Story extends Model
         return 'slug';
     }
 
-    /** Trang chi tiết truyện trên site công khai (Next) — cùng quy ước với @/lib/storyPath. */
+    /** Trang chi tiết truyện trên site công khai (Next) — URL ngắn `/{slug}` (trùng `app/[storySlug]/page.tsx`). */
     public function frontendDetailUrl(): string
     {
         $root = rtrim((string) config('app.frontend_url', 'http://localhost:3000'), '/');
         $key = (is_string($this->slug) && $this->slug !== '') ? $this->slug : (string) $this->id;
 
-        return $root.'/stories/'.rawurlencode($key);
+        return $root.'/'.rawurlencode($key);
     }
 
-    /** Trang đọc một chương (Next) — query `chapter` = id chương, cùng quy ước `read/page.tsx`. */
-    public function frontendReadChapterUrl(int $chapterId): string
+    /**
+     * Trang đọc một chương (Next) — đường dẫn `/{storyKey}/{chapterSlug}/read`.
+     */
+    public function frontendReadChapterUrl(Chapter $chapter): string
     {
-        return $this->frontendDetailUrl().'/read?chapter='.(int) $chapterId;
+        $root = rtrim((string) config('app.frontend_url', 'http://localhost:3000'), '/');
+        $storyKey = (is_string($this->slug) && $this->slug !== '') ? $this->slug : (string) $this->id;
+        $chapterSlug = (is_string($chapter->slug) && $chapter->slug !== '') ? $chapter->slug : (string) $chapter->getKey();
+
+        return $root.'/'.rawurlencode($storyKey).'/'.rawurlencode($chapterSlug).'/read';
     }
 }

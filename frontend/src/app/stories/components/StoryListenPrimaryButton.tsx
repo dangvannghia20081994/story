@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { getSavedChapterId, READING_PROGRESS_EVENT, type ReadingProgressDetail } from "@/lib/readingProgress";
-import { storyListenHref } from "@/lib/storyPath";
+import { chapterForStoryHref, type ChapterLinkRef, storyListenHref } from "@/lib/storyPath";
 
 type Props = {
   storyKey: string;
   story: { id: number; slug: string | null };
+  firstChapter: ChapterLinkRef;
+  chapters: ChapterLinkRef[];
 };
 
-export function StoryListenPrimaryButton({ storyKey, story }: Props) {
+export function StoryListenPrimaryButton({ storyKey, story, firstChapter, chapters }: Props) {
   const [savedChapterId, setSavedChapterId] = useState<number | null>(null);
   const [ttsSupported, setTtsSupported] = useState<boolean | null>(null);
 
@@ -46,7 +48,14 @@ export function StoryListenPrimaryButton({ storyKey, story }: Props) {
   }, [storyKey, refresh]);
 
   const hasProgress = savedChapterId != null;
-  const href = storyListenHref(story, hasProgress ? savedChapterId : undefined);
+  const href = useMemo(
+    () =>
+      storyListenHref(
+        story,
+        chapterForStoryHref(hasProgress ? savedChapterId : null, firstChapter, chapters),
+      ),
+    [story, hasProgress, savedChapterId, firstChapter, chapters],
+  );
   const ttsUsable = ttsSupported !== false;
 
   if (!ttsUsable) {

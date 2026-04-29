@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getSavedChapterId, READING_PROGRESS_EVENT, type ReadingProgressDetail } from "@/lib/readingProgress";
-import { storyReadHref } from "@/lib/storyPath";
+import { chapterForStoryHref, type ChapterLinkRef, storyReadHref } from "@/lib/storyPath";
 
 type Props = {
   storyKey: string;
   story: { id: number; slug: string | null };
+  /** Chương đầu (đọc từ đầu); khi có tiến độ thì map id → slug qua `chapters`. */
+  firstChapter: ChapterLinkRef;
+  chapters: ChapterLinkRef[];
 };
 
-export function StoryReadPrimaryButton({ storyKey, story }: Props) {
+export function StoryReadPrimaryButton({ storyKey, story, firstChapter, chapters }: Props) {
   const [savedChapterId, setSavedChapterId] = useState<number | null>(null);
 
   const refresh = useCallback(() => {
@@ -40,7 +43,14 @@ export function StoryReadPrimaryButton({ storyKey, story }: Props) {
   }, [storyKey, refresh]);
 
   const hasProgress = savedChapterId != null;
-  const href = storyReadHref(story, hasProgress ? savedChapterId : undefined);
+  const href = useMemo(
+    () =>
+      storyReadHref(
+        story,
+        chapterForStoryHref(hasProgress ? savedChapterId : null, firstChapter, chapters),
+      ),
+    [story, hasProgress, savedChapterId, firstChapter, chapters],
+  );
 
   return (
     <Link
