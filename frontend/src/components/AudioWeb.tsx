@@ -23,16 +23,14 @@ import {
   pickFallbackSpeechVoice,
   resolveVoiceForLang,
 } from "@/lib/browserSpeech";
-import {
-  initialSleepFromPrefs,
-  loadAudioReadPrefs,
-  saveAudioReadPrefs,
-} from "@/lib/audioReadPreferences";
+import { loadAudioReadPrefs, saveAudioReadPrefs, tryConsumeExpiredAudioReadSleep } from "@/lib/audioReadPreferences";
+import { STORY_AUDIOREAD_SLEEP_ENDED, useAudioReadSleep } from "@/contexts/AudioReadSleepContext";
 
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const;
 
 const SLEEP_OPTIONS = [
   { label: "Tắt", minutes: 0 },
+  { label: "3 phút (thử)", minutes: 3 },
   { label: "15 phút", minutes: 15 },
   { label: "30 phút", minutes: 30 },
   { label: "45 phút", minutes: 45 },
@@ -110,7 +108,10 @@ export type AudioWebHandle = {
 export type AudioWebProps = {
   text: string;
   onReadthroughEnd?: () => void;
+  /** localStorage: tiến độ câu — nên dùng slug (`story-audioweb:{storySlug}:{chapterKey}`) khớp URL. */
   positionStorageKey?: string;
+  /** Key cũ dạng `story-audioweb:{storyId}:{chapterId}`: đọc một lần rồi chép sang `positionStorageKey` nếu có. */
+  positionStorageLegacyKey?: string;
   className?: string;
   sentenceElementsRef?: MutableRefObject<(HTMLElement | null)[]>;
   onHighlightChange?: (state: AudioWebReadingHighlight) => void;
@@ -134,6 +135,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
     text,
     onReadthroughEnd,
     positionStorageKey,
+    positionStorageLegacyKey,
     className = "",
     sentenceElementsRef,
     onHighlightChange,
@@ -153,11 +155,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [wordRange, setWordRange] = useState<{ start: number; end: number } | null>(null);
   const [volume, setVolume] = useState(() => loadAudioReadPrefs().volume);
-  const sleepInitAw = initialSleepFromPrefs(loadAudioReadPrefs());
-  const [sleepTimer, setSleepTimer] = useState(sleepInitAw.preset);
-  const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(sleepInitAw.left);
-  const isFirstSleepEffectAwRef = useRef(true);
-  const initialSleepLeftAwRef = useRef<number | null>(sleepInitAw.left);
+  const { sleepTimer, sleepTimeLeft, setSleepTimer } = useAudioReadSleep();
   const progressTrackRef = useRef<HTMLDivElement>(null);
 
   const langOptions = useMemo(() => buildLangOptions(voices), [voices]);
@@ -274,68 +272,19 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   }, [voiceUri, voiceList]);
 
   useEffect(() => {
-    if (sleepTimer <= 0) {
-      setSleepTimeLeft(null);
-      saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
-      isFirstSleepEffectAwRef.current = false;
-      return;
-    }
-
-    if (isFirstSleepEffectAwRef.current) {
-      isFirstSleepEffectAwRef.current = false;
-      const leftNow = initialSleepLeftAwRef.current ?? sleepTimer * 60;
-      initialSleepLeftAwRef.current = null;
-      saveAudioReadPrefs({
-        sleepPresetMinutes: sleepTimer,
-        sleepDeadlineAt: Date.now() + leftNow * 1000,
-      });
-    } else {
-      const full = sleepTimer * 60;
-      setSleepTimeLeft(full);
-      saveAudioReadPrefs({
-        sleepPresetMinutes: sleepTimer,
-        sleepDeadlineAt: Date.now() + full * 1000,
-      });
-    }
-
-    const interval = setInterval(() => {
-      setSleepTimeLeft((prev) => {
-        if (prev === null || prev <= 1) {
-          if (typeof window !== "undefined" && window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-          }
-          saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
-          return 0;
-        }
-        const next = prev - 1;
-        if (next > 0 && next % 12 === 0) {
-          saveAudioReadPrefs({
-            sleepPresetMinutes: sleepTimer,
-            sleepDeadlineAt: Date.now() + next * 1000,
-          });
-        }
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [sleepTimer]);
-
-  useEffect(() => {
-    if (sleepTimeLeft !== 0) return;
-    if (sleepTimer <= 0) return;
-    setSleepTimer(0);
-    setIsPlaying(false);
-    setWordRange(null);
-  }, [sleepTimeLeft, sleepTimer]);
-
-  useEffect(() => {
     const list = splitIntoSentences(text);
     setSentences(list);
 
     let initial = 0;
     if (positionStorageKey && typeof window !== "undefined" && list.length > 0) {
       try {
-        const raw = localStorage.getItem(positionStorageKey);
+        let raw = localStorage.getItem(positionStorageKey);
+        if (raw == null && positionStorageLegacyKey) {
+          raw = localStorage.getItem(positionStorageLegacyKey);
+          if (raw != null) {
+            localStorage.setItem(positionStorageKey, raw);
+          }
+        }
         if (raw != null) {
           const n = parseInt(raw, 10);
           if (Number.isFinite(n)) {
@@ -348,11 +297,12 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
     }
     setCurrentIndex(list.length ? initial : -1);
     setWordRange(null);
+    isPlayingRef.current = false;
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setIsPlaying(false);
-  }, [text, positionStorageKey]);
+  }, [text, positionStorageKey, positionStorageLegacyKey]);
 
   useEffect(() => {
     if (!positionStorageKey || typeof window === "undefined") return;
@@ -383,12 +333,21 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
   }, [currentIndex, isPlaying, sentenceElementsRef]);
 
   const stopSpeech = useCallback(() => {
+    isPlayingRef.current = false;
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setIsPlaying(false);
     setWordRange(null);
   }, []);
+
+  useEffect(() => {
+    const onSleepEnded = () => {
+      stopSpeech();
+    };
+    window.addEventListener(STORY_AUDIOREAD_SLEEP_ENDED, onSleepEnded);
+    return () => window.removeEventListener(STORY_AUDIOREAD_SLEEP_ENDED, onSleepEnded);
+  }, [stopSpeech]);
 
   const speakFrom = useCallback(
     (startIndex: number) => {
@@ -407,6 +366,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
       const speakOne = (i: number) => {
         // Guard: stop if playback was cancelled externally
         if (!isPlayingRef.current) return;
+        if (tryConsumeExpiredAudioReadSleep()) return;
 
         const list = sentencesRef.current;
         if (i < 0 || i >= list.length) return;
@@ -447,10 +407,14 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
         utterance.onend = () => {
           setWordRange(null);
           if (!isPlayingRef.current) return;
+          if (tryConsumeExpiredAudioReadSleep()) return;
           const next = i + 1;
           if (next < sentencesRef.current.length) {
             // Tiny setTimeout(0) prevents Chrome's internal queue delay
-            setTimeout(() => speakOne(next), 0);
+            setTimeout(() => {
+              if (tryConsumeExpiredAudioReadSleep()) return;
+              speakOne(next);
+            }, 0);
           } else {
             isPlayingRef.current = false;
             setIsPlaying(false);
@@ -461,7 +425,12 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
 
         utterance.onerror = (event) => {
           const code = event.error;
-          if (code === "canceled" || code === "interrupted") return;
+          if (code === "canceled" || code === "interrupted") {
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+            setWordRange(null);
+            return;
+          }
           isPlayingRef.current = false;
           setIsPlaying(false);
           setWordRange(null);

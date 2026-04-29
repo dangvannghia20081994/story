@@ -9,11 +9,8 @@ import {
   filterVietnameseVoices,
   logVietnameseVoiceAvailability,
 } from "@/lib/browserSpeech";
-import {
-  initialSleepFromPrefs,
-  loadAudioReadPrefs,
-  saveAudioReadPrefs,
-} from "@/lib/audioReadPreferences";
+import { loadAudioReadPrefs, saveAudioReadPrefs } from "@/lib/audioReadPreferences";
+import { STORY_AUDIOREAD_SLEEP_ENDED, useAudioReadSleep } from "@/contexts/AudioReadSleepContext";
 
 function normalizeMediaDuration(raw: number): number {
   if (!Number.isFinite(raw) || raw <= 0 || raw === Number.POSITIVE_INFINITY) {
@@ -63,6 +60,7 @@ interface AudioPlayerProps {
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 const SLEEP_OPTIONS = [
   { label: "Tắt", minutes: 0 },
+  { label: "3 phút (thử)", minutes: 3 },
   { label: "15 phút", minutes: 15 },
   { label: "30 phút", minutes: 30 },
   { label: "45 phút", minutes: 45 },
@@ -119,13 +117,7 @@ export function AudioPlayer({
     right: number;
     maxHeight: number;
   } | null>(null);
-  const sleepInit = initialSleepFromPrefs(loadAudioReadPrefs());
-  const [sleepTimer, setSleepTimer] = useState(sleepInit.preset);
-  const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(sleepInit.left);
-  const isFirstSleepEffectRef = useRef(true);
-  /** Chỉ dùng lần đầu effect [sleepTimer] chạy — tránh phụ thuộc `sleepTimeLeft` làm effect chạy lại mỗi giây. */
-  const initialSleepLeftRef = useRef<number | null>(sleepInit.left);
-  const prevSleepTimerRef = useRef<number | null>(null);
+  const { sleepTimer, sleepTimeLeft, setSleepTimer } = useAudioReadSleep();
   const [currentChapterId, setCurrentChapterId] = useState<number | null>(initialChapterId);
   /** Chỉ bật khi vừa hết file và chuyển chương kế — dùng với `canplay` để gọi `play()` (Chrome có thể chặn nếu không còn tương tác). */
   const autoplayAfterSrcChangeRef = useRef(false);
@@ -290,10 +282,22 @@ export function AudioPlayer({
   }, [activeSrc, volume, playbackRate, speechEnabled]);
 
   useEffect(() => {
-    if (sleepTimeLeft !== 0) return;
-    if (sleepTimer <= 0) return;
-    setSleepTimer(0);
-  }, [sleepTimeLeft, sleepTimer]);
+    const onSleepEnded = () => {
+      autoplayAfterSrcChangeRef.current = false;
+      speech.stop();
+      const el = audioRef.current;
+      if (el) {
+        try {
+          el.pause();
+        } catch {
+          /* ignore */
+        }
+      }
+      setIsPlaying(false);
+    };
+    window.addEventListener(STORY_AUDIOREAD_SLEEP_ENDED, onSleepEnded);
+    return () => window.removeEventListener(STORY_AUDIOREAD_SLEEP_ENDED, onSleepEnded);
+  }, [speech.stop]);
 
   const syncDurationFromAudio = useCallback(() => {
     const el = audioRef.current;
@@ -375,66 +379,6 @@ export function AudioPlayer({
     el.addEventListener("ended", onEnded);
     return () => el.removeEventListener("ended", onEnded);
   }, [onChapterChange, speechEnabled]);
-
-  useEffect(() => {
-    if (sleepTimer <= 0) {
-      setSleepTimeLeft(null);
-      saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
-      isFirstSleepEffectRef.current = true;
-      prevSleepTimerRef.current = sleepTimer;
-      return;
-    }
-
-    const prevTimer = prevSleepTimerRef.current;
-    const userChangedPreset = prevTimer !== null && prevTimer !== sleepTimer;
-
-    if (isFirstSleepEffectRef.current) {
-      isFirstSleepEffectRef.current = false;
-      const leftNow = initialSleepLeftRef.current ?? sleepTimer * 60;
-      initialSleepLeftRef.current = null;
-      saveAudioReadPrefs({
-        sleepPresetMinutes: sleepTimer,
-        sleepDeadlineAt: Date.now() + leftNow * 1000,
-      });
-    } else if (userChangedPreset) {
-      const full = sleepTimer * 60;
-      saveAudioReadPrefs({
-        sleepPresetMinutes: sleepTimer,
-        sleepDeadlineAt: Date.now() + full * 1000,
-      });
-    }
-
-    const pSync = loadAudioReadPrefs();
-    if (pSync.sleepDeadlineAt != null && pSync.sleepDeadlineAt > Date.now()) {
-      setSleepTimeLeft(Math.max(0, Math.ceil((pSync.sleepDeadlineAt - Date.now()) / 1000)));
-    }
-
-    prevSleepTimerRef.current = sleepTimer;
-
-    const interval = setInterval(() => {
-      const cur = loadAudioReadPrefs();
-      if (
-        cur.sleepPresetMinutes <= 0 ||
-        cur.sleepDeadlineAt == null ||
-        cur.sleepDeadlineAt <= Date.now()
-      ) {
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        if (typeof window !== "undefined" && window.speechSynthesis) {
-          window.speechSynthesis.cancel();
-        }
-        saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
-        setSleepTimeLeft(null);
-        setSleepTimer(0);
-        return;
-      }
-      setSleepTimeLeft(Math.max(0, Math.ceil((cur.sleepDeadlineAt - Date.now()) / 1000)));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [sleepTimer]);
-
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -1474,7 +1418,7 @@ export function AudioPlayer({
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setSleepTimer((prev) => (prev > 0 ? 0 : 30))}
+                  onClick={() => (sleepTimer > 0 ? setSleepTimer(0) : setSleepTimer(30))}
                   className={`rounded px-2 py-1 text-xs font-medium ${
                     sleepTimer > 0
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"

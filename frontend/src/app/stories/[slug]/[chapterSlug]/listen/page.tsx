@@ -14,7 +14,13 @@ import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
-import { chapterKey, storyDetailHref, storyListenAudioHref } from "@/lib/storyPath";
+import {
+  chapterKey,
+  resolveChapterForHref,
+  storyDetailHref,
+  storyKey,
+  storyListenAudioHref,
+} from "@/lib/storyPath";
 import { useChapterPlainWithLexicons } from "@/contexts/LexiconContext";
 
 type Chapter = {
@@ -351,6 +357,17 @@ function ListenStoryPageContent() {
     [story?.id, storySlug],
   );
 
+  const audioWebPositionStorageKey = useMemo(() => {
+    if (!currentChapter || !storySlug.trim()) return undefined;
+    const sk = story ? storyKey(story) : storySlug;
+    return `story-audioweb:${sk}:${chapterKey(currentChapter)}`;
+  }, [story, storySlug, currentChapter]);
+
+  const audioWebPositionLegacyKey = useMemo(() => {
+    if (!story?.id || !currentChapter?.id || !audioWebPositionStorageKey) return undefined;
+    return `story-audioweb:${story.id}:${currentChapter.id}`;
+  }, [story?.id, currentChapter?.id, audioWebPositionStorageKey]);
+
   const sentenceCount = useMemo(() => splitIntoSentences(chapterTtsPlain).length, [chapterTtsPlain, currentChapter?.id]);
 
   const totalProgress = useMemo(() => {
@@ -392,12 +409,14 @@ function ListenStoryPageContent() {
   );
 
   const onReadthroughEnd = useCallback(() => {
-    const next = readNav?.next;
+    const stub = readNav?.next;
+    if (!stub?.id) return;
+    const next = resolveChapterForHref(stub, chapters);
     if (!next?.id) return;
     resumePlayAfterChapterLoadRef.current = true;
     loadedChapterIdRef.current = null;
-    routerRef.current.replace(listenPath(storySlug, { id: next.id, slug: null }), { scroll: false });
-  }, [readNav?.next, storySlug]);
+    routerRef.current.replace(listenPath(storySlug, next), { scroll: false });
+  }, [readNav?.next, chapters, storySlug]);
 
   const goToChapter = useCallback(
     (index: number) => {
@@ -414,17 +433,19 @@ function ListenStoryPageContent() {
   const hasNext = Boolean(readNav?.next) || currentChapterIndex < chapters.length - 1;
 
   const goToPrev = useCallback(() => {
-    const prev = readNav?.prev ?? chapters[currentChapterIndex - 1];
+    const stub = readNav?.prev ?? chapters[currentChapterIndex - 1];
+    const prev = resolveChapterForHref(stub, chapters);
     if (!prev?.id) return;
     loadedChapterIdRef.current = null;
-    routerRef.current.replace(listenPath(storySlug, { id: prev.id, slug: null }), { scroll: false });
+    routerRef.current.replace(listenPath(storySlug, prev), { scroll: false });
   }, [readNav?.prev, chapters, currentChapterIndex, storySlug]);
 
   const goToNext = useCallback(() => {
-    const next = readNav?.next ?? chapters[currentChapterIndex + 1];
+    const stub = readNav?.next ?? chapters[currentChapterIndex + 1];
+    const next = resolveChapterForHref(stub, chapters);
     if (!next?.id) return;
     loadedChapterIdRef.current = null;
-    routerRef.current.replace(listenPath(storySlug, { id: next.id, slug: null }), { scroll: false });
+    routerRef.current.replace(listenPath(storySlug, next), { scroll: false });
   }, [readNav?.next, chapters, currentChapterIndex, storySlug]);
 
   if (loading) {
@@ -602,7 +623,8 @@ function ListenStoryPageContent() {
           text={chapterTtsPlain}
           onReadthroughEnd={onReadthroughEnd}
           onHighlightChange={onListenHighlightChange}
-          positionStorageKey={story?.id != null ? `story-audioweb:${story.id}:${currentChapter.id}` : undefined}
+          positionStorageKey={audioWebPositionStorageKey}
+          positionStorageLegacyKey={audioWebPositionLegacyKey}
           onGoToPreviousChapter={goToPrev}
           onGoToNextChapter={goToNext}
           canGoToPreviousChapter={hasPrev}

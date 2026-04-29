@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
         { source: `/${storySeg}/${chapterSeg}/read`, destination: "/stories/:story/:chapter/read" },
         { source: `/${storySeg}/${chapterSeg}/listen-audio`, destination: "/stories/:story/:chapter/listen-audio" },
         { source: `/${storySeg}/${chapterSeg}/listen`, destination: "/stories/:story/:chapter/listen" },
+        { source: `/${storySeg}/characters`, destination: "/stories/:story/characters" },
         { source: `/${storySeg}`, destination: "/stories/:story" },
       ],
     };

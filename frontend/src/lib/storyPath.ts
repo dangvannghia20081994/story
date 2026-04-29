@@ -28,9 +28,26 @@ export function chapterForStoryHref(
   return hit ?? { id: savedChapterId };
 }
 
+/**
+ * `read_navigation.prev/next` chỉ có id (và title…). Map sang chương trong TOC `chapters`
+ * để có `slug` cho URL; không có trong danh sách thì giữ stub (URL fallback theo id).
+ */
+export function resolveChapterForHref(
+  stub: { id: number; slug?: string | null } | null | undefined,
+  chapters: { id: number; slug?: string | null }[],
+): { id: number; slug?: string | null } | null {
+  if (!stub?.id) return null;
+  return chapters.find((c) => c.id === stub.id) ?? stub;
+}
+
 /** Trang truyện: `/{storyKey}` (rewrite → `/stories/...` trong next.config). */
 export function storyDetailHref(story: { id: number; slug?: string | null }): string {
   return `/${encodeURIComponent(storyKey(story))}`;
+}
+
+/** Danh sách nhân vật theo truyện: `/{storyKey}/characters`. */
+export function storyCharactersHref(story: { id: number; slug?: string | null }): string {
+  return `/${encodeURIComponent(storyKey(story))}/characters`;
 }
 
 /** Trang đọc: `/{storyKey}/{chapterKey}/read` (rewrite → `/stories/.../read`). */

@@ -12,6 +12,7 @@ import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { StoryListenAudioPrimaryButton } from "@/app/stories/components/StoryListenAudioPrimaryButton";
 import { StoryReadPrimaryButton } from "@/app/stories/components/StoryReadPrimaryButton";
 import { StoryListenPrimaryButton } from "@/app/stories/components/StoryListenPrimaryButton";
+import { storyCharactersHref } from "@/lib/storyPath";
 
 type ChapterRow = {
   id: number;
@@ -172,7 +173,12 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                 <>
                   {" "}
                   ·{" "}
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{s.characters_count}</span> nhân vật
+                  <Link
+                    href={storyCharactersHref(s)}
+                    className="font-medium text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300"
+                  >
+                    {s.characters_count} nhân vật
+                  </Link>
                 </>
               ) : null}
               {" "}

@@ -5,8 +5,14 @@
 
 const STORAGE_KEY = "story-audio-read-prefs:v1";
 
+/** Cùng tên với `STORY_AUDIOREAD_SLEEP_ENDED` — gọi từ lib, không import context (tránh vòng). */
+export const AUDIOREAD_SLEEP_ENDED_EVENT_NAME = "story-audioread-sleep-ended";
+
+/** Bắn sau khi prefs hẹn giờ đổi (vd. hết giờ) — `AudioReadSleepProvider` lắng nghe để `bump` UI về "Tắt". */
+export const AUDIOREAD_SLEEP_UI_BUMP_EVENT_NAME = "story-audioread-sleep-ui-bump";
+
 const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const;
-const SLEEP_PRESETS = new Set([0, 15, 30, 45, 60, 90]);
+const SLEEP_PRESETS = new Set([0, 3, 15, 30, 45, 60, 90]);
 
 const MAX_TTS_SENTENCE_INDEX = 2_000_000;
 const MAX_AUDIO_SEC = 36 * 3600;
@@ -16,7 +22,7 @@ export type AudioReadPrefs = {
   playbackRate: number;
   sleepPresetMinutes: number;
   sleepDeadlineAt: number | null;
-  /** AudioWeb: chỉ số câu, key ví dụ `story-audioweb:{storyId}:{chapterId}` */
+  /** AudioWeb: chỉ số câu, key `story-audioweb:{storySlug}:{chapterKey}` (slug URL; legacy id vẫn migrate một lần). */
   chapterTtsSentence: Record<string, number>;
   /** File audio (AudioPlayer): giây, key ví dụ `story-audiofile:{storyId}:{chapterId}` */
   chapterAudioSec: Record<string, number>;
@@ -73,7 +79,8 @@ export function clampPlaybackRate(r: number): number {
   return best;
 }
 
-function clampSleepPreset(m: number): number {
+/** Preset hẹn giờ tắt (phút): 0 = tắt, hoặc một trong các mốc cố định (3 = thử nhanh). */
+export function clampSleepPresetMinutes(m: number): number {
   if (!Number.isFinite(m) || m <= 0) return 0;
   if (SLEEP_PRESETS.has(m)) return m;
   return 0;
@@ -88,17 +95,21 @@ export function loadAudioReadPrefs(): AudioReadPrefs {
     const o = JSON.parse(raw) as Partial<AudioReadPrefs>;
     const volume = clampVolume(typeof o.volume === "number" ? o.volume : d.volume);
     const playbackRate = clampPlaybackRate(typeof o.playbackRate === "number" ? o.playbackRate : d.playbackRate);
-    const sleepPresetMinutes = clampSleepPreset(
+    let sleepPresetMinutes = clampSleepPresetMinutes(
       typeof o.sleepPresetMinutes === "number" ? o.sleepPresetMinutes : d.sleepPresetMinutes,
     );
     let sleepDeadlineAt =
       typeof o.sleepDeadlineAt === "number" && Number.isFinite(o.sleepDeadlineAt) ? o.sleepDeadlineAt : null;
-    if (sleepDeadlineAt != null && sleepDeadlineAt <= Date.now()) {
-      sleepDeadlineAt = null;
-    }
+
     if (sleepPresetMinutes <= 0) {
       sleepDeadlineAt = null;
+    } else if (sleepDeadlineAt == null) {
+      // Có preset nhưng không có deadline — không đếm được; `tryConsumeExpiredAudioReadSleep` không xử lý được.
+      sleepPresetMinutes = 0;
+      sleepDeadlineAt = null;
     }
+    // Giữ preset + deadline đã qua trong RAM cho đến khi `tryConsumeExpiredAudioReadSleep` lưu storage sạch
+    // (trước đây xóa deadline mà giữ preset → không bao giờ `expired`).
     const chapterTtsSentence = sanitizeChapterNumberMap(o.chapterTtsSentence, {
       max: MAX_TTS_SENTENCE_INDEX,
       integerOnly: true,
@@ -142,7 +153,7 @@ export function saveAudioReadPrefs(patch: SaveAudioReadPrefsPatch): void {
   const next: AudioReadPrefs = {
     volume: clampVolume(patch.volume ?? cur.volume),
     playbackRate: clampPlaybackRate(patch.playbackRate ?? cur.playbackRate),
-    sleepPresetMinutes: clampSleepPreset(
+    sleepPresetMinutes: clampSleepPresetMinutes(
       patch.sleepPresetMinutes !== undefined ? patch.sleepPresetMinutes : cur.sleepPresetMinutes,
     ),
     sleepDeadlineAt: patch.sleepDeadlineAt !== undefined ? patch.sleepDeadlineAt : cur.sleepDeadlineAt,
@@ -157,6 +168,26 @@ export function saveAudioReadPrefs(patch: SaveAudioReadPrefsPatch): void {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Deadline hẹn giờ đã qua: xóa prefs, cancel TTS, bắn event để AudioWeb/AudioPlayer dừng phát.
+ * Idempotent sau khi đã xóa. Gọi định kỳ hoặc giữa các câu TTS.
+ */
+export function tryConsumeExpiredAudioReadSleep(): boolean {
+  if (typeof window === "undefined") return false;
+  const p = loadAudioReadPrefs();
+  if (p.sleepPresetMinutes <= 0) return false;
+  if (p.sleepDeadlineAt == null || p.sleepDeadlineAt > Date.now()) return false;
+  try {
+    window.speechSynthesis?.cancel();
+  } catch {
+    /* ignore */
+  }
+  saveAudioReadPrefs({ sleepPresetMinutes: 0, sleepDeadlineAt: null });
+  window.dispatchEvent(new Event(AUDIOREAD_SLEEP_ENDED_EVENT_NAME));
+  window.dispatchEvent(new Event(AUDIOREAD_SLEEP_UI_BUMP_EVENT_NAME));
+  return true;
 }
 
 /** Khởi tạo state hẹn giờ từ prefs (giữ đếm ngược nếu deadline còn trong tương lai). */

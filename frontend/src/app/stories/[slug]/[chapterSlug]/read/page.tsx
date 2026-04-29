@@ -9,7 +9,13 @@ import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
-import { chapterKey, storyDetailHref, storyListenAudioHref, storyListenHref } from "@/lib/storyPath";
+import {
+  chapterKey,
+  resolveChapterForHref,
+  storyDetailHref,
+  storyListenAudioHref,
+  storyListenHref,
+} from "@/lib/storyPath";
 import { useChapterPlainWithLexicons } from "@/contexts/LexiconContext";
 
 type Chapter = {
@@ -344,16 +350,18 @@ function ReadStoryPageContent() {
   }, []);
 
   const goToPrev = useCallback(() => {
-    const prev = readNav?.prev ?? chapters[currentChapterIndex - 1];
-    if (!prev) return;
+    const stub = readNav?.prev ?? chapters[currentChapterIndex - 1];
+    const prev = resolveChapterForHref(stub, chapters);
+    if (!prev?.id) return;
     loadedRouteKeyRef.current = null;
     routerRef.current.replace(readPath(storySlug, prev), { scroll: false });
     scrollReadPaneToTop("smooth");
   }, [readNav?.prev, chapters, currentChapterIndex, storySlug, scrollReadPaneToTop]);
 
   const goToNext = useCallback(() => {
-    const next = readNav?.next ?? chapters[currentChapterIndex + 1];
-    if (!next) return;
+    const stub = readNav?.next ?? chapters[currentChapterIndex + 1];
+    const next = resolveChapterForHref(stub, chapters);
+    if (!next?.id) return;
     loadedRouteKeyRef.current = null;
     routerRef.current.replace(readPath(storySlug, next), { scroll: false });
     scrollReadPaneToTop("smooth");
