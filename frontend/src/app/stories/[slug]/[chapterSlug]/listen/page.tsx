@@ -15,6 +15,7 @@ import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
 import { chapterKey, storyDetailHref, storyListenAudioHref } from "@/lib/storyPath";
+import { useChapterPlainWithLexicons } from "@/contexts/LexiconContext";
 
 type Chapter = {
   id: number;
@@ -339,6 +340,8 @@ function ListenStoryPageContent() {
     return chapters[currentChapterIndex];
   }, [chapters, chapterIdFromUrl, currentChapterIndex]);
 
+  const chapterTtsPlain = useChapterPlainWithLexicons(currentChapter?.content ?? "");
+
   const chaptersTotalDisplay = readNav?.chapters_total ?? chapters.length;
   const chapterOrdinal = readNav?.chapter_index ?? currentChapterIndex + 1;
 
@@ -348,10 +351,7 @@ function ListenStoryPageContent() {
     [story?.id, storySlug],
   );
 
-  const sentenceCount = useMemo(
-    () => splitIntoSentences(currentChapter?.content ?? "").length,
-    [currentChapter?.content, currentChapter?.id],
-  );
+  const sentenceCount = useMemo(() => splitIntoSentences(chapterTtsPlain).length, [chapterTtsPlain, currentChapter?.id]);
 
   const totalProgress = useMemo(() => {
     if (chaptersTotalDisplay <= 0) return 0;
@@ -366,13 +366,13 @@ function ListenStoryPageContent() {
 
   useEffect(() => {
     if (!resumePlayAfterChapterLoadRef.current) return;
-    if (!currentChapter?.content?.trim()) return;
+    if (!chapterTtsPlain.trim()) return;
     resumePlayAfterChapterLoadRef.current = false;
     const t = window.setTimeout(() => {
       audioWebRef.current?.playFromSentence(0);
     }, 300);
     return () => window.clearTimeout(t);
-  }, [currentChapter?.id, currentChapter?.content]);
+  }, [currentChapter?.id, chapterTtsPlain]);
 
   const onListenHighlightChange = useCallback(
     (h: AudioWebReadingHighlight) => {
@@ -599,7 +599,7 @@ function ListenStoryPageContent() {
         </div>
         <AudioWeb
           ref={audioWebRef}
-          text={currentChapter.content ?? ""}
+          text={chapterTtsPlain}
           onReadthroughEnd={onReadthroughEnd}
           onHighlightChange={onListenHighlightChange}
           positionStorageKey={story?.id != null ? `story-audioweb:${story.id}:${currentChapter.id}` : undefined}

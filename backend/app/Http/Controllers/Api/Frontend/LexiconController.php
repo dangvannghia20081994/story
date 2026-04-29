@@ -7,20 +7,20 @@ use App\Http\Requests\Api\CreateLexiconRequest;
 use App\Http\Requests\Api\ListLexiconsRequest;
 use App\Http\Requests\Api\UpdateLexiconRequest;
 use App\Models\Lexicon;
+use App\Services\LexiconCacheService;
 use Illuminate\Http\JsonResponse;
 
 class LexiconController extends Controller
 {
+    public function __construct(
+        private readonly LexiconCacheService $lexiconCache,
+    ) {}
+
     public function index(ListLexiconsRequest $request): JsonResponse
     {
         $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
 
-        $items = Lexicon::query()
-            ->orderByDesc('priority')
-            ->orderBy('word')
-            ->paginate($perPage);
-
-        return response()->json($items);
+        return response()->json($this->lexiconCache->paginateFromCache($request, $perPage));
     }
 
     public function store(CreateLexiconRequest $request): JsonResponse
@@ -30,9 +30,14 @@ class LexiconController extends Controller
         return response()->json($entry, 201);
     }
 
-    public function show(Lexicon $lexicon): JsonResponse
+    public function show(int $lexicon): JsonResponse
     {
-        return response()->json(['data' => $lexicon]);
+        $row = $this->lexiconCache->findById($lexicon) ?? Lexicon::query()->find($lexicon);
+        if ($row === null) {
+            abort(404);
+        }
+
+        return response()->json(['data' => $row]);
     }
 
     public function update(UpdateLexiconRequest $request, Lexicon $lexicon): JsonResponse

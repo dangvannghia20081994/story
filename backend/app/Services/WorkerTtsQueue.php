@@ -18,6 +18,7 @@ class WorkerTtsQueue
         if (is_array($overrides) && isset($overrides['text']) && is_string($overrides['text']) && $overrides['text'] !== '') {
             $text = $overrides['text'];
         }
+        $text = app(LexiconTextService::class)->applyToPlainText($text);
 
         $payload = ['chapter_id' => $chapter->id, 'text' => $text];
 

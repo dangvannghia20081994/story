@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
+import { AppProviders } from "@/app/AppProviders";
 import "./globals.css";
 
 /** Trước hydration; Next chèn vào HTML gốc (không dùng <head> tay — tránh ghi đè metadata/viewport). */
@@ -43,8 +44,10 @@ export default function RootLayout({
       >
         <div className="app-noise fixed inset-0 -z-10 opacity-40" />
         <div className="relative">
-          <Navbar />
-          {children}
+          <AppProviders>
+            <Navbar />
+            {children}
+          </AppProviders>
         </div>
       </body>
     </html>

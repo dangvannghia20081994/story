@@ -15,6 +15,7 @@ import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
 import { chapterKey, storyDetailHref, storyListenHref, storyReadHref } from "@/lib/storyPath";
+import { chapterPlainWithLexicons, useLexiconContext } from "@/contexts/LexiconContext";
 
 type Chapter = {
   id: number;
@@ -346,6 +347,26 @@ function ListenAudioStoryPageContent() {
     return chapters[currentChapterIndex];
   }, [chapters, chapterIdFromUrl, currentChapterIndex]);
 
+  const { entries: lexiconEntries, ready: lexiconReady } = useLexiconContext();
+
+  const speechTextCurrent = useMemo(
+    () => chapterPlainWithLexicons(currentChapter?.content ?? "", lexiconEntries, lexiconReady),
+    [currentChapter?.content, currentChapter?.id, lexiconEntries, lexiconReady],
+  );
+
+  const chaptersForPlayer = useMemo(
+    () =>
+      chapters.map((c) => ({
+        id: c.id,
+        title: c.title,
+        audio_url: chapterAudioUrl(c),
+        speech_text: c.content?.trim()
+          ? chapterPlainWithLexicons(c.content, lexiconEntries, lexiconReady)
+          : undefined,
+      })),
+    [chapters, lexiconEntries, lexiconReady],
+  );
+
   const chaptersTotalDisplay = readNav?.chapters_total ?? chapters.length;
   const chapterOrdinal = readNav?.chapter_index ?? currentChapterIndex + 1;
 
@@ -622,19 +643,14 @@ function ListenAudioStoryPageContent() {
               title={currentChapter.title}
               storyTitle={story.title}
               src={audioUrl}
-              speechText={currentChapter.content}
+              speechText={speechTextCurrent}
               initialChapterId={currentChapter.id}
               audioPositionStorageKey={
                 story?.id != null && currentChapter?.id != null
                   ? `story-audiofile:${story.id}:${currentChapter.id}`
                   : null
               }
-              chapters={chapters.map((c) => ({
-                id: c.id,
-                title: c.title,
-                audio_url: chapterAudioUrl(c),
-                speech_text: c.content?.trim() ? c.content : undefined,
-              }))}
+              chapters={chaptersForPlayer}
               onChapterChange={onChapterChange}
               onPlaybackProgress={onPlaybackProgress}
               onSeekComplete={onSeekComplete}

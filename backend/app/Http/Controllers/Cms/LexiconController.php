@@ -10,6 +10,7 @@ use App\Http\Requests\Cms\UpdateLexiconRequest;
 use App\Models\Chapter;
 use App\Models\Lexicon;
 use App\Models\Story;
+use App\Services\LexiconCacheService;
 use App\Services\LexiconWordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +21,10 @@ use Illuminate\View\View;
 
 class LexiconController extends Controller
 {
+    public function __construct(
+        private readonly LexiconCacheService $lexiconCache,
+    ) {}
+
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
@@ -179,15 +184,19 @@ class LexiconController extends Controller
         $rows = $request->validated('lexicons');
 
         DB::transaction(function () use ($rows): void {
-            foreach ($rows as $row) {
-                Lexicon::query()->create([
-                    'word' => $row['word'],
-                    'replacement' => $row['replacement'],
-                    'type' => $row['type'],
-                    'priority' => $row['priority'] ?? 0,
-                ]);
-            }
+            Lexicon::withoutEvents(function () use ($rows): void {
+                foreach ($rows as $row) {
+                    Lexicon::query()->create([
+                        'word' => $row['word'],
+                        'replacement' => $row['replacement'],
+                        'type' => $row['type'],
+                        'priority' => $row['priority'] ?? 0,
+                    ]);
+                }
+            });
         });
+
+        $this->lexiconCache->invalidate();
 
         $n = count($rows);
 

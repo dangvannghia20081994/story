@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\LexiconCacheService;
 use Illuminate\Database\Eloquent\Model;
 
 class Lexicon extends Model
@@ -26,5 +27,16 @@ class Lexicon extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(static function (): void {
+            app(LexiconCacheService::class)->invalidate();
+        });
+
+        static::deleted(static function (): void {
+            app(LexiconCacheService::class)->invalidate();
+        });
     }
 }

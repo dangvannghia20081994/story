@@ -10,6 +10,7 @@ import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
 import { chapterKey, storyDetailHref, storyListenAudioHref, storyListenHref } from "@/lib/storyPath";
+import { useChapterPlainWithLexicons } from "@/contexts/LexiconContext";
 
 type Chapter = {
   id: number;
@@ -319,6 +320,8 @@ function ReadStoryPageContent() {
     return chapters[currentChapterIndex];
   }, [chapters, chapterSlug, currentChapterIndex]);
 
+  const readDisplayPlain = useChapterPlainWithLexicons(currentChapter?.content ?? "");
+
   const chaptersTotalDisplay = readNav?.chapters_total ?? chapters.length;
   const chapterOrdinal = readNav?.chapter_index ?? currentChapterIndex + 1;
 
@@ -560,7 +563,7 @@ function ReadStoryPageContent() {
             className="whitespace-pre-wrap text-pretty leading-[1.85] text-zinc-800 selection:bg-indigo-200/60 selection:text-zinc-900 dark:text-zinc-200 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100"
             style={{ fontSize: `${fontSize}px` }}
           >
-            {currentChapter.content}
+            {readDisplayPlain}
           </div>
         </article>
       </main>
