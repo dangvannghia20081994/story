@@ -15,17 +15,21 @@ export function chapterKey(chapter: { id: number; slug?: string | null }): strin
 export type ChapterLinkRef = { id: number; slug?: string | null };
 
 /**
- * Chọn chương để build URL: tiến độ đọc chỉ lưu id — map sang bản ghi có `slug` nếu có trong `chapters`.
- * Chương không nằm trong danh sách (chưa tải trang) thì fallback `{ id }` (URL dạng số).
+ * Chương mục tiêu cho link: ưu tiên bản trong `chapters`, không có thì dùng `extraSlug` (từ localStorage),
+ * cuối cùng `{ id }`.
  */
 export function chapterForStoryHref(
   savedChapterId: number | null,
   firstChapter: ChapterLinkRef,
   chapters: ChapterLinkRef[],
+  extraSlug?: string | null,
 ): ChapterLinkRef {
   if (savedChapterId == null) return firstChapter;
   const hit = chapters.find((c) => c.id === savedChapterId);
-  return hit ?? { id: savedChapterId };
+  if (hit) return hit;
+  const slug = extraSlug?.trim();
+  if (slug) return { id: savedChapterId, slug };
+  return { id: savedChapterId };
 }
 
 /**
@@ -40,22 +44,33 @@ export function resolveChapterForHref(
   return chapters.find((c) => c.id === stub.id) ?? stub;
 }
 
+/** Phần đầu URL truyện: slug route (`string`) hoặc object API (fallback id nếu không slug). */
+function routeStorySegment(storyOrKey: { id: number; slug?: string | null } | string): string {
+  if (typeof storyOrKey === "string") {
+    const t = storyOrKey.trim();
+    return t !== "" ? t : "";
+  }
+  return storyKey(storyOrKey);
+}
+
 /** Trang truyện: `/{storyKey}` (rewrite → `/stories/...` trong next.config). */
-export function storyDetailHref(story: { id: number; slug?: string | null }): string {
-  return `/${encodeURIComponent(storyKey(story))}`;
+export function storyDetailHref(storyOrRouteKey: { id: number; slug?: string | null } | string): string {
+  const sk = routeStorySegment(storyOrRouteKey);
+  return `/${encodeURIComponent(sk)}`;
 }
 
 /** Danh sách nhân vật theo truyện: `/{storyKey}/characters`. */
-export function storyCharactersHref(story: { id: number; slug?: string | null }): string {
-  return `/${encodeURIComponent(storyKey(story))}/characters`;
+export function storyCharactersHref(storyOrRouteKey: { id: number; slug?: string | null } | string): string {
+  const sk = routeStorySegment(storyOrRouteKey);
+  return `/${encodeURIComponent(sk)}/characters`;
 }
 
 /** Trang đọc: `/{storyKey}/{chapterKey}/read` (rewrite → `/stories/.../read`). */
 export function storyReadHref(
-  story: { id: number; slug?: string | null },
+  storyOrRouteKey: { id: number; slug?: string | null } | string,
   chapter: number | { id: number; slug?: string | null },
 ): string {
-  const sk = storyKey(story);
+  const sk = routeStorySegment(storyOrRouteKey);
   const ch = typeof chapter === "number" ? { id: chapter } : chapter;
   const ck = chapterKey(ch);
   return `/${encodeURIComponent(sk)}/${encodeURIComponent(ck)}/read`;
@@ -63,10 +78,10 @@ export function storyReadHref(
 
 /** Nghe TTS: `/{story}/{chapter}/listen` (rewrite → `/stories/.../listen`). */
 export function storyListenHref(
-  story: { id: number; slug?: string | null },
+  storyOrRouteKey: { id: number; slug?: string | null } | string,
   chapter: number | { id: number; slug?: string | null },
 ): string {
-  const sk = storyKey(story);
+  const sk = routeStorySegment(storyOrRouteKey);
   const ch = typeof chapter === "number" ? { id: chapter } : chapter;
   const ck = chapterKey(ch);
   return `/${encodeURIComponent(sk)}/${encodeURIComponent(ck)}/listen`;
@@ -74,10 +89,10 @@ export function storyListenHref(
 
 /** Nghe file audio: `/{story}/{chapter}/listen-audio` (rewrite → `/stories/.../listen-audio`). */
 export function storyListenAudioHref(
-  story: { id: number; slug?: string | null },
+  storyOrRouteKey: { id: number; slug?: string | null } | string,
   chapter: number | { id: number; slug?: string | null },
 ): string {
-  const sk = storyKey(story);
+  const sk = routeStorySegment(storyOrRouteKey);
   const ch = typeof chapter === "number" ? { id: chapter } : chapter;
   const ck = chapterKey(ch);
   return `/${encodeURIComponent(sk)}/${encodeURIComponent(ck)}/listen-audio`;

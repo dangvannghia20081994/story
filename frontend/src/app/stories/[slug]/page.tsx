@@ -130,10 +130,10 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch">
               {chaptersTotal > 0 && firstChapter ? (
                 <>
-                  <StoryReadPrimaryButton storyKey={slug} story={s} firstChapter={firstChapter} chapters={chaptersForHref} />
-                  <StoryListenPrimaryButton storyKey={slug} story={s} firstChapter={firstChapter} chapters={chaptersForHref} />
+                  <StoryReadPrimaryButton storyKey={slug} firstChapter={firstChapter} chapters={chaptersForHref} />
+                  <StoryListenPrimaryButton storyKey={slug} firstChapter={firstChapter} chapters={chaptersForHref} />
                   {withAudioTotal > 0 ? (
-                    <StoryListenAudioPrimaryButton storyKey={slug} story={s} firstChapter={firstChapter} chapters={chaptersForHref} />
+                    <StoryListenAudioPrimaryButton storyKey={slug} firstChapter={firstChapter} chapters={chaptersForHref} />
                   ) : null}
                 </>
               ) : null}
@@ -174,7 +174,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                   {" "}
                   ·{" "}
                   <Link
-                    href={storyCharactersHref(s)}
+                    href={storyCharactersHref(slug)}
                     className="font-medium text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300"
                   >
                     {s.characters_count} nhân vật
@@ -189,7 +189,6 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
             <StoryChaptersBlock
               key={slug}
               storyKey={slug}
-              story={s}
               initialChapters={chapters}
               initialChaptersTotal={chaptersTotal}
               shell={shell}

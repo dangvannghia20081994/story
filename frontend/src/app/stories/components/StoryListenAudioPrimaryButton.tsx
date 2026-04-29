@@ -1,54 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { getSavedChapterId, READING_PROGRESS_EVENT, type ReadingProgressDetail } from "@/lib/readingProgress";
+import { useSavedChapterFromStorage } from "@/hooks/useSavedChapterFromStorage";
 import { chapterForStoryHref, type ChapterLinkRef, storyListenAudioHref } from "@/lib/storyPath";
 
 type Props = {
   storyKey: string;
-  story: { id: number; slug: string | null };
   firstChapter: ChapterLinkRef;
   chapters: ChapterLinkRef[];
 };
 
-export function StoryListenAudioPrimaryButton({ storyKey, story, firstChapter, chapters }: Props) {
-  const [savedChapterId, setSavedChapterId] = useState<number | null>(null);
+export function StoryListenAudioPrimaryButton({ storyKey, firstChapter, chapters }: Props) {
+  const saved = useSavedChapterFromStorage(storyKey);
+  const hasProgress = saved != null;
 
-  const refresh = useCallback(() => {
-    setSavedChapterId(getSavedChapterId(storyKey));
-  }, [storyKey]);
-
-  useEffect(() => {
-    refresh();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === null || e.key === `story-read:${storyKey}`) {
-        refresh();
-      }
-    };
-    const onProgress = (e: Event) => {
-      const ce = e as CustomEvent<ReadingProgressDetail>;
-      if (ce.detail?.storyKey === storyKey) {
-        setSavedChapterId(ce.detail.chapterId);
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener(READING_PROGRESS_EVENT, onProgress as EventListener);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener(READING_PROGRESS_EVENT, onProgress as EventListener);
-    };
-  }, [storyKey, refresh]);
-
-  const hasProgress = savedChapterId != null;
   const href = useMemo(
     () =>
       storyListenAudioHref(
-        story,
-        chapterForStoryHref(hasProgress ? savedChapterId : null, firstChapter, chapters),
+        storyKey,
+        chapterForStoryHref(hasProgress ? saved.id : null, firstChapter, chapters, saved?.slug),
       ),
-    [story, hasProgress, savedChapterId, firstChapter, chapters],
+    [storyKey, hasProgress, saved, firstChapter, chapters],
   );
 
   return (

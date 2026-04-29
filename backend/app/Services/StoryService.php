@@ -365,17 +365,13 @@ final class StoryService
         if ($meta === null) {
             return null;
         }
-        $row = Chapter::query()->where('id', $meta['id'])->first(['id', 'title', 'slug', 'audio_path', 'duration']);
+        $row = Chapter::query()->where('id', $meta['id'])->first();
         if ($row === null) {
             return null;
         }
 
-        return [
-            'id' => $row->id,
-            'title' => $row->title,
-            'slug' => (string) ($row->slug ?? ''),
-            'duration' => (int) $row->duration,
+        return array_merge($row->toArray(), [
             'audio_url' => $row->signedAudioStreamUrl(),
-        ];
+        ]);
     }
 }

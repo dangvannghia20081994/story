@@ -8,7 +8,7 @@ import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
 import { apiFetch } from "@/lib/api";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
-import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
+import { getSavedChapterId, setSavedChapterRef } from "@/lib/readingProgress";
 import {
   chapterKey,
   resolveChapterForHref,
@@ -308,13 +308,6 @@ function ReadStoryPageContent() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showToc]);
 
-  useEffect(() => {
-    if (!storySlug || loading) return;
-    const id = chapters[currentChapterIndex]?.id;
-    if (!Number.isFinite(id)) return;
-    setSavedChapterId(storySlug, id);
-  }, [storySlug, chapters, currentChapterIndex, loading]);
-
   const currentChapter = useMemo(() => {
     const bySlug = chapters.find((c) => chapterKey(c) === chapterSlug);
     if (bySlug) return bySlug;
@@ -325,6 +318,13 @@ function ReadStoryPageContent() {
     }
     return chapters[currentChapterIndex];
   }, [chapters, chapterSlug, currentChapterIndex]);
+
+  useEffect(() => {
+    if (!storySlug || loading) return;
+    const ch = currentChapter;
+    if (!ch?.id || !Number.isFinite(ch.id)) return;
+    setSavedChapterRef(storySlug, { id: ch.id, slug: ch.slug });
+  }, [storySlug, loading, currentChapter]);
 
   const readDisplayPlain = useChapterPlainWithLexicons(currentChapter?.content ?? "");
 

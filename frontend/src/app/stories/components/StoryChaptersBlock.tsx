@@ -40,7 +40,6 @@ function storyShowQuery(storyKey: string, order: "asc" | "desc", offset: number)
 
 type Props = {
   storyKey: string;
-  story: { id: number; slug?: string | null };
   initialChapters: ChapterRow[];
   initialChaptersTotal: number;
   shell: string;
@@ -48,7 +47,6 @@ type Props = {
 
 export function StoryChaptersBlock({
   storyKey,
-  story,
   initialChapters,
   initialChaptersTotal,
   shell,
@@ -126,7 +124,7 @@ export function StoryChaptersBlock({
   return (
     <>
       <StoryChapterList
-        story={story}
+        storyKey={storyKey}
         chapters={chapters}
         chaptersTotal={chaptersTotal}
         shell={shell}

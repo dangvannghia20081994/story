@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
@@ -11,9 +11,20 @@ import {
   type AudioWebReadingHighlight,
 } from "@/components/AudioWeb";
 import { apiFetch } from "@/lib/api";
+import {
+  applyListenReadSliceToRows,
+  fetchListenReadSlice,
+  mergeListenChapterRows,
+  readListenSessionCache,
+  touchListenSessionRoute,
+  writeListenSessionCache,
+  type ListenChapterRow,
+  type ListenReadNav,
+  type ListenStoryShowRead,
+} from "@/lib/listenReadSlice";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
-import { getSavedChapterId, setSavedChapterId } from "@/lib/readingProgress";
+import { getSavedChapterId, setSavedChapterRef } from "@/lib/readingProgress";
 import {
   chapterKey,
   resolveChapterForHref,
@@ -23,33 +34,12 @@ import {
 } from "@/lib/storyPath";
 import { useChapterPlainWithLexicons } from "@/contexts/LexiconContext";
 
-type Chapter = {
-  id: number;
-  title: string;
-  slug?: string | null;
-  content: string;
-  audio_path: string | null;
-  audio_url?: string | null;
-  duration: number;
-  chapter_number?: number | null;
-};
-
-type ReadNav = {
-  chapter_index: number;
-  chapters_total: number;
-  prev: { id: number; title: string; audio_url?: string | null; duration?: number } | null;
-  next: { id: number; title: string; audio_url?: string | null; duration?: number } | null;
-};
+type Chapter = ListenChapterRow;
 
 type Story = {
   id: number;
   title: string;
   chapters?: Chapter[];
-};
-
-type StoryShowRead = Story & {
-  read_chapter?: Chapter;
-  read_navigation?: ReadNav;
 };
 
 type ChaptersPage = {
@@ -58,23 +48,14 @@ type ChaptersPage = {
   last_page: number;
 };
 
-/** Cùng chiều cao vùng nội dung với Navbar cố định `h-14` (3.5rem) — tránh 100dvh + header gây scrollbar trang. */
-const PAGE_FRAME = "flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden";
+/** Cố định dưới navbar (`top-14`), không nằm trong luồng cùng sticky nav — tránh tổng cao > viewport và scrollbar trang. */
+const PAGE_FRAME =
+  "fixed inset-x-0 bottom-0 top-14 z-0 flex min-h-0 flex-col overflow-hidden overscroll-none";
 
 const shell =
   "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
 
-function chapterReadOrder(a: Chapter, b: Chapter): number {
-  const aN = a.chapter_number;
-  const bN = b.chapter_number;
-  const aMissing = aN == null || aN === undefined;
-  const bMissing = bN == null || bN === undefined;
-  if (aMissing && bMissing) return a.id - b.id;
-  if (aMissing) return 1;
-  if (bMissing) return -1;
-  if (aN !== bN) return aN - bN;
-  return a.id - b.id;
-}
+let listenTtsLastSlugForChapterReset: string | null = null;
 
 function resolveChapterIdFromPathSegment(chapterSeg: string, list: Chapter[]): number | null {
   const t = chapterSeg.trim();
@@ -115,32 +96,9 @@ function resolveListenTargetId(
   return list[0]?.id ?? null;
 }
 
-function mergeChapterList(prev: Chapter[], incoming: Chapter[]): Chapter[] {
-  const map = new Map<number, Chapter>();
-  for (const c of prev) {
-    map.set(c.id, { ...c });
-  }
-  for (const c of incoming) {
-    const existing = map.get(c.id);
-    map.set(c.id, {
-      ...(existing ?? {}),
-      ...c,
-      chapter_number: c.chapter_number ?? existing?.chapter_number,
-      content: c.content && c.content.trim() !== "" ? c.content : (existing?.content ?? ""),
-    });
-  }
-  return Array.from(map.values()).sort(chapterReadOrder);
-}
-
 async function fetchTocPage(storySlug: string, page: number): Promise<ChaptersPage> {
   const key = encodeURIComponent(storySlug);
   return apiFetch<ChaptersPage>(`/api/stories/${key}/chapters?omit_content=1&per_page=100&page=${page}`);
-}
-
-async function fetchReadSlice(storySlug: string, chapterId: number): Promise<StoryShowRead> {
-  const key = encodeURIComponent(storySlug);
-  const res = await apiFetch<{ data: StoryShowRead }>(`/api/stories/${key}?read_chapter=${chapterId}`);
-  return res.data;
 }
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
@@ -162,7 +120,7 @@ function ListenStoryPageContent() {
 
   const [story, setStory] = useState<Story | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [readNav, setReadNav] = useState<ReadNav | null>(null);
+  const [readNav, setReadNav] = useState<ListenReadNav | null>(null);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tocLastPage, setTocLastPage] = useState(1);
@@ -177,43 +135,37 @@ function ListenStoryPageContent() {
   const loadedChapterIdRef = useRef<number | null>(null);
   const audioWebRef = useRef<AudioWebHandle | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     chaptersRef.current = chapters;
   }, [chapters]);
 
-  function applySliceToList(prevList: Chapter[], slice: StoryShowRead): { chapters: Chapter[]; index: number } {
-    const rc = slice.read_chapter;
-    const nav = slice.read_navigation;
-    if (!rc) throw new Error("Thiếu read_chapter");
-
-    const stubs: Chapter[] = [];
-    if (nav?.prev) {
-      stubs.push({
-        id: nav.prev.id,
-        title: nav.prev.title,
-        content: "",
-        audio_path: null,
-        duration: nav.prev.duration ?? 0,
-        audio_url: nav.prev.audio_url ?? null,
-      });
+  useLayoutEffect(() => {
+    if (!storySlug) return;
+    touchListenSessionRoute("tts", storySlug);
+    const hit = readListenSessionCache("tts", storySlug);
+    if (!hit?.chapters?.length) return;
+    setChapters(hit.chapters);
+    chaptersRef.current = hit.chapters;
+    if (hit.story) setStory(hit.story as Story);
+    setReadNav(hit.readNav);
+    setTocLastPage(hit.tocLastPage);
+    setTocLoadedPage(hit.tocLoadedPage);
+    const fromPath = resolveChapterIdFromPathSegment(chapterSlugParam, hit.chapters);
+    const fromQs = chapterQuery ? parseInt(chapterQuery, 10) : Number.NaN;
+    const pid = fromPath ?? (Number.isFinite(fromQs) ? fromQs : Number.NaN);
+    if (Number.isFinite(pid)) {
+      const idx = hit.chapters.findIndex((c) => c.id === pid);
+      setCurrentChapterIndex(idx >= 0 ? idx : 0);
     }
-    if (nav?.next) {
-      stubs.push({
-        id: nav.next.id,
-        title: nav.next.title,
-        content: "",
-        audio_path: null,
-        duration: nav.next.duration ?? 0,
-        audio_url: nav.next.audio_url ?? null,
-      });
-    }
-
-    const merged = mergeChapterList(prevList, [...stubs, { ...rc, content: rc.content ?? "" }]);
-    const idx = merged.findIndex((c) => c.id === rc.id);
-    return { chapters: merged, index: idx >= 0 ? idx : 0 };
-  }
+    setLoading(false);
+  }, [storySlug, chapterSlugParam, chapterQuery]);
 
   useEffect(() => {
+    if (!storySlug) return;
+    if (listenTtsLastSlugForChapterReset === storySlug) {
+      return;
+    }
+    listenTtsLastSlugForChapterReset = storySlug;
     setChapters([]);
     chaptersRef.current = [];
     loadedChapterIdRef.current = null;
@@ -228,9 +180,13 @@ function ListenStoryPageContent() {
     let cancelled = false;
 
     async function run() {
-      setLoading(true);
+      touchListenSessionRoute("tts", storySlug);
+      const isInitialShell = chaptersRef.current.length === 0;
+      if (isInitialShell) {
+        setLoading(true);
+      }
       try {
-        if (chaptersRef.current.length === 0) {
+        if (isInitialShell) {
           const toc = await inFlightDedupe(`story-toc:${storySlug}:p1`, () => fetchTocPage(storySlug, 1));
           if (cancelled) return;
           const shellList = toc.data.map((c) => ({ ...c, content: "" }));
@@ -247,16 +203,24 @@ function ListenStoryPageContent() {
           }
 
           const slice = await inFlightDedupe(`story-read:${storySlug}:ch${targetId}`, () =>
-            fetchReadSlice(storySlug, targetId),
+            fetchListenReadSlice(storySlug, targetId),
           );
           if (cancelled) return;
-          const { chapters: merged, index } = applySliceToList(shellList, slice);
+          const { chapters: merged, index } = applyListenReadSliceToRows(shellList, slice);
           setChapters(merged);
           chaptersRef.current = merged;
-          setStory(slice);
+          setStory(slice as Story);
           setReadNav(slice.read_navigation ?? null);
           setCurrentChapterIndex(index);
           loadedChapterIdRef.current = targetId;
+
+          writeListenSessionCache("tts", storySlug, {
+            chapters: merged,
+            story: slice as ListenStoryShowRead,
+            readNav: slice.read_navigation ?? null,
+            tocLastPage: toc.last_page ?? 1,
+            tocLoadedPage: 1,
+          });
 
           const rc = slice.read_chapter;
           if (rc && typeof window !== "undefined") {
@@ -274,21 +238,32 @@ function ListenStoryPageContent() {
         if (!Number.isFinite(pid)) return;
         if (loadedChapterIdRef.current === pid) return;
 
-        const slice = await inFlightDedupe(`story-read:${storySlug}:ch${pid}`, () => fetchReadSlice(storySlug, pid));
+        const slice = await inFlightDedupe(`story-read:${storySlug}:ch${pid}`, () =>
+          fetchListenReadSlice(storySlug, pid),
+        );
         if (cancelled) return;
-        const { chapters: merged, index } = applySliceToList(chaptersRef.current, slice);
+        const { chapters: merged, index } = applyListenReadSliceToRows(chaptersRef.current, slice);
         setChapters(merged);
         chaptersRef.current = merged;
         setCurrentChapterIndex(index);
-        setStory(slice);
+        setStory(slice as Story);
         setReadNav(slice.read_navigation ?? null);
         loadedChapterIdRef.current = pid;
+
+        const prevEntry = readListenSessionCache("tts", storySlug);
+        writeListenSessionCache("tts", storySlug, {
+          chapters: merged,
+          story: slice as ListenStoryShowRead,
+          readNav: slice.read_navigation ?? null,
+          tocLastPage: prevEntry?.tocLastPage ?? 1,
+          tocLoadedPage: prevEntry?.tocLoadedPage ?? 1,
+        });
       } catch (e) {
         if (!cancelled) {
           console.error("Failed to load:", e);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (isInitialShell && !cancelled) setLoading(false);
       }
     }
 
@@ -305,7 +280,19 @@ function ListenStoryPageContent() {
       const nextPage = tocLoadedPage + 1;
       const toc = await inFlightDedupe(`story-toc:${storySlug}:p${nextPage}`, () => fetchTocPage(storySlug, nextPage));
       const batch = toc.data.map((c) => ({ ...c, content: "" }));
-      setChapters((prev: Chapter[]) => mergeChapterList(prev, batch));
+      setChapters((prev: Chapter[]) => {
+        const next = mergeListenChapterRows(prev, batch);
+        const cur = readListenSessionCache("tts", storySlug);
+        if (cur) {
+          writeListenSessionCache("tts", storySlug, {
+            ...cur,
+            chapters: next,
+            tocLastPage: toc.last_page ?? tocLastPage,
+            tocLoadedPage: nextPage,
+          });
+        }
+        return next;
+      });
       setTocLoadedPage(nextPage);
       setTocLastPage(toc.last_page ?? tocLastPage);
     } finally {
@@ -322,15 +309,6 @@ function ListenStoryPageContent() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showToc]);
 
-  useEffect(() => {
-    if (!storySlug || loading) return;
-    const fromPath = resolveChapterIdFromPathSegment(chapterSlugParam, chapters);
-    const fromQs = chapterQuery ? parseInt(chapterQuery, 10) : Number.NaN;
-    const id = fromPath ?? (Number.isFinite(fromQs) ? fromQs : chapters[currentChapterIndex]?.id);
-    if (!Number.isFinite(id)) return;
-    setSavedChapterId(storySlug, id);
-  }, [storySlug, chapterSlugParam, chapterQuery, chapters, currentChapterIndex, loading]);
-
   const chapterIdFromUrl = useMemo(() => {
     if (chapters.length === 0) return Number.NaN;
     const fromPath = resolveChapterIdFromPathSegment(chapterSlugParam, chapters);
@@ -345,6 +323,13 @@ function ListenStoryPageContent() {
     }
     return chapters[currentChapterIndex];
   }, [chapters, chapterIdFromUrl, currentChapterIndex]);
+
+  useEffect(() => {
+    if (!storySlug || loading) return;
+    const ch = currentChapter;
+    if (!ch?.id || !Number.isFinite(ch.id)) return;
+    setSavedChapterRef(storySlug, { id: ch.id, slug: ch.slug });
+  }, [storySlug, loading, currentChapter]);
 
   const chapterTtsPlain = useChapterPlainWithLexicons(currentChapter?.content ?? "");
 
@@ -635,22 +620,9 @@ function ListenStoryPageContent() {
   );
 }
 
-function ListenStoryPageFallback() {
-  return (
-    <div className={`${PAGE_FRAME} items-center justify-center px-4`}>
-      <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
-        <div className="h-2 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-        <div className="h-2 w-full animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-        <div className="h-2 w-5/6 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-        <p className="pt-2 text-center text-sm text-zinc-500 dark:text-zinc-400">Đang tải…</p>
-      </div>
-    </div>
-  );
-}
-
 export default function ListenStoryPage() {
   return (
-    <Suspense fallback={<ListenStoryPageFallback />}>
+    <Suspense fallback={null}>
       <ListenStoryPageContent />
     </Suspense>
   );
