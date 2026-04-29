@@ -229,6 +229,7 @@
     </div>
     <p class="content-lead">Job lưu trong bảng <code>crawler_jobs</code>, đẩy ID lên Redis (<code>{{ config('crawler.redis_queue_list') }}</code>). Worker Python lấy nội dung và gọi API nội bộ để ghi chương. <strong>Sửa</strong> cập nhật cấu hình trong DB (không tự đẩy queue). <strong>Sao chép</strong> mở form tạo job với cùng selector / truyện — chỉ cần đổi URL nguồn. <strong>Gửi lại Redis</strong> (pending / queued / failed / completed) đẩy thêm payload và đặt lại <code>queued</code> — chương trùng tiêu đề sẽ được cập nhật nội dung; job <code>queued</code> có thể bị xử lý hai lần nếu queue cũ vẫn còn tin.</p>
 
+    @include('cms.partials.pagination', ['paginator' => $jobs, 'variant' => 'toolbar'])
     <div class="card card--table">
         <div class="table-scroll">
             <table class="crawler-jobs-index">

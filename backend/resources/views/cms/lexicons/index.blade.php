@@ -47,6 +47,7 @@
             @endif
         </div>
     </form>
+    @include('cms.partials.pagination', ['paginator' => $lexicons, 'variant' => 'toolbar'])
     <div class="card card--table" style="padding: 0;">
         <div class="table-scroll">
             <table>

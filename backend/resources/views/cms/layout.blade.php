@@ -13,6 +13,13 @@
             document.documentElement.dataset.themePref = s;
         } catch (e) {}
     })();
+    (function () {
+        try {
+            if (localStorage.getItem('cms-sidebar-collapsed') === '1') {
+                document.documentElement.classList.add('app-sidebar-collapsed');
+            }
+        } catch (e) {}
+    })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'CMS') — {{ config('app.name') }}</title>
@@ -24,6 +31,7 @@
             --font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
             --content-max: 88rem;
             --sidebar-w: 15.5rem;
+            --sidebar-w-icon: 3.35rem;
             --sidebar-bg: #0f172a;
             --sidebar-border: #1e293b;
             --sidebar-text: #94a3b8;
@@ -72,24 +80,94 @@
             flex-direction: column;
             border-right: 1px solid var(--sidebar-border);
             transform: translateX(0);
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, width 0.22s ease;
         }
         @media (max-width: 900px) {
             .sidebar { transform: translateX(-100%); }
             .app--nav-open .sidebar { transform: translateX(0); }
         }
+        @media (min-width: 901px) {
+            html.app-sidebar-collapsed {
+                --sidebar-w: var(--sidebar-w-icon);
+            }
+        }
+        .sidebar__head {
+            display: flex;
+            align-items: stretch;
+            gap: 0.2rem;
+            padding: 0.45rem 0.4rem 0.45rem 0.5rem;
+            border-bottom: 1px solid var(--sidebar-border);
+        }
         .sidebar__brand {
             display: flex;
             align-items: center;
             gap: 0.6rem;
-            padding: 1.1rem 1.15rem 1.25rem;
+            flex: 1;
+            min-width: 0;
+            padding: 0.65rem 0.5rem 0.65rem 0.55rem;
             font-weight: 700;
             font-size: 1.02rem;
             color: #fff;
             text-decoration: none;
-            border-bottom: 1px solid var(--sidebar-border);
+            border-radius: 0.4rem;
         }
         .sidebar__brand:hover { text-decoration: none; color: #c7d2fe; }
+        .sidebar__brand-icon { flex-shrink: 0; opacity: 0.92; }
+        .sidebar__collapse-btn {
+            display: none;
+            flex-shrink: 0;
+            align-items: center;
+            justify-content: center;
+            width: 2.35rem;
+            align-self: center;
+            margin: 0.15rem 0;
+            padding: 0;
+            border: none;
+            border-radius: 0.4rem;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        .sidebar__collapse-btn:hover {
+            background: var(--sidebar-hover);
+            color: #e2e8f0;
+        }
+        .sidebar__collapse-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+        .sidebar__collapse-btn svg { display: block; }
+        .sidebar__collapse-icon--collapsed { display: none; }
+        @media (min-width: 901px) {
+            .sidebar__collapse-btn { display: inline-flex; }
+            html.app-sidebar-collapsed .sidebar__collapse-icon--expanded { display: none; }
+            html.app-sidebar-collapsed .sidebar__collapse-icon--collapsed { display: block; }
+        }
+        html.app-sidebar-collapsed .sidebar__head {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 0.4rem 0.35rem 0.5rem;
+            gap: 0.15rem;
+        }
+        @media (min-width: 901px) {
+            html.app-sidebar-collapsed .sidebar__brand {
+                justify-content: center;
+                padding: 0.5rem 0.25rem;
+            }
+            html.app-sidebar-collapsed .sidebar__brand-text { display: none; }
+            html.app-sidebar-collapsed .sidebar__collapse-btn {
+                width: 100%;
+                margin: 0;
+                padding: 0.35rem 0;
+            }
+            html.app-sidebar-collapsed .nav-item__label { display: none; }
+            html.app-sidebar-collapsed .nav-item {
+                justify-content: center;
+                padding: 0.55rem 0.35rem;
+            }
+            html.app-sidebar-collapsed .nav-item svg { margin: 0; }
+            html.app-sidebar-collapsed .sidebar__footer .nav-item { justify-content: center; }
+        }
         .sidebar__nav { flex: 1; padding: 0.75rem 0.5rem; overflow-y: auto; }
         .nav-item {
             display: flex;
@@ -111,7 +189,14 @@
         .nav-item svg { flex-shrink: 0; opacity: 0.85; }
         .nav-item[aria-current="page"] svg { opacity: 1; }
         .sidebar__footer { padding: 0.6rem 0.5rem 1rem; border-top: 1px solid var(--sidebar-border); }
-        .app__main { flex: 1; min-width: 0; display: flex; flex-direction: column; margin-left: var(--sidebar-w); }
+        .app__main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            margin-left: var(--sidebar-w);
+            transition: margin-left 0.22s ease;
+        }
         @media (max-width: 900px) {
             .app__main { margin-left: 0; }
         }
@@ -393,29 +478,38 @@
     <div class="app" id="app-root">
         <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
         <aside class="sidebar" aria-label="Menu chính">
-            <a class="sidebar__brand" href="{{ route('cms.dashboard') }}">Story CMS</a>
-            <nav class="sidebar__nav" aria-label="CMS">
-                <a class="nav-item" href="{{ route('cms.dashboard') }}" @if (request()->routeIs('cms.dashboard')) aria-current="page" @endif>
+            <div class="sidebar__head">
+                <a class="sidebar__brand" href="{{ route('cms.dashboard') }}" title="Story CMS">
+                    <svg class="sidebar__brand-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    <span class="sidebar__brand-text">Story CMS</span>
+                </a>
+                <button type="button" class="sidebar__collapse-btn" id="sidebar-collapse-toggle" aria-expanded="true" aria-controls="sidebar-nav" aria-label="Thu gọn thanh bên" title="Thu gọn thanh bên (chỉ hiện icon)">
+                    <svg class="sidebar__collapse-icon sidebar__collapse-icon--expanded" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+                    <svg class="sidebar__collapse-icon sidebar__collapse-icon--collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+                </button>
+            </div>
+            <nav class="sidebar__nav" id="sidebar-nav" aria-label="CMS">
+                <a class="nav-item" href="{{ route('cms.dashboard') }}" title="Bảng điều khiển" @if (request()->routeIs('cms.dashboard')) aria-current="page" @endif>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    Bảng điều khiển
+                    <span class="nav-item__label">Bảng điều khiển</span>
                 </a>
-                <a class="nav-item" href="{{ route('cms.stories.index') }}" @if (request()->routeIs('cms.stories.*')) aria-current="page" @endif>
+                <a class="nav-item" href="{{ route('cms.stories.index') }}" title="Truyện" @if (request()->routeIs('cms.stories.*')) aria-current="page" @endif>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                    Truyện
+                    <span class="nav-item__label">Truyện</span>
                 </a>
-                <a class="nav-item" href="{{ route('cms.lexicons.index') }}" @if (request()->routeIs('cms.lexicons.*')) aria-current="page" @endif>
+                <a class="nav-item" href="{{ route('cms.lexicons.index') }}" title="Lexicon" @if (request()->routeIs('cms.lexicons.*')) aria-current="page" @endif>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    Lexicon
+                    <span class="nav-item__label">Lexicon</span>
                 </a>
-                <a class="nav-item" href="{{ route('cms.crawler-jobs.index') }}" @if (request()->routeIs('cms.crawler-jobs.*')) aria-current="page" @endif>
+                <a class="nav-item" href="{{ route('cms.crawler-jobs.index') }}" title="Crawler" @if (request()->routeIs('cms.crawler-jobs.*')) aria-current="page" @endif>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
-                    Crawler
+                    <span class="nav-item__label">Crawler</span>
                 </a>
             </nav>
             <div class="sidebar__footer">
-                <a class="nav-item" href="{{ url('/docs/api') }}" target="_blank" rel="noopener" style="margin: 0;">
+                <a class="nav-item" href="{{ url('/docs/api') }}" target="_blank" rel="noopener" title="Tài liệu API (mở tab mới)" style="margin: 0;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/></svg>
-                    Tài liệu API
+                    <span class="nav-item__label">Tài liệu API</span>
                 </a>
             </div>
         </aside>
@@ -478,6 +572,45 @@
         document.querySelectorAll('.sidebar a[href]:not([target="_blank"])').forEach(function (a) {
             a.addEventListener('click', function () { if (window.matchMedia('(max-width: 900px)').matches) { closeNav(); } });
         });
+    })();
+    (function () {
+        var STORAGE = 'cms-sidebar-collapsed';
+        var mqWide = window.matchMedia('(min-width: 901px)');
+        var btn = document.getElementById('sidebar-collapse-toggle');
+        if (!btn) return;
+        function isCollapsed() {
+            return document.documentElement.classList.contains('app-sidebar-collapsed');
+        }
+        function apply(collapsed) {
+            if (collapsed) {
+                document.documentElement.classList.add('app-sidebar-collapsed');
+            } else {
+                document.documentElement.classList.remove('app-sidebar-collapsed');
+            }
+            try { localStorage.setItem(STORAGE, collapsed ? '1' : '0'); } catch (e) {}
+            btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            btn.setAttribute('aria-label', collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên');
+            btn.setAttribute('title', collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên (chỉ hiện icon)');
+        }
+        function syncAria() {
+            var c = isCollapsed() && mqWide.matches;
+            btn.setAttribute('aria-expanded', c ? 'false' : 'true');
+            btn.setAttribute('aria-label', c ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên');
+            btn.setAttribute('title', c ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên (chỉ hiện icon)');
+        }
+        syncAria();
+        btn.addEventListener('click', function () {
+            if (!mqWide.matches) { return; }
+            apply(!isCollapsed());
+        });
+        function onMqChange() {
+            syncAria();
+        }
+        if (mqWide.addEventListener) {
+            mqWide.addEventListener('change', onMqChange);
+        } else if (mqWide.addListener) {
+            mqWide.addListener(onMqChange);
+        }
     })();
     (function () {
         var STORAGE = 'cms-theme';

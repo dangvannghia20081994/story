@@ -28,7 +28,8 @@ class CrawlerJobController extends Controller
         $jobs = CrawlerJob::query()
             ->with('story')
             ->orderByDesc('id')
-            ->paginate(30);
+            ->paginate(30)
+            ->withQueryString();
 
         return view('cms.crawler_jobs.index', [
             'jobs' => $jobs,
