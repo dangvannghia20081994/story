@@ -55,6 +55,7 @@
                     <tr>
                         <th>Từ</th>
                         <th>Thay thế</th>
+                        <th>Truyện</th>
                         <th>Loại</th>
                         <th>Ưu tiên</th>
                         <th class="th-actions">Thao tác</th>
@@ -65,6 +66,7 @@
                         <tr>
                             <td><strong style="font-weight: 500;">{{ $lex->word }}</strong></td>
                             <td>{{ $lex->replacement }}</td>
+                            <td class="muted">{{ $lex->story?->title ?? 'Chung' }}</td>
                             <td>{{ \App\Enums\LexiconType::tryFrom($lex->type)?->label() ?? $lex->type }}</td>
                             <td>{{ $lex->priority }}</td>
                             <td class="cms-story-row-actions">
@@ -81,7 +83,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có lexicon. Dùng <strong>Mục mới</strong> ở trên (một hoặc nhiều).</td></tr>
+                        <tr><td colspan="6" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có lexicon. Dùng <strong>Mục mới</strong> ở trên (một hoặc nhiều).</td></tr>
                     @endforelse
                 </tbody>
             </table>

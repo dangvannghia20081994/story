@@ -1,5 +1,5 @@
 {{--
-    Biến: $lexiconTypes (App\Enums\LexiconType[]), $lexicon (null khi tạo), $action, $method ('POST'|'PUT')
+    Biến: $lexiconTypes, $lexicon (null khi tạo), $stories (Collection id,title), $action, $method ('POST'|'PUT')
 --}}
 @php
     $isEdit = isset($lexicon) && $lexicon instanceof \App\Models\Lexicon && $lexicon->exists;
@@ -9,6 +9,16 @@
     @if (($method ?? 'POST') === 'PUT')
         @method('PUT')
     @endif
+    <div class="field">
+        <label for="story_id">Truyện</label>
+        <select id="story_id" name="story_id">
+            <option value="" @selected(empty(old('story_id', $lexicon?->story_id)))>— Chung (mọi truyện) —</option>
+            @foreach ($stories ?? [] as $st)
+                <option value="{{ $st->id }}" @selected((string) old('story_id', $lexicon?->story_id) === (string) $st->id)>{{ $st->title }}</option>
+            @endforeach
+        </select>
+        <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.85rem;">Để trống = lexicon áp dụng cho tất cả truyện khi đọc/nghe.</p>
+    </div>
     <div class="field">
         <label for="word">{{ $isEdit ? 'Từ' : 'Từ *' }}</label>
         <input id="word" name="word" value="{{ old('word', $lexicon?->word ?? '') }}" required>

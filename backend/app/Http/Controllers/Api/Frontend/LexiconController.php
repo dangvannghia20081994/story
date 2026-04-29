@@ -20,7 +20,7 @@ class LexiconController extends Controller
     {
         $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
 
-        return response()->json($this->lexiconCache->paginateFromCache($request, $perPage));
+        return response()->json($this->lexiconCache->paginateGlobalFromCache($request, $perPage));
     }
 
     public function store(CreateLexiconRequest $request): JsonResponse

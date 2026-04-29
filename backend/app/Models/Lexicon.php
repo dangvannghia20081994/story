@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\LexiconCacheService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Lexicon extends Model
 {
@@ -14,6 +15,7 @@ class Lexicon extends Model
     public const TYPE_FILTER = 'filter';
 
     protected $fillable = [
+        'story_id',
         'word',
         'replacement',
         'type',
@@ -23,10 +25,16 @@ class Lexicon extends Model
     protected function casts(): array
     {
         return [
+            'story_id' => 'integer',
             'priority' => 'integer',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function story(): BelongsTo
+    {
+        return $this->belongsTo(Story::class);
     }
 
     protected static function booted(): void

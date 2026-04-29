@@ -33,6 +33,15 @@
     </div>
     <form method="post" action="{{ route('cms.lexicons.bulk.store') }}" id="lexicons-bulk-form" class="card sheet-outer" style="padding: 0; overflow: hidden;">
         @csrf
+        <div class="card" style="margin:0; border-radius: 0.65rem 0.65rem 0 0; padding: 0.75rem 1rem; border-bottom: 1px solid var(--surface-border);">
+            <label for="bulk-story-id" class="muted" style="display:block; font-size:0.85rem; margin-bottom:0.35rem;">Truyện (để trống = chung mọi truyện)</label>
+            <select id="bulk-story-id" name="story_id" style="max-width: 28rem; width: 100%; padding: 0.4rem 0.5rem;">
+                <option value="">— Chung —</option>
+                @foreach ($stories ?? [] as $st)
+                    <option value="{{ $st->id }}" @selected((string) old('story_id') === (string) $st->id)>{{ $st->title }}</option>
+                @endforeach
+            </select>
+        </div>
         <div class="card bulk-grid-card" style="margin:0; border-radius: 0.65rem; padding: 0.5rem; padding-bottom: 0;">
             <div id="bulk-lex-hot" class="bulk-hot" aria-label="Bảng lexicon hàng loạt"></div>
         </div>

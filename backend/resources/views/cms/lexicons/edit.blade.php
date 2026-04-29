@@ -19,6 +19,7 @@
     @include('cms.lexicons._form', [
         'lexiconTypes' => $lexiconTypes,
         'lexicon' => $lexicon,
+        'stories' => $stories,
         'action' => route('cms.lexicons.update', $lexicon),
         'method' => 'PUT',
     ])

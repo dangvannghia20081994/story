@@ -253,6 +253,11 @@ class Story extends Model
         return $this->hasMany(Character::class);
     }
 
+    public function lexicons(): HasMany
+    {
+        return $this->hasMany(Lexicon::class);
+    }
+
     /** Chương đầu tiên có file audio (cho danh sách truyện). */
     public function firstAudibleChapter(): HasOne
     {

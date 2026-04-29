@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Frontend\ChapterController;
 use App\Http\Controllers\Api\Frontend\CharacterController;
 use App\Http\Controllers\Api\Frontend\LexiconController;
 use App\Http\Controllers\Api\Frontend\StoryController;
+use App\Http\Controllers\Api\Frontend\StoryLexiconController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,6 +35,8 @@ Route::get('/chapters/{chapter}/audio/stream', [ChapterAudioStreamController::cl
     ->name('api.chapters.audio.stream');
 Route::patch('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'update']);
 Route::delete('/stories/{story}/chapters/{chapter}', [ChapterController::class, 'destroy']);
+Route::get('/stories/{story}/lexicons', [StoryLexiconController::class, 'index']);
+
 Route::get('/stories/{story}/characters', [CharacterController::class, 'index']);
 Route::post('/stories/{story}/characters', [CharacterController::class, 'store']);
 Route::get('/stories/{story}/characters/{character}', [CharacterController::class, 'show']);

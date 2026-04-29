@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('lexicons', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('story_id')->nullable()->constrained()->cascadeOnDelete();
             $table->string('word');
             $table->string('replacement');
             $table->string('type', 32)->default('pronunciation');
@@ -17,7 +18,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['priority', 'word']);
-            $table->unique(['word', 'type']);
+            $table->unique(['story_id', 'word', 'type']);
+            $table->index(['story_id', 'priority']);
         });
     }
 

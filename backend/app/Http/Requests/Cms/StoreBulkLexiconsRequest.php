@@ -20,6 +20,7 @@ class StoreBulkLexiconsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'story_id' => ['nullable', 'integer', 'exists:stories,id'],
             'lexicons' => ['required', 'array', 'min:1', 'max:1000'],
             'lexicons.*.word' => ['required', 'string', 'max:255'],
             'lexicons.*.replacement' => ['required', 'string', 'max:255'],
@@ -30,6 +31,13 @@ class StoreBulkLexiconsRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $sid = $this->input('story_id');
+        if ($sid === '' || $sid === null) {
+            $this->merge(['story_id' => null]);
+        } elseif (is_numeric($sid)) {
+            $this->merge(['story_id' => (int) $sid]);
+        }
+
         $lexicons = $this->input('lexicons');
         if (is_string($lexicons)) {
             $decoded = json_decode($lexicons, true);
@@ -74,6 +82,8 @@ class StoreBulkLexiconsRequest extends FormRequest
             if (! is_array($rows)) {
                 return;
             }
+            $storyId = $this->input('story_id');
+            $scopeKey = $storyId !== null && $storyId !== '' ? 's:'.(int) $storyId : 'g';
             $seen = [];
             foreach ($rows as $i => $row) {
                 if (! is_array($row)) {
@@ -84,19 +94,26 @@ class StoreBulkLexiconsRequest extends FormRequest
                 if ($w === '' || ! in_array($t, $types, true)) {
                     continue;
                 }
-                $k = $w."\0".$t;
+                $k = $scopeKey."\0".$w."\0".$t;
                 if (isset($seen[$k])) {
                     $validator->errors()->add(
                         "lexicons.$i.word",
                         'Trùng từ + loại với dòng khác trong cùng lô.',
                     );
+
                     continue;
                 }
                 $seen[$k] = true;
-                if (Lexicon::query()->where('word', $w)->where('type', $t)->exists()) {
+                $q = Lexicon::query()->where('word', $w)->where('type', $t);
+                if ($storyId !== null && $storyId !== '') {
+                    $q->where('story_id', (int) $storyId);
+                } else {
+                    $q->whereNull('story_id');
+                }
+                if ($q->exists()) {
                     $validator->errors()->add(
                         "lexicons.$i.word",
-                        'Đã tồn tại lexicon cùng từ + loại.',
+                        'Đã tồn tại lexicon cùng từ + loại (cùng phạm vi truyện/chung).',
                     );
                 }
             }

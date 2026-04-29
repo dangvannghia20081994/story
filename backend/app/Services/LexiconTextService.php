@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 final class LexiconTextService
 {
     /**
-     * @param  Collection<int, Lexicon>|null  $lexicons  null = lấy từ {@see LexiconCacheService::allOrdered()}
+     * @param  Collection<int, Lexicon>|null  $lexicons  null = chỉ lexicon chung (toàn hệ)
      */
     public function applyToPlainText(string $plain, ?Collection $lexicons = null): string
     {
@@ -20,7 +20,7 @@ final class LexiconTextService
             return '';
         }
 
-        $rows = $lexicons ?? app(LexiconCacheService::class)->allOrdered();
+        $rows = $lexicons ?? app(LexiconCacheService::class)->globalOrdered();
         if ($rows->isEmpty()) {
             return $plain;
         }

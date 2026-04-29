@@ -35,6 +35,7 @@ class LexiconController extends Controller
         }
 
         $lexicons = Lexicon::query()
+            ->with(['story:id,title'])
             ->when(
                 $q !== '',
                 static function ($query) use ($q) {
@@ -58,14 +59,19 @@ class LexiconController extends Controller
 
     public function create(): View
     {
+        $stories = Story::query()->orderBy('title')->get(['id', 'title']);
+
         return view('cms.lexicons.create', [
             'lexiconTypes' => LexiconType::cases(),
+            'stories' => $stories,
         ]);
     }
 
     public function createBulk(): View
     {
-        return view('cms.lexicons.bulk');
+        $stories = Story::query()->orderBy('title')->get(['id', 'title']);
+
+        return view('cms.lexicons.bulk', compact('stories'));
     }
 
     public function createFromChapter(): View
@@ -89,16 +95,24 @@ class LexiconController extends Controller
             'default_type' => ['required', 'string', Rule::in(LexiconType::values())],
             'skip_existing' => ['nullable', 'boolean'],
             'prefill_replacement_as_word' => ['nullable', 'boolean'],
+            'source_story_id' => ['nullable', 'integer', 'exists:stories,id'],
         ]);
 
         $min = max(1, min(50, (int) ($validated['min_length'] ?? 2)));
         $type = $validated['default_type'];
         $tokens = LexiconWordExtractor::uniqueTokens($validated['content'], $min);
+        $sourceStoryId = isset($validated['source_story_id']) ? (int) $validated['source_story_id'] : null;
 
         if ($request->boolean('skip_existing') && $tokens !== []) {
             $existing = Lexicon::query()
                 ->where('type', $type)
                 ->whereIn('word', $tokens)
+                ->where(function ($q) use ($sourceStoryId): void {
+                    $q->whereNull('story_id');
+                    if ($sourceStoryId !== null && $sourceStoryId > 0) {
+                        $q->orWhere('story_id', $sourceStoryId);
+                    }
+                })
                 ->pluck('word')
                 ->all();
             $lower = array_map(static fn (string $w): string => mb_strtolower($w), $existing);
@@ -149,6 +163,7 @@ class LexiconController extends Controller
                 'prefill_replacement_as_word' => $prefillSame,
                 'truncated' => $truncated,
                 'count' => count($draftRows),
+                'default_story_id' => $sourceStoryId,
             ],
         ]);
     }
@@ -181,12 +196,15 @@ class LexiconController extends Controller
 
     public function storeBulk(StoreBulkLexiconsRequest $request): RedirectResponse
     {
-        $rows = $request->validated('lexicons');
+        $validated = $request->validated();
+        $rows = $validated['lexicons'];
+        $storyId = $validated['story_id'] ?? null;
 
-        DB::transaction(function () use ($rows): void {
-            Lexicon::withoutEvents(function () use ($rows): void {
+        DB::transaction(function () use ($rows, $storyId): void {
+            Lexicon::withoutEvents(function () use ($rows, $storyId): void {
                 foreach ($rows as $row) {
                     Lexicon::query()->create([
+                        'story_id' => $storyId,
                         'word' => $row['word'],
                         'replacement' => $row['replacement'],
                         'type' => $row['type'],
@@ -205,9 +223,12 @@ class LexiconController extends Controller
 
     public function edit(Lexicon $lexicon): View
     {
+        $stories = Story::query()->orderBy('title')->get(['id', 'title']);
+
         return view('cms.lexicons.edit', [
             'lexicon' => $lexicon,
             'lexiconTypes' => LexiconType::cases(),
+            'stories' => $stories,
         ]);
     }
 

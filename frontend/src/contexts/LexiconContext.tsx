@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { LexiconRow } from "@/lib/applyLexicons";
 import { applyLexiconsToPlainText, sortLexiconEntries } from "@/lib/applyLexicons";
 import { chapterHtmlToTtsPlain } from "@/lib/chapterPlainText";
-import { fetchAllLexiconRows } from "@/lib/lexiconApi";
+import { fetchGlobalLexiconRows, fetchLexiconRowsForStory } from "@/lib/lexiconApi";
 
 type LexiconContextValue = {
   entries: LexiconRow[];
@@ -19,16 +19,26 @@ const LexiconContext = createContext<LexiconContextValue>({
   error: null,
 });
 
-export function LexiconProvider({ children }: { children: ReactNode }) {
+type LexiconProviderProps = {
+  children: ReactNode;
+  /** Slug truyện từ URL: lexicon riêng + chung. Chuỗi rỗng = chỉ lexicon chung (toàn hệ). */
+  storyKey?: string;
+};
+
+export function LexiconProvider({ children, storyKey = "" }: LexiconProviderProps) {
   const [entries, setEntries] = useState<LexiconRow[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const key = storyKey.trim();
+
     (async () => {
+      setReady(false);
+      setError(null);
       try {
-        const rows = await fetchAllLexiconRows();
+        const rows = key !== "" ? await fetchLexiconRowsForStory(key) : await fetchGlobalLexiconRows();
         if (!cancelled) {
           setEntries(sortLexiconEntries(rows));
         }
@@ -37,13 +47,16 @@ export function LexiconProvider({ children }: { children: ReactNode }) {
           setError(e instanceof Error ? e : new Error(String(e)));
         }
       } finally {
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          setReady(true);
+        }
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [storyKey]);
 
   const value = useMemo(() => ({ entries, ready, error }), [entries, ready, error]);
 
