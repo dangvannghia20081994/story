@@ -22,6 +22,15 @@ class StoryController extends Controller
             'exclude' => ['sometimes', 'integer', 'min:1'],
             /** Danh sách slug thể loại cách nhau bởi dấu phẩy — lọc truyện có ít nhất một slug trong JSON `genres`. */
             'any_genre' => ['sometimes', 'string', 'max:500'],
+            /** Cùng ý nghĩa `any_genre` (ưu tiên hơn `any_genre` nếu cả hai có). */
+            'genres' => ['sometimes', 'string', 'max:500'],
+            /** Tìm theo tên (LIKE). */
+            'q' => ['sometimes', 'string', 'max:200'],
+            'serial_status' => ['sometimes', 'string', Rule::in(Story::SERIAL_STATUSES)],
+            /** Có ít nhất một chương có file audio / không có chương nào có audio. */
+            'has_audio' => ['sometimes', 'string', Rule::in(['yes', 'no'])],
+            /** Thứ tự: mặc định theo ngày tạo mới nhất. */
+            'sort' => ['sometimes', 'string', Rule::in(['created_desc', 'created_asc', 'id_desc', 'id_asc'])],
         ]);
 
         $perPage = (int) $request->input('per_page', 20);
@@ -30,9 +39,12 @@ class StoryController extends Controller
         $excludeId = $request->filled('exclude') ? (int) $request->input('exclude') : null;
 
         $genreSlugs = [];
-        $anyGenreRaw = $request->input('any_genre');
-        if (is_string($anyGenreRaw) && trim($anyGenreRaw) !== '') {
-            foreach (explode(',', $anyGenreRaw) as $part) {
+        $genreCsv = $request->input('genres');
+        if (! is_string($genreCsv) || trim($genreCsv) === '') {
+            $genreCsv = $request->input('any_genre');
+        }
+        if (is_string($genreCsv) && trim($genreCsv) !== '') {
+            foreach (explode(',', $genreCsv) as $part) {
                 $s = trim((string) $part);
                 if ($s !== '' && in_array($s, Story::GENRES, true)) {
                     $genreSlugs[] = $s;
@@ -46,8 +58,15 @@ class StoryController extends Controller
             ->withCount([
                 'chapters',
                 'chapters as chapters_with_audio_count' => fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
-            ])
-            ->orderByDesc('id');
+            ]);
+
+        $sort = (string) $request->input('sort', 'created_desc');
+        match ($sort) {
+            'created_asc' => $query->reorder()->orderBy('created_at')->orderBy('id'),
+            'id_asc' => $query->reorder()->orderBy('id'),
+            'id_desc' => $query->reorder()->orderByDesc('id'),
+            default => $query->reorder()->orderByDesc('created_at')->orderByDesc('id'),
+        };
 
         if ($excludeId !== null) {
             $query->where('id', '!=', $excludeId);
@@ -59,6 +78,27 @@ class StoryController extends Controller
                     $q->orWhereJsonContains('genres', $slug);
                 }
             });
+        }
+
+        $qTitle = trim((string) $request->input('q', ''));
+        if ($qTitle !== '') {
+            $query->where('title', 'like', '%'.$qTitle.'%');
+        }
+
+        if ($request->filled('serial_status')) {
+            $query->where('serial_status', (string) $request->input('serial_status'));
+        }
+
+        if ($request->input('has_audio') === 'yes') {
+            $query->whereHas(
+                'chapters',
+                fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
+            );
+        } elseif ($request->input('has_audio') === 'no') {
+            $query->whereDoesntHave(
+                'chapters',
+                fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
+            );
         }
 
         $paginator = $query->paginate($perPage);

@@ -4,9 +4,9 @@
 @endphp
 <div class="crawler-job-form">
     <div class="field crawler-job-form__full">
-        <label for="source_url">URL trang truyện (mục lục hoặc một chương) — <strong>mỗi dòng là một URL</strong></label>
-        <textarea name="source_url" id="source_url" rows="4" required placeholder="https://truyenhot.net/truyen/abc&#10;https://truyenhot.net/truyen/xyz" @if (! empty($autofocusSource)) autofocus @endif>{{ old('source_url', $d['source_url'] ?? '') }}</textarea>
-        <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Nhiều URL (mỗi dòng một URL) → nhiều job cùng cấu hình.</span>
+        <label for="source_url">URL trang truyện (mục lục hoặc một chương) — <strong>mỗi dòng một URL</strong> (nhiều job cùng selector)</label>
+        <textarea name="source_url" id="source_url" rows="5" required placeholder="https://example.com/truyen/a&#10;https://example.com/truyen/b" @if (! empty($autofocusSource)) autofocus @endif>{{ old('source_url', $d['source_url'] ?? '') }}</textarea>
+        <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Mỗi dòng một URL <code>https://…</code>. <strong>Gắn truyện có sẵn</strong> chỉ khi đúng một dòng.</span>
     </div>
 
     <fieldset class="crawler-job-form__panel">
@@ -44,8 +44,14 @@
             </select>
         </div>
         <div class="field">
-            <label for="new_story_title">Tiêu đề truyện mới (nếu không chọn truyện có sẵn)</label>
+            <label for="new_story_title">Tiêu đề truyện mới (tuỳ chọn)</label>
             <input type="text" name="new_story_title" id="new_story_title" value="{{ old('new_story_title', $d['new_story_title'] ?? '') }}" maxlength="255">
+            <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Khi không chọn truyện có sẵn: có thể để trống nếu đã điền <strong>Selector tên truyện</strong> bên dưới (worker lấy tên từ trang nguồn). Nếu điền tay, cùng một tiêu đề áp cho mọi job khi nhập nhiều URL.</span>
+        </div>
+        <div class="field">
+            <label for="story_title_selector">Selector tên truyện trên trang nguồn (tuỳ chọn)</label>
+            <input type="text" name="story_title_selector" id="story_title_selector" value="{{ old('story_title_selector', $d['story_title_selector'] ?? '') }}" maxlength="2000" placeholder="vd: h1.title, .breadcrumb li:last-child a">
+            <span class="muted" style="display:block;margin-top:0.25rem;font-size:0.8rem;">Chỉ dùng khi <strong>truyện mới</strong> và không nhập tiêu đề tay. Worker mở <code>source_url</code>, đọc văn bản phần tử khớp selector rồi lưu làm tên truyện (tối đa 255 ký tự).</span>
         </div>
         <div class="field">
             <label for="max_chapters">Giới hạn số chương (0 / trống = không giới hạn)</label>

@@ -321,3 +321,24 @@ async def crawl_chapter_async(page: AsyncPage, url: str, title_sel: str, body_se
     raw_html = await page.inner_html(body_sel)
     clean_text = clean_content(raw_html)
     return {"title": title, "content": clean_text, "url": url}
+
+
+def story_title_from_selector(page: Page, selector: str) -> str:
+    """Trang nguồn đã mở (vd. mục lục): lấy văn bản tên truyện từ phần tử khớp selector (tối đa 255 ký tự)."""
+    sel = (selector or "").strip()
+    if not sel:
+        return ""
+    try:
+        page.wait_for_selector(sel, timeout=selector_timeout_ms())
+    except PlaywrightTimeout:
+        return ""
+    el = page.query_selector(sel)
+    if el is None:
+        return ""
+    try:
+        raw = el.inner_text()
+    except Exception:  # noqa: BLE001
+        return ""
+    t = re.sub(r"\s+", " ", (raw or "").strip())
+
+    return t[:255] if t else ""

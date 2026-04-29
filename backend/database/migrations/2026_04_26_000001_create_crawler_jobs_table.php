@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('story_id')->nullable()->constrained('stories')->nullOnDelete();
             $table->string('new_story_title')->nullable();
+            $table->string('story_title_selector', 2000)->nullable();
             $table->text('source_url');
             $table->string('chapter_links_selector')->default('');
             $table->string('chapter_list_next_page_selector')->default('');

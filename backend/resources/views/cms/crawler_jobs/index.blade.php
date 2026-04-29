@@ -256,20 +256,9 @@
                                 @endif
                             </td>
                             <td>
-                                @php
-                                    $jobStatus = $job->status;
-                                    $jobBadge = match ($jobStatus) {
-                                        \App\Models\CrawlerJob::STATUS_PENDING => 'cms-badge--job-pending',
-                                        \App\Models\CrawlerJob::STATUS_QUEUED => 'cms-badge--job-queued',
-                                        \App\Models\CrawlerJob::STATUS_PROCESSING => 'cms-badge--job-processing',
-                                        \App\Models\CrawlerJob::STATUS_COMPLETED => 'cms-badge--job-completed',
-                                        \App\Models\CrawlerJob::STATUS_FAILED => 'cms-badge--job-failed',
-                                        default => 'cms-badge--genre',
-                                    };
-                                @endphp
-                                <span class="cms-badge {{ $jobBadge }}">{{ $jobStatus }}</span>
+                                <span id="crawler-job-status-{{ $job->id }}" class="cms-badge {{ $job->cmsJobStatusBadgeClass() }}">{{ $job->status }}</span>
                             </td>
-                            <td class="cell-1line muted" title="{{ $job->last_error ?? '' }}">{{ $job->last_error ? $job->last_error : '—' }}</td>
+                            <td id="crawler-job-error-{{ $job->id }}" class="cell-1line muted" title="{{ $job->last_error ?? '' }}">{{ $job->last_error ? $job->last_error : '—' }}</td>
                             <td class="muted" style="white-space: nowrap;">{{ $job->created_at?->format('Y-m-d H:i') }}</td>
                             <td class="cell-actions">
                                 <div class="row-actions" style="gap: 0.35rem;">
@@ -278,10 +267,13 @@
                                     @endif
                                     <a href="{{ route('cms.crawler-jobs.create', ['from' => $job->id]) }}" class="btn" style="font-size: 0.78rem; padding: 0.28rem 0.55rem;">Sao chép</a>
                                     @if (in_array($job->status, [\App\Models\CrawlerJob::STATUS_FAILED, \App\Models\CrawlerJob::STATUS_PENDING, \App\Models\CrawlerJob::STATUS_QUEUED, \App\Models\CrawlerJob::STATUS_COMPLETED], true))
-                                        <form method="post" action="{{ route('cms.crawler-jobs.resend', $job) }}">
-                                            @csrf
-                                            <button type="submit" class="btn" style="font-size: 0.78rem; padding: 0.28rem 0.55rem;">Gửi lại Redis</button>
-                                        </form>
+                                        <button
+                                            type="button"
+                                            class="btn js-crawler-resend-redis"
+                                            style="font-size: 0.78rem; padding: 0.28rem 0.55rem;"
+                                            data-url="{{ route('cms.crawler-jobs.resend', $job) }}"
+                                            data-job-id="{{ $job->id }}"
+                                        >Gửi lại Redis</button>
                                     @endif
                                 </div>
                             </td>
@@ -297,3 +289,61 @@
     </div>
     @include('cms.partials.pagination', ['paginator' => $jobs])
 @endsection
+
+@push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js" crossorigin="anonymous"></script>
+    <script>
+    (function () {
+        var csrf = @json(csrf_token());
+        function notify(kind, text) {
+            if (typeof window.cmsToast === 'function') {
+                window.cmsToast(text, { variant: kind === 'error' ? 'error' : 'success' });
+            } else {
+                window.alert(text);
+            }
+        }
+        document.querySelectorAll('.js-crawler-resend-redis').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var url = btn.getAttribute('data-url');
+                var id = btn.getAttribute('data-job-id');
+                if (!url || !id) return;
+                var badge = document.getElementById('crawler-job-status-' + id);
+                var errCell = document.getElementById('crawler-job-error-' + id);
+                btn.disabled = true;
+                axios.post(url, {}, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf
+                    }
+                }).then(function (res) {
+                    var d = res.data;
+                    if (badge && d.job) {
+                        badge.className = 'cms-badge ' + d.job.badge_class;
+                        badge.textContent = d.job.status;
+                    }
+                    if (errCell && d.job) {
+                        var le = d.job.last_error;
+                        errCell.textContent = le ? le : '—';
+                        errCell.setAttribute('title', le ? le : '');
+                    }
+                    notify('ok', d.message || 'Đã đẩy lại job lên Redis.');
+                }).catch(function (err) {
+                    var msg = 'Lỗi mạng hoặc máy chủ.';
+                    if (err.response && err.response.data) {
+                        if (err.response.data.message) {
+                            msg = err.response.data.message;
+                        } else if (err.response.data.errors && err.response.data.errors.redis) {
+                            msg = err.response.data.errors.redis[0] || msg;
+                        }
+                    }
+                    notify('error', msg);
+                }).finally(function () {
+                    btn.disabled = false;
+                });
+            });
+        });
+    })();
+    </script>
+@endpush

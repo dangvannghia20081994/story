@@ -31,6 +31,7 @@ class CrawlerInternalController extends Controller
                 'chapter_content_selector' => $crawlerJob->chapter_content_selector,
                 'story_id' => $crawlerJob->story_id,
                 'new_story_title' => $crawlerJob->new_story_title,
+                'story_title_selector' => $crawlerJob->story_title_selector,
                 'chapter_start' => $chapterStart,
                 'max_chapters' => $crawlerJob->max_chapters,
                 'delay_seconds' => $crawlerJob->delay_seconds,
@@ -104,6 +105,36 @@ class CrawlerInternalController extends Controller
                 'chapter_created' => $created,
             ],
         ], $created ? 201 : 200);
+    }
+
+    /**
+     * Worker gọi trước chương đầu: ghi tiêu đề truyện mới lấy từ trang nguồn (selector).
+     */
+    public function updateJob(Request $request, CrawlerJob $crawlerJob): JsonResponse
+    {
+        if (in_array($crawlerJob->status, [CrawlerJob::STATUS_COMPLETED, CrawlerJob::STATUS_FAILED], true)) {
+            abort(422, 'Job is finished.');
+        }
+
+        $data = $request->validate([
+            'new_story_title' => ['required', 'string', 'max:255'],
+        ]);
+
+        if ($crawlerJob->story_id !== null) {
+            abort(422, 'Truyện đã gán — không cập nhật tiêu đề qua job.');
+        }
+
+        if (trim((string) ($crawlerJob->new_story_title ?? '')) !== '') {
+            abort(422, 'Tiêu đề truyện đã có trên job.');
+        }
+
+        $crawlerJob->update(['new_story_title' => $data['new_story_title']]);
+
+        return response()->json([
+            'data' => [
+                'new_story_title' => $crawlerJob->new_story_title,
+            ],
+        ]);
     }
 
     public function updateStatus(Request $request, CrawlerJob $crawlerJob): JsonResponse

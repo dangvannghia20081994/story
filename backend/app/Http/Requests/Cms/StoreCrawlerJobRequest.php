@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Cms;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreCrawlerJobRequest extends FormRequest
 {
@@ -28,6 +29,30 @@ class StoreCrawlerJobRequest extends FormRequest
     }
 
     /**
+     * @return list<string>
+     */
+    public static function validHttpSourceUrls(string $raw): array
+    {
+        $lines = preg_split('/\R/u', $raw) ?: [];
+        $urls = [];
+        foreach ($lines as $line) {
+            $u = trim((string) $line);
+            if ($u === '') {
+                continue;
+            }
+            if (filter_var($u, FILTER_VALIDATE_URL) === false) {
+                continue;
+            }
+            if (! str_starts_with($u, 'http://') && ! str_starts_with($u, 'https://')) {
+                continue;
+            }
+            $urls[] = $u;
+        }
+
+        return $urls;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -39,7 +64,8 @@ class StoreCrawlerJobRequest extends FormRequest
             'chapter_title_selector' => ['required', 'string', 'max:2000'],
             'chapter_content_selector' => ['required', 'string', 'max:2000'],
             'story_id' => ['nullable', 'integer', 'exists:stories,id'],
-            'new_story_title' => ['nullable', 'string', 'max:255', 'required_without:story_id'],
+            'new_story_title' => ['nullable', 'string', 'max:255'],
+            'story_title_selector' => ['nullable', 'string', 'max:2000'],
             'max_chapters' => ['nullable', 'integer', 'min:0'],
             'chapter_start' => ['nullable', 'integer', 'min:1', 'max:999999'],
             'delay_seconds' => ['nullable', 'numeric', 'min:0', 'max:120'],
@@ -47,10 +73,33 @@ class StoreCrawlerJobRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
+    public function withValidator(Validator $validator): void
     {
-        return [
-            'new_story_title.required_without' => 'Nhập tiêu đề truyện mới hoặc chọn truyện có sẵn.',
-        ];
+        $validator->after(function (Validator $v): void {
+            if ($v->errors()->isNotEmpty()) {
+                return;
+            }
+            $urls = self::validHttpSourceUrls((string) $this->input('source_url', ''));
+            if ($urls === []) {
+                $v->errors()->add('source_url', 'Cần ít nhất một dòng là URL http(s) hợp lệ.');
+
+                return;
+            }
+            if (filled($this->input('story_id')) && count($urls) > 1) {
+                $v->errors()->add('story_id', 'Gắn truyện có sẵn chỉ khi có đúng một URL (một dòng).');
+
+                return;
+            }
+            if (! filled($this->input('story_id'))) {
+                $manual = trim((string) $this->input('new_story_title', ''));
+                $sel = trim((string) $this->input('story_title_selector', ''));
+                if ($manual === '' && $sel === '') {
+                    $v->errors()->add(
+                        'story_title_selector',
+                        'Truyện mới: nhập «Tiêu đề truyện mới» hoặc «Selector tên truyện» (lấy từ trang nguồn).',
+                    );
+                }
+            }
+        });
     }
 }

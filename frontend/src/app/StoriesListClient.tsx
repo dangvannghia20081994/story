@@ -7,6 +7,7 @@ import { HomeStoryCard, type HomeStoryCardStory } from "@/components/HomeStoryCa
 import { apiFetch } from "@/lib/api";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { STORIES_LIST_PER_PAGE } from "@/lib/storiesListConfig";
+import { buildStoriesApiQuery, buildStoriesListHref, type StoriesListFilters } from "@/lib/storiesListQuery";
 
 type StoryRow = HomeStoryCardStory;
 
@@ -21,21 +22,19 @@ export type StoriesListPaginated = {
 type StoriesListClientProps = {
   /** Trang hiện tại (đồng bộ `?page=`). */
   currentPage: number;
+  /** Bộ lọc đồng bộ query URL + API. */
+  filters: StoriesListFilters;
   /** Dữ liệu trang hiện tại từ server. `null` = lỗi SSR, client tự tải lại trang 1. */
   initialList: StoriesListPaginated | null;
 };
 
-function storiesListQuery(page: number): string {
-  const q = new URLSearchParams({
-    page: String(page),
-    per_page: String(STORIES_LIST_PER_PAGE),
-  });
-  return `/api/stories?${q.toString()}`;
+function storiesListDedupeKey(page: number, filters: StoriesListFilters): string {
+  return `stories-list:p${page}:pp${STORIES_LIST_PER_PAGE}:${JSON.stringify(filters)}`;
 }
 
 function StoriesGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
       {Array.from({ length: STORIES_LIST_PER_PAGE }).map((_, i) => (
         <div
           key={i}
@@ -57,7 +56,7 @@ function StoriesGridSkeleton() {
   );
 }
 
-export function StoriesListClient({ currentPage, initialList }: StoriesListClientProps) {
+export function StoriesListClient({ currentPage, filters, initialList }: StoriesListClientProps) {
   const [items, setItems] = useState<StoryRow[]>(() => initialList?.data ?? []);
   const [page, setPage] = useState(() => initialList?.current_page ?? currentPage);
   const [lastPage, setLastPage] = useState(() => initialList?.last_page ?? 1);
@@ -65,9 +64,9 @@ export function StoriesListClient({ currentPage, initialList }: StoriesListClien
   const [loading, setLoading] = useState(() => initialList === null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPage = useCallback(async (p: number) => {
-    const json = await inFlightDedupe(`stories-list:p${p}:pp${STORIES_LIST_PER_PAGE}`, () =>
-      apiFetch<StoriesListPaginated>(storiesListQuery(p)),
+  const loadPage = useCallback(async (p: number, f: StoriesListFilters) => {
+    const json = await inFlightDedupe(storiesListDedupeKey(p, f), () =>
+      apiFetch<StoriesListPaginated>(buildStoriesApiQuery(p, f)),
     );
     setLastPage(json.last_page ?? 1);
     setPage(json.current_page ?? p);
@@ -88,7 +87,7 @@ export function StoriesListClient({ currentPage, initialList }: StoriesListClien
       setLoading(true);
       setError(null);
       try {
-        await loadPage(1);
+        await loadPage(1, filters);
       } catch (e) {
         if (!cancelled) {
           setError((e as Error).message);
@@ -102,7 +101,7 @@ export function StoriesListClient({ currentPage, initialList }: StoriesListClien
     return () => {
       cancelled = true;
     };
-  }, [loadPage, initialList, currentPage]);
+  }, [loadPage, initialList, currentPage, filters]);
 
   if (loading) {
     return <StoriesGridSkeleton />;
@@ -122,7 +121,7 @@ export function StoriesListClient({ currentPage, initialList }: StoriesListClien
         <div className="rounded-2xl border border-dashed border-amber-200/90 bg-amber-50/40 px-6 py-10 text-center dark:border-amber-900/50 dark:bg-amber-950/25">
           <p className="text-sm text-amber-900 dark:text-amber-100">Không có truyện trên trang {page}.</p>
           <Link
-            href="/stories?page=1"
+            href={buildStoriesListHref(1, filters)}
             className="mt-3 inline-block text-sm font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
           >
             Về trang 1
@@ -163,7 +162,7 @@ export function StoriesListClient({ currentPage, initialList }: StoriesListClien
         </p>
       </div>
 
-      <ul className="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
         {items.map((s) => (
           <li key={s.id} className="flex min-h-0 min-w-0">
             <HomeStoryCard story={s} />
@@ -189,7 +188,7 @@ export function StoriesListClient({ currentPage, initialList }: StoriesListClien
           <div className="flex flex-wrap items-center justify-center gap-2">
             {page > 1 ? (
               <Link
-                href={page === 2 ? "/stories" : `/stories?page=${page - 1}`}
+                href={buildStoriesListHref(page - 1, filters)}
                 className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50/80 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-violet-700 dark:hover:bg-zinc-800"
               >
                 ← Trước
@@ -201,7 +200,7 @@ export function StoriesListClient({ currentPage, initialList }: StoriesListClien
             )}
             {page < lastPage ? (
               <Link
-                href={`/stories?page=${page + 1}`}
+                href={buildStoriesListHref(page + 1, filters)}
                 className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50/80 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-violet-700 dark:hover:bg-zinc-800"
               >
                 Sau →

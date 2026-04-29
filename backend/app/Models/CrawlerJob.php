@@ -20,6 +20,7 @@ class CrawlerJob extends Model
     protected $fillable = [
         'story_id',
         'new_story_title',
+        'story_title_selector',
         'source_url',
         'chapter_links_selector',
         'chapter_list_next_page_selector',
@@ -50,5 +51,18 @@ class CrawlerJob extends Model
     public function story(): BelongsTo
     {
         return $this->belongsTo(Story::class);
+    }
+
+    /** CSS class suffix cho badge trạng thái job (CMS crawler index). */
+    public function cmsJobStatusBadgeClass(): string
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING => 'cms-badge--job-pending',
+            self::STATUS_QUEUED => 'cms-badge--job-queued',
+            self::STATUS_PROCESSING => 'cms-badge--job-processing',
+            self::STATUS_COMPLETED => 'cms-badge--job-completed',
+            self::STATUS_FAILED => 'cms-badge--job-failed',
+            default => 'cms-badge--genre',
+        };
     }
 }

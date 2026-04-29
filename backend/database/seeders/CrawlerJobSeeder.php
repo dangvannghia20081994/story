@@ -25,6 +25,7 @@ class CrawlerJobSeeder extends Seeder
             [
                 'story_id' => 1,
                 'new_story_title' => 'Đô Thị Tu Tiên Mười Năm Xuống Núi Tức Vô Địch',
+                'story_title_selector' => '',
                 'source_url' => 'https://www.tvtruyen.co.uk/do-thi-tu-tien-muoi-nam-xuong-nui-tuc-vo-dich.html',
                 'chapter_links_selector' => 'ul.list-chapter li a',
                 'chapter_list_next_page_selector' => '',

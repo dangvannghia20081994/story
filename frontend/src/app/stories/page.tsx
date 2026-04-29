@@ -2,22 +2,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FullWidthLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
-import { STORIES_LIST_PER_PAGE } from "@/lib/storiesListConfig";
+import {
+  buildStoriesApiQuery,
+  buildStoriesListHref,
+  parseStoriesListSearchParams,
+  type StoriesListFilters,
+} from "@/lib/storiesListQuery";
 import { StoriesListClient, type StoriesListPaginated } from "../StoriesListClient";
 import { CreateStoryButton } from "./CreateStoryButton";
+import { StoriesListSidebar } from "./StoriesListSidebar";
 
-function parseListPage(raw: string | undefined): number {
-  const n = parseInt(raw ?? "1", 10);
-  return Number.isFinite(n) && n >= 1 ? n : 1;
-}
-
-async function loadStoriesPage(page: number): Promise<StoriesListPaginated | null> {
+async function loadStoriesPage(page: number, filters: StoriesListFilters): Promise<StoriesListPaginated | null> {
   try {
-    const q = new URLSearchParams({
-      page: String(page),
-      per_page: String(STORIES_LIST_PER_PAGE),
-    });
-    return await apiFetch<StoriesListPaginated>(`/api/stories?${q}`);
+    return await apiFetch<StoriesListPaginated>(buildStoriesApiQuery(page, filters));
   } catch {
     return null;
   }
@@ -26,19 +23,19 @@ async function loadStoriesPage(page: number): Promise<StoriesListPaginated | nul
 export default async function StoriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const page = parseListPage(sp.page);
-  const initialList = await loadStoriesPage(page);
+  const { page, filters } = parseStoriesListSearchParams(sp);
+  const initialList = await loadStoriesPage(page, filters);
   const last = initialList?.last_page ?? 1;
   if (initialList && page > last) {
-    redirect(last >= 1 ? `/stories?page=${last}` : "/stories");
+    redirect(buildStoriesListHref(last >= 1 ? last : 1, filters));
   }
 
   return (
     <FullWidthLayout>
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-6 pb-16 md:p-10 xl:max-w-7xl min-[1920px]:max-w-[min(90rem,calc(100vw-5rem)))]">
+      <div className="mx-auto flex w-full max-w-[min(88rem,calc(100vw-1.5rem))] flex-col gap-8 p-6 pb-16 md:p-10 xl:max-w-[min(92rem,calc(100vw-2rem))]">
         <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-6 shadow-lg shadow-violet-900/5 backdrop-blur-md dark:border-zinc-700/60 dark:bg-zinc-900/55 dark:shadow-black/40 md:p-8">
           <div
             className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl dark:bg-violet-600/25"
@@ -72,8 +69,16 @@ export default async function StoriesPage({
             </div>
           </header>
 
-          <div className="relative pt-8">
-            <StoriesListClient key={page} currentPage={page} initialList={initialList} />
+          <div className="relative flex flex-col gap-8 pt-8 lg:flex-row lg:items-start">
+            <StoriesListSidebar filters={filters} />
+            <div className="min-w-0 flex-1">
+              <StoriesListClient
+                key={`${page}-${JSON.stringify(filters)}`}
+                currentPage={page}
+                filters={filters}
+                initialList={initialList}
+              />
+            </div>
           </div>
         </div>
       </div>

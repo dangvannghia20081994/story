@@ -62,7 +62,7 @@ export function HomeStoryCard({ story }: Props) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-4 pt-3">
-        <h3 className="line-clamp-1 min-h-[1.375rem] text-[0.9375rem] font-bold leading-snug text-zinc-900 transition group-hover:text-violet-700 dark:text-zinc-50 dark:group-hover:text-violet-300">
+        <h3 className="line-clamp-1 min-h-[1.275rem] text-[0.9375rem] font-bold leading-snug text-zinc-900 transition group-hover:text-violet-700 dark:text-zinc-50 dark:group-hover:text-violet-300">
           {story.title}
         </h3>
 

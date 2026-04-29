@@ -33,7 +33,7 @@ from typing import Any
 
 from playwright.sync_api import sync_playwright
 
-from crawl_lib import DEFAULT_UA, crawl_chapter, resolve_chapter_urls
+from crawl_lib import DEFAULT_UA, crawl_chapter, goto_timeout_ms, resolve_chapter_urls, story_title_from_selector
 
 _ENV_FILE = Path(__file__).resolve().parent / ".env"
 
@@ -132,6 +132,16 @@ def post_chapter(job_id: int, title: str, content: str) -> dict[str, Any]:
 def fetch_job(job_id: int) -> dict[str, Any]:
     r = http_json("GET", f"/internal/crawler/jobs/{job_id}")
     return r.get("data") or {}
+
+
+def patch_job_story_title(job_id: int, new_story_title: str) -> None:
+    """Ghi tiêu đề truyện mới (worker lấy từ trang nguồn) trước POST chương đầu."""
+    http_json(
+        "PATCH",
+        f"/internal/crawler/jobs/{job_id}",
+        {"new_story_title": new_story_title},
+        timeout=60,
+    )
 
 
 def slice_urls_for_crawl(
@@ -299,6 +309,14 @@ def _run_one_job_impl(job_id: int) -> None:
     if not source_url or not title_sel or not body_sel:
         raise RuntimeError("Thiếu source_url hoặc selector tiêu đề/nội dung.")
 
+    story_id = job.get("story_id")
+    raw_new_title = (job.get("new_story_title") or "").strip()
+    story_title_sel = (job.get("story_title_selector") or "").strip()
+    if not story_id and not raw_new_title and not story_title_sel:
+        raise RuntimeError(
+            "Truyện mới: cần «tiêu đề truyện» trên job hoặc «story_title_selector» (CMS) để worker lấy tên từ trang nguồn."
+        )
+
     ch_fetch = _effective_chapter_fetch_concurrency(job)
     crawler_log(
         f"Job #{job_id}: source_url={source_url!r} "
@@ -320,6 +338,19 @@ def _run_one_job_impl(job_id: int) -> None:
             browser = p.chromium.launch(headless=headless)
             context = browser.new_context(user_agent=DEFAULT_UA, locale="vi-VN")
             page = context.new_page()
+
+            if not story_id and not raw_new_title and story_title_sel:
+                page.goto(source_url, wait_until="domcontentloaded", timeout=goto_timeout_ms())
+                extracted = story_title_from_selector(page, story_title_sel).strip()
+                if not extracted:
+                    raise RuntimeError(
+                        f"Job #{job_id}: selector tên truyện không lấy được nội dung (story_title_selector={story_title_sel!r})."
+                    )
+                patch_job_story_title(job_id, extracted)
+                job = fetch_job(job_id)
+                raw_new_title = (job.get("new_story_title") or "").strip()
+                if not raw_new_title:
+                    raise RuntimeError(f"Job #{job_id}: PATCH tiêu đề truyện không thành công.")
 
             urls = resolve_chapter_urls(page, source_url, links_sel, next_page_sel or None)
             if not urls:

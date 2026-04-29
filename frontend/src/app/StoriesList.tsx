@@ -1,6 +1,6 @@
 import { HomeStoryCard, type HomeStoryCardStory } from "@/components/HomeStoryCard";
 import { apiFetch } from "@/lib/api";
-import { STORIES_LIST_PER_PAGE } from "@/lib/storiesListConfig";
+import { buildStoriesApiQuery, DEFAULT_STORIES_LIST_FILTERS } from "@/lib/storiesListQuery";
 
 type StoryRow = HomeStoryCardStory;
 
@@ -11,8 +11,7 @@ type Paginated = {
 };
 
 async function loadStories(): Promise<Paginated> {
-  const q = new URLSearchParams({ page: "1", per_page: String(STORIES_LIST_PER_PAGE) });
-  return apiFetch<Paginated>(`/api/stories?${q}`);
+  return apiFetch<Paginated>(buildStoriesApiQuery(1, DEFAULT_STORIES_LIST_FILTERS));
 }
 
 export async function StoriesList() {

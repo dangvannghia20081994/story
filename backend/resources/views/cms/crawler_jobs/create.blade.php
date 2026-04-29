@@ -11,7 +11,7 @@
     @php
         $d = $prefill ?? [];
     @endphp
-    <p class="content-lead">Nhập URL trang truyện (mục lục), CSS selector cho link chương (để trống nếu chỉ crawl đúng một URL), selector tiêu đề và nội dung từng trang chương. <strong>Nhập nhiều URL (mỗi dòng một URL) để tạo nhiều job cùng lúc.</strong> Sau khi gửi, các job được lưu DB và đẩy lên Redis cho worker.</p>
+    <p class="content-lead">Một bộ <strong>CSS selector</strong> chung: có thể nhập <strong>nhiều URL</strong> (mỗi dòng một job). Truyện mới: nhập tiêu đề tay <strong>hoặc</strong> selector lấy tên trên trang nguồn. Sau khi gửi, job lưu DB và đẩy Redis cho worker.</p>
 
     <div class="card card--crawler-job">
         <form method="post" action="{{ route('cms.crawler-jobs.store') }}">

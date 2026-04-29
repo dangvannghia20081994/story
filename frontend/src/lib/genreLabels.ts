@@ -1,3 +1,8 @@
+/** Thứ tự khớp `App\Models\Story::GENRES` (backend). */
+export const STORY_GENRE_SLUGS = ["tu-tien", "huyen-huyen", "kiem-hiep", "do-thi", "khac"] as const;
+
+export type StoryGenreSlug = (typeof STORY_GENRE_SLUGS)[number];
+
 /** Khớp `App\Models\Story::GENRE_LABELS` (backend). */
 export const GENRE_LABELS: Record<string, string> = {
   "tu-tien": "Tu tiên",

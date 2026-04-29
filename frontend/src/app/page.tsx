@@ -3,6 +3,8 @@ import { HeroBanner } from "@/components/HomeComponents";
 import { HomeStoryCard } from "@/components/HomeStoryCard";
 import { FullWidthLayout } from "@/components/layouts";
 import { apiFetch } from "@/lib/api";
+import type { StoryGenreSlug } from "@/lib/genreLabels";
+import { buildStoriesListHref, DEFAULT_STORIES_LIST_FILTERS } from "@/lib/storiesListQuery";
 import { storyBelongsToGenreSlug } from "@/lib/storyGenres";
 
 type Story = {
@@ -61,7 +63,13 @@ export default async function Home() {
                 <span className="mr-2">{genre.icon}</span>
                 {genre.label}
               </h2>
-              <Link href="/stories" className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
+              <Link
+                href={buildStoriesListHref(1, {
+                  ...DEFAULT_STORIES_LIST_FILTERS,
+                  genres: [genre.key as StoryGenreSlug],
+                })}
+                className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+              >
                 Xem tất cả →
               </Link>
             </div>

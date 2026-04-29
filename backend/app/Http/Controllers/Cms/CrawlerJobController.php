@@ -7,6 +7,7 @@ use App\Http\Requests\Cms\StoreCrawlerJobRequest;
 use App\Http\Requests\Cms\UpdateCrawlerJobRequest;
 use App\Models\CrawlerJob;
 use App\Models\Story;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
@@ -65,29 +66,20 @@ class CrawlerJobController extends Controller
     {
         $validated = $request->validated();
         $storyId = $validated['story_id'] ?? null;
-        $newTitle = $storyId ? null : ($validated['new_story_title'] ?? null);
+        $formNewTitle = $storyId ? null : trim((string) ($validated['new_story_title'] ?? ''));
+        $storyTitleSel = $storyId ? '' : trim((string) ($validated['story_title_selector'] ?? ''));
 
-        // Parse multiple URLs (one per line)
-        $sourceUrls = array_filter(
-            array_map('trim', explode("\n", $validated['source_url'])),
-            fn($url) => $url !== '' && filter_var($url, FILTER_VALIDATE_URL) !== false
-        );
-
-        if (empty($sourceUrls)) {
-            return redirect()
-                ->route('cms.crawler-jobs.create')
-                ->withErrors(['source_url' => 'Cần nhập ít nhất một URL hợp lệ.'])
-                ->withInput();
-        }
+        $urls = StoreCrawlerJobRequest::validHttpSourceUrls($validated['source_url']);
 
         $jobsCreated = 0;
         $jobsQueued = 0;
         $errors = [];
 
-        foreach ($sourceUrls as $sourceUrl) {
+        foreach ($urls as $sourceUrl) {
             $job = CrawlerJob::query()->create([
                 'story_id' => $storyId,
-                'new_story_title' => $newTitle,
+                'new_story_title' => $storyId ? null : ($formNewTitle !== '' ? $formNewTitle : null),
+                'story_title_selector' => $storyTitleSel,
                 'source_url' => $sourceUrl,
                 'chapter_links_selector' => trim((string) ($validated['chapter_links_selector'] ?? '')),
                 'chapter_list_next_page_selector' => trim((string) ($validated['chapter_list_next_page_selector'] ?? '')),
@@ -168,11 +160,13 @@ class CrawlerJobController extends Controller
 
         $validated = $request->validated();
         $storyId = $validated['story_id'] ?? null;
-        $newTitle = $storyId ? null : ($validated['new_story_title'] ?? null);
+        $newTitle = $storyId ? null : trim((string) ($validated['new_story_title'] ?? ''));
+        $storyTitleSel = $storyId ? '' : trim((string) ($validated['story_title_selector'] ?? ''));
 
         $crawlerJob->update([
             'story_id' => $storyId,
-            'new_story_title' => $newTitle,
+            'new_story_title' => $storyId ? null : ($newTitle !== '' ? $newTitle : null),
+            'story_title_selector' => $storyTitleSel,
             'source_url' => $validated['source_url'],
             'chapter_links_selector' => trim((string) ($validated['chapter_links_selector'] ?? '')),
             'chapter_list_next_page_selector' => trim((string) ($validated['chapter_list_next_page_selector'] ?? '')),
@@ -194,7 +188,7 @@ class CrawlerJobController extends Controller
             ->with('status', 'Đã cập nhật job #'.$crawlerJob->id.'. Dùng «Gửi lại Redis» nếu muốn chạy lại với cấu hình mới.');
     }
 
-    public function resend(CrawlerJob $crawlerJob): RedirectResponse
+    public function resend(Request $request, CrawlerJob $crawlerJob): RedirectResponse|JsonResponse
     {
         $allowed = [
             CrawlerJob::STATUS_FAILED,
@@ -203,18 +197,30 @@ class CrawlerJobController extends Controller
             CrawlerJob::STATUS_COMPLETED,
         ];
 
+        $wantsJson = $request->expectsJson();
+
         if (! in_array($crawlerJob->status, $allowed, true)) {
+            $msg = 'Không gửi lại job đang processing (đợi worker xong hoặc đánh dấu failed).';
+            if ($wantsJson) {
+                return response()->json(['message' => $msg], 422);
+            }
+
             return redirect()
                 ->route('cms.crawler-jobs.index')
-                ->withErrors(['resend' => 'Không gửi lại job đang processing (đợi worker xong hoặc đánh dấu failed).']);
+                ->withErrors(['resend' => $msg]);
         }
 
         try {
             $this->pushCrawlerJobToRedis($crawlerJob);
         } catch (Throwable $e) {
+            $msg = 'Không đẩy được lên Redis: '.$e->getMessage();
+            if ($wantsJson) {
+                return response()->json(['message' => $msg], 503);
+            }
+
             return redirect()
                 ->route('cms.crawler-jobs.index')
-                ->withErrors(['redis' => 'Không đẩy được lên Redis: '.$e->getMessage()]);
+                ->withErrors(['redis' => $msg]);
         }
 
         $crawlerJob->update([
@@ -222,9 +228,24 @@ class CrawlerJobController extends Controller
             'last_error' => null,
         ]);
 
+        $crawlerJob->refresh();
+
+        $statusMsg = 'Đã đẩy lại job #'.$crawlerJob->id.' lên Redis ('.config('crawler.redis_queue_list').').';
+
+        if ($wantsJson) {
+            return response()->json([
+                'message' => $statusMsg,
+                'job' => [
+                    'status' => $crawlerJob->status,
+                    'badge_class' => $crawlerJob->cmsJobStatusBadgeClass(),
+                    'last_error' => $crawlerJob->last_error,
+                ],
+            ]);
+        }
+
         return redirect()
             ->route('cms.crawler-jobs.index')
-            ->with('status', 'Đã đẩy lại job #'.$crawlerJob->id.' lên Redis ('.config('crawler.redis_queue_list').').');
+            ->with('status', $statusMsg);
     }
 
     /**
@@ -249,6 +270,7 @@ class CrawlerJobController extends Controller
             'chapter_content_selector' => $job->chapter_content_selector,
             'story_id' => $job->story_id,
             'new_story_title' => $job->new_story_title ?? '',
+            'story_title_selector' => $job->story_title_selector ?? '',
             'max_chapters' => $job->max_chapters,
             'chapter_start' => $job->chapter_start ?? 1,
             'delay_seconds' => (string) $job->delay_seconds,

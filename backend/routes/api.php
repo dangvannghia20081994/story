@@ -42,6 +42,7 @@ Route::delete('/lexicons/{lexicon}', [LexiconController::class, 'destroy']);
 
 Route::prefix('internal/crawler')->middleware('crawler.internal')->group(function (): void {
     Route::get('/jobs/{crawlerJob}', [CrawlerInternalController::class, 'show']);
+    Route::patch('/jobs/{crawlerJob}', [CrawlerInternalController::class, 'updateJob']);
     Route::post('/jobs/{crawlerJob}/chapters', [CrawlerInternalController::class, 'storeChapter']);
     Route::patch('/jobs/{crawlerJob}/status', [CrawlerInternalController::class, 'updateStatus']);
 });
