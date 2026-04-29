@@ -1,22 +1,25 @@
 <?php
 
-namespace App\Http\Controllers\Api\Internal;
+namespace App\Http\Controllers\Api\Internal\Crawler;
 
 use App\Http\Controllers\Controller;
-use App\Models\Chapter;
 use App\Models\CrawlerJob;
 use App\Models\Story;
+use App\Services\CrawlerJobService;
 use Dedoc\Scramble\Attributes\Group;
 use Dedoc\Scramble\Attributes\HeaderParameter;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 #[Group('Internal · Crawler', weight: 5)]
 #[HeaderParameter('X-Crawler-Token', 'Token khớp biến môi trường CRAWLER_INTERNAL_TOKEN.', required: true, type: 'string')]
-class CrawlerInternalController extends Controller
+class CrawlerJobController extends Controller
 {
+    public function __construct(
+        private readonly CrawlerJobService $crawlerJobService,
+    ) {}
+
     public function show(CrawlerJob $crawlerJob): JsonResponse
     {
         $chapterStart = max(1, (int) ($crawlerJob->chapter_start ?? 1));
@@ -57,42 +60,9 @@ class CrawlerInternalController extends Controller
 
         $content = Story::sanitizeChapterContent($data['content']);
 
-        $outcome = null;
-        DB::transaction(function () use ($crawlerJob, $data, $content, &$outcome): void {
-            $locked = CrawlerJob::query()->whereKey($crawlerJob->id)->lockForUpdate()->firstOrFail();
-            if (in_array($locked->status, [CrawlerJob::STATUS_COMPLETED, CrawlerJob::STATUS_FAILED], true)) {
-                abort(422, 'Job is finished.');
-            }
-
-            if ($locked->story_id === null) {
-                $title = $locked->new_story_title;
-                if ($title === null || $title === '') {
-                    abort(422, 'Job has no story_id and new_story_title is empty.');
-                }
-                $story = Story::query()->create([
-                    'title' => $title,
-                    'description' => null,
-                    'genres' => [],
-                    'serial_status' => 'ongoing',
-                ]);
-                $locked->forceFill(['story_id' => $story->id])->save();
-            }
-
-            $story = Story::query()->findOrFail($locked->story_id);
-            $outcome = Chapter::createOrUpdateByTitleForStory($story, $data['title'], $content);
-
-            if ($outcome['created']) {
-                $locked->forceFill([
-                    'chapters_imported' => ((int) $locked->chapters_imported) + 1,
-                ])->save();
-            }
-        });
+        $outcome = $this->crawlerJobService->storeChapter($crawlerJob, $data['title'], $content);
 
         $crawlerJob->refresh();
-
-        if ($outcome === null) {
-            abort(500, 'Crawler chapter outcome missing.');
-        }
 
         $chapter = $outcome['chapter'];
         $created = $outcome['created'];

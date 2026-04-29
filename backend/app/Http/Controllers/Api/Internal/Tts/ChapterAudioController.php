@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Internal;
+namespace App\Http\Controllers\Api\Internal\Tts;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
@@ -15,12 +15,12 @@ use Illuminate\Validation\ValidationException;
 
 #[Group('Internal · TTS', weight: 6)]
 #[HeaderParameter('X-Worker-Tts-Token', 'Token khớp biến môi trường WORKER_TTS_INTERNAL_TOKEN.', required: true, type: 'string')]
-class TtsInternalController extends Controller
+class ChapterAudioController extends Controller
 {
     /**
      * Worker TTS upload file âm thanh chương (WAV/MP3/M4A), lưu disk private (config chapter_audio) và cập nhật DB.
      */
-    public function storeChapterAudio(Request $request, Chapter $chapter): JsonResponse
+    public function store(Request $request, Chapter $chapter): JsonResponse
     {
         $ctx = [
             'chapter_id' => $chapter->id,

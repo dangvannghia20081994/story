@@ -1,22 +1,19 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Frontend;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\CreateCharacterRequest;
+use App\Http\Requests\Api\ListCharactersRequest;
+use App\Http\Requests\Api\UpdateCharacterRequest;
 use App\Models\Character;
 use App\Models\Story;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class CharacterController extends Controller
 {
-    public function index(Request $request, Story $story): JsonResponse
+    public function index(ListCharactersRequest $request, Story $story): JsonResponse
     {
-        $request->validate([
-            'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-        ]);
         $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
 
         $items = $story->characters()->orderBy('name')->paginate($perPage);
@@ -24,14 +21,10 @@ class CharacterController extends Controller
         return response()->json($items);
     }
 
-    public function store(Request $request, Story $story): JsonResponse
+    public function store(CreateCharacterRequest $request, Story $story): JsonResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-        ]);
-
         $character = $story->characters()->create([
-            'name' => $data['name'],
+            'name' => $request->validated('name'),
         ]);
 
         return response()->json($character, 201);
@@ -44,22 +37,11 @@ class CharacterController extends Controller
         return response()->json(['data' => $character]);
     }
 
-    public function update(Request $request, Story $story, Character $character): JsonResponse
+    public function update(UpdateCharacterRequest $request, Story $story, Character $character): JsonResponse
     {
         $this->assertBelongs($story, $character);
 
-        $data = $request->validate([
-            'name' => [
-                'sometimes',
-                'string',
-                'max:255',
-                Rule::unique('characters', 'name')
-                    ->where('story_id', $story->id)
-                    ->ignore($character->id),
-            ],
-        ]);
-
-        $character->fill($data)->save();
+        $character->fill($request->validated())->save();
 
         return response()->json(['data' => $character->fresh()]);
     }

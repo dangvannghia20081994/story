@@ -8,42 +8,26 @@ use App\Http\Requests\Cms\StoreStoryRequest;
 use App\Http\Requests\Cms\UpdateStoryRequest;
 use App\Models\Chapter;
 use App\Models\Story;
+use App\Services\StoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
+/** Giao diện Blade /admin/stories. Danh sách JSON: {@see StoryApiController}. */
 class StoryController extends Controller
 {
+    public function __construct(
+        private readonly StoryService $storyService,
+    ) {}
+
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
+        $genre = $this->storyService->normalizeCmsGenreFilter($request->query('genre'));
 
-        $genreParam = $request->query('genre');
-        $genre = '';
-        if (is_string($genreParam) && $genreParam !== '') {
-            $g = trim($genreParam);
-            if (in_array($g, Story::GENRES, true)) {
-                $genre = $g;
-            }
-        }
-
-        $stories = Story::query()
-            ->withCount(['chapters', 'characters'])
-            ->when(
-                $q !== '',
-                static function ($query) use ($q) {
-                    $like = '%'.addcslashes($q, '%_\\').'%';
-                    $query->where('title', 'like', $like);
-                }
-            )
-            ->when(
-                $genre !== '',
-                static fn ($query) => $query->whereJsonContains('genres', $genre)
-            )
-            ->orderByDesc('id')
-            ->paginate(20)
+        $stories = $this->storyService
+            ->paginateCmsStoryList($q, $genre, 20)
             ->withQueryString();
 
         return view('cms.stories.index', compact('stories', 'q', 'genre'));
@@ -61,29 +45,7 @@ class StoryController extends Controller
 
     public function store(StoreStoryRequest $request): RedirectResponse
     {
-        $data = $request->validated();
-
-        DB::transaction(function () use ($data): void {
-            $slug = $data['slug'] ?? null;
-            if ($slug === '') {
-                $slug = null;
-            }
-            $story = Story::query()->create([
-                'title' => $data['title'],
-                'slug' => $slug,
-                'description' => $data['description'] ?? null,
-                'genres' => Story::sanitizeGenresList($data['genres'] ?? null, $data['genre'] ?? null),
-                'serial_status' => $data['serial_status'] ?? 'ongoing',
-            ]);
-
-            if (! empty($data['first_chapter_title']) && ! empty($data['first_chapter_content'])) {
-                Chapter::createOrUpdateByTitleForStory(
-                    $story,
-                    $data['first_chapter_title'],
-                    $data['first_chapter_content'],
-                );
-            }
-        });
+        $this->storyService->createFromCmsValidated($request->validated());
 
         return redirect()->route('cms.stories.index')->with('status', 'Đã tạo truyện.');
     }
@@ -120,13 +82,7 @@ class StoryController extends Controller
 
     public function update(UpdateStoryRequest $request, Story $story): RedirectResponse
     {
-        $data = $request->validated();
-
-        if (array_key_exists('slug', $data) && ($data['slug'] === null || $data['slug'] === '')) {
-            $data['slug'] = Str::slug($story->title).'-'.$story->id;
-        }
-
-        $story->fill($data)->save();
+        $this->storyService->updateFromCmsValidated($story, $request->validated());
 
         return redirect()->route('cms.stories.index')->with('status', 'Đã cập nhật truyện.');
     }

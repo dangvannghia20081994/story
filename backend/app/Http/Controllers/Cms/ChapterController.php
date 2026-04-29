@@ -9,6 +9,7 @@ use App\Http\Requests\Cms\StripChapterContentRequest;
 use App\Http\Requests\Cms\UpdateChapterRequest;
 use App\Models\Chapter;
 use App\Models\Story;
+use App\Services\ChapterService;
 use App\Services\WorkerTtsQueue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,10 @@ use Illuminate\View\View;
 
 class ChapterController extends Controller
 {
+    public function __construct(
+        private readonly ChapterService $chapterService,
+    ) {}
+
     public function index(Request $request, Story $story): View
     {
         $q = trim((string) $request->query('q', ''));
@@ -146,12 +151,11 @@ class ChapterController extends Controller
     {
         $data = $request->validated();
 
-        $outcome = Chapter::createOrUpdateByTitleForStory(
-            $story,
-            $data['title'],
-            $data['content'],
-            $data['chapter_number'] ?? null,
-        );
+        $outcome = $this->chapterService->createOrUpdateByTitle($story, [
+            'title' => $data['title'],
+            'content' => $data['content'],
+            'chapter_number' => $data['chapter_number'] ?? null,
+        ]);
         $status = $outcome['created']
             ? 'Đã tạo chương.'
             : 'Chương cùng tiêu đề đã tồn tại — đã cập nhật nội dung.';
@@ -165,7 +169,10 @@ class ChapterController extends Controller
 
         DB::transaction(function () use ($rows, $story): void {
             foreach ($rows as $row) {
-                Chapter::createOrUpdateByTitleForStory($story, $row['title'], $row['content']);
+                $this->chapterService->createOrUpdateByTitle($story, [
+                    'title' => $row['title'],
+                    'content' => $row['content'],
+                ]);
             }
         });
 
@@ -176,14 +183,14 @@ class ChapterController extends Controller
 
     public function edit(Story $story, Chapter $chapter): View
     {
-        $this->assertBelongs($story, $chapter);
+        $this->chapterService->assertBelongsToStory($story, $chapter);
 
         return view('cms.chapters.edit', compact('story', 'chapter'));
     }
 
     public function update(UpdateChapterRequest $request, Story $story, Chapter $chapter): RedirectResponse
     {
-        $this->assertBelongs($story, $chapter);
+        $this->chapterService->assertBelongsToStory($story, $chapter);
 
         $chapter->fill($request->validated())->save();
 
@@ -192,7 +199,7 @@ class ChapterController extends Controller
 
     public function destroy(Story $story, Chapter $chapter): RedirectResponse
     {
-        $this->assertBelongs($story, $chapter);
+        $this->chapterService->assertBelongsToStory($story, $chapter);
         $chapter->delete();
 
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã xóa chương.');
@@ -200,7 +207,7 @@ class ChapterController extends Controller
 
     public function enqueueWorkerTts(Request $request, Story $story, Chapter $chapter): RedirectResponse|JsonResponse
     {
-        $this->assertBelongs($story, $chapter);
+        $this->chapterService->assertBelongsToStory($story, $chapter);
 
         $wantsJson = $request->expectsJson();
 
@@ -244,12 +251,5 @@ class ChapterController extends Controller
         }
 
         return back()->with('status', 'Đã đưa chương «'.$chapter->title.'» vào hàng TTS (Redis).');
-    }
-
-    private function assertBelongs(Story $story, Chapter $chapter): void
-    {
-        if ((int) $chapter->story_id !== (int) $story->id) {
-            abort(404);
-        }
     }
 }

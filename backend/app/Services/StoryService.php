@@ -1,38 +1,23 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Services;
 
-use App\Http\Controllers\Controller;
+use App\Http\Requests\Cms\ListCmsStoriesRequest;
+use App\Http\Requests\Api\ListStoriesRequest;
+use App\Http\Requests\Api\ShowStoryRequest;
 use App\Models\Chapter;
 use App\Models\Story;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
-class StoryController extends Controller
+final class StoryService
 {
-    public function index(Request $request): JsonResponse
+    /**
+     * Danh sách truyện cho site đọc (frontend): nhiều bộ lọc / sort / exclude / has_audio …
+     */
+    public function paginateForPublicApi(ListStoriesRequest $request): LengthAwarePaginator
     {
-        $request->validate([
-            'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            /** Loại trừ truyện (vd. sidebar “truyện khác”). */
-            'exclude' => ['sometimes', 'integer', 'min:1'],
-            /** Danh sách slug thể loại cách nhau bởi dấu phẩy — lọc truyện có ít nhất một slug trong JSON `genres`. */
-            'any_genre' => ['sometimes', 'string', 'max:500'],
-            /** Cùng ý nghĩa `any_genre` (ưu tiên hơn `any_genre` nếu cả hai có). */
-            'genres' => ['sometimes', 'string', 'max:500'],
-            /** Tìm theo tên (LIKE). */
-            'q' => ['sometimes', 'string', 'max:200'],
-            'serial_status' => ['sometimes', 'string', Rule::in(Story::SERIAL_STATUSES)],
-            /** Có ít nhất một chương có file audio / không có chương nào có audio. */
-            'has_audio' => ['sometimes', 'string', Rule::in(['yes', 'no'])],
-            /** Thứ tự: mặc định theo ngày tạo mới nhất. */
-            'sort' => ['sometimes', 'string', Rule::in(['created_desc', 'created_asc', 'id_desc', 'id_asc'])],
-        ]);
-
         $perPage = (int) $request->input('per_page', 20);
         $perPage = min(100, max(1, $perPage));
 
@@ -101,26 +86,69 @@ class StoryController extends Controller
             );
         }
 
-        $paginator = $query->paginate($perPage);
-
-        return response()->json($paginator);
+        return $query->paginate($perPage);
     }
 
-    public function store(Request $request): JsonResponse
+    /**
+     * Chuẩn hóa tham số lọc thể loại một slug trên CMS (Blade + JSON).
+     */
+    public function normalizeCmsGenreFilter(mixed $genreParam): string
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')],
-            'description' => ['nullable', 'string', 'max:10000'],
-            'genres' => ['nullable', 'array'],
-            'genres.*' => ['string', Rule::in(Story::GENRES)],
-            'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
-            'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
-            'first_chapter' => ['nullable', 'array'],
-            'first_chapter.title' => ['required_with:first_chapter', 'string', 'max:255'],
-            'first_chapter.content' => ['required_with:first_chapter', 'string'],
-        ]);
+        if (! is_string($genreParam) || trim($genreParam) === '') {
+            return '';
+        }
+        $g = trim($genreParam);
 
+        return in_array($g, Story::GENRES, true) ? $g : '';
+    }
+
+    /**
+     * Phân trang danh sách truyện CMS — dùng chung màn Blade /admin/stories và GET /api/cms/stories.
+     *
+     * @param  string  $genreSlug  Slug thể loại hợp lệ hoặc '' (nên dùng normalizeCmsGenreFilter trước khi gọi).
+     */
+    public function paginateCmsStoryList(string $q, string $genreSlug, int $perPage): LengthAwarePaginator
+    {
+        $perPage = min(100, max(1, $perPage));
+        $qTrim = trim($q);
+
+        $query = Story::query()
+            ->withCount(['chapters', 'characters'])
+            ->when(
+                $qTrim !== '',
+                static function ($builder) use ($qTrim): void {
+                    $like = '%'.addcslashes($qTrim, '%_\\').'%';
+                    $builder->where('title', 'like', $like);
+                }
+            )
+            ->when(
+                $genreSlug !== '',
+                static fn ($builder) => $builder->whereJsonContains('genres', $genreSlug)
+            )
+            ->orderByDesc('id');
+
+        return $query->paginate($perPage);
+    }
+
+    /**
+     * Danh sách truyện cho CMS (JSON): q, genre, per_page — cùng lõi với {@see paginateCmsStoryList}.
+     */
+    public function paginateForCmsApi(ListCmsStoriesRequest $request): LengthAwarePaginator
+    {
+        $genre = $this->normalizeCmsGenreFilter($request->input('genre'));
+
+        return $this->paginateCmsStoryList(
+            (string) $request->input('q', ''),
+            $genre,
+            (int) $request->input('per_page', 20),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data  Đã validate (store API): title, slug?, description?, genres?, genre?, serial_status?, first_chapter?
+     */
+    public function createWithOptionalFirstChapter(array $data): Story
+    {
         if (isset($data['description']) && is_string($data['description']) && $data['description'] !== '') {
             $data['description'] = Story::stripExclusivePublishingNoticeLines($data['description']);
             if (trim($data['description']) === '') {
@@ -131,7 +159,7 @@ class StoryController extends Controller
             $data['first_chapter']['content'] = Story::sanitizeChapterContent($data['first_chapter']['content']);
         }
 
-        $story = DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data) {
             $slug = $data['slug'] ?? null;
             $genres = Story::sanitizeGenresList($data['genres'] ?? null, $data['genre'] ?? null);
             unset($data['genre'], $data['genres']);
@@ -153,24 +181,16 @@ class StoryController extends Controller
 
             return $story->fresh();
         });
-
-        return response()->json($story->loadCount('chapters'), 201);
     }
 
-    public function show(Request $request, Story $story): JsonResponse
+    /**
+     * Payload JSON cho GET story (public API).
+     *
+     * @return array<string, mixed>
+     */
+    public function buildShowResponse(ShowStoryRequest $request, Story $story): array
     {
-        $data = $request->validate([
-            'chapters_order' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
-            'chapters_full' => ['sometimes', 'boolean'],
-            'chapters_limit' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'chapters_offset' => ['sometimes', 'integer', 'min:0'],
-            /** Không select cột content (danh sách chương / mục lục). */
-            'chapters_omit_content' => ['sometimes', 'boolean'],
-            /** Chỉ tải một chương đầy đủ + meta lân cận (tránh chapters_full với hàng nghìn chương). */
-            'read_chapter' => ['sometimes', 'integer', 'min:1'],
-            /** Cùng mục đích read_chapter — URL thân thiện theo cột chapters.slug. */
-            'read_chapter_slug' => ['sometimes', 'string', 'max:191'],
-        ]);
+        $data = $request->validated();
 
         $chaptersWithAudioTotal = $story->chapters()
             ->whereNotNull('audio_path')
@@ -199,25 +219,7 @@ class StoryController extends Controller
             $story->loadCount('characters');
             $c = $nav['chapter'];
 
-            $enrichNeighbor = function (?array $meta): ?array {
-                if ($meta === null) {
-                    return null;
-                }
-                $row = Chapter::query()->where('id', $meta['id'])->first(['id', 'title', 'slug', 'audio_path', 'duration']);
-                if ($row === null) {
-                    return null;
-                }
-
-                return [
-                    'id' => $row->id,
-                    'title' => $row->title,
-                    'slug' => (string) ($row->slug ?? ''),
-                    'duration' => (int) $row->duration,
-                    'audio_url' => $row->signedAudioStreamUrl(),
-                ];
-            };
-
-            return response()->json([
+            return [
                 'data' => array_merge($story->toArray(), [
                     'chapters' => [],
                     'chapters_total' => $nav['chapters_total'],
@@ -228,11 +230,11 @@ class StoryController extends Controller
                     'read_navigation' => [
                         'chapter_index' => $nav['chapter_index'],
                         'chapters_total' => $nav['chapters_total'],
-                        'prev' => $enrichNeighbor($nav['prev']),
-                        'next' => $enrichNeighbor($nav['next']),
+                        'prev' => $this->enrichReadNeighbor($nav['prev']),
+                        'next' => $this->enrichReadNeighbor($nav['next']),
                     ],
                 ]),
-            ]);
+            ];
         }
 
         $chaptersOrder = ($data['chapters_order'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
@@ -268,27 +270,20 @@ class StoryController extends Controller
             return $arr;
         });
 
-        return response()->json([
+        return [
             'data' => array_merge($story->toArray(), [
                 'chapters' => $chapters,
                 'chapters_total' => $chaptersTotal,
                 'chapters_with_audio_total' => $chaptersWithAudioTotal,
             ]),
-        ]);
+        ];
     }
 
-    public function update(Request $request, Story $story): JsonResponse
+    /**
+     * @param  array<string, mixed>  $data  Đã validate (update API)
+     */
+    public function updateFromValidated(Story $story, array $data): Story
     {
-        $data = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('stories', 'slug')->ignore($story->id)],
-            'description' => ['nullable', 'string', 'max:10000'],
-            'genres' => ['nullable', 'array'],
-            'genres.*' => ['string', Rule::in(Story::GENRES)],
-            'genre' => ['nullable', 'string', Rule::in(Story::GENRES)],
-            'serial_status' => ['nullable', 'string', Rule::in(Story::SERIAL_STATUSES)],
-        ]);
-
         if (array_key_exists('slug', $data) && ($data['slug'] === null || $data['slug'] === '')) {
             $data['slug'] = Str::slug($story->title).'-'.$story->id;
         }
@@ -307,13 +302,80 @@ class StoryController extends Controller
 
         $story->fill($data)->save();
 
-        return response()->json(['data' => $story->fresh()->loadCount('chapters')]);
+        return $story->fresh()->loadCount('chapters');
     }
 
-    public function destroy(Story $story): JsonResponse
+    /**
+     * Tạo truyện từ dữ liệu CMS đã validate (StoreStoryRequest): first_chapter_title / first_chapter_content.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    public function createFromCmsValidated(array $validated): void
     {
-        $story->delete();
+        $slug = $validated['slug'] ?? null;
+        if ($slug === '') {
+            $slug = null;
+        }
 
-        return response()->json(null, 204);
+        $firstChapter = null;
+        if (! empty($validated['first_chapter_title']) && ! empty($validated['first_chapter_content'])) {
+            $firstChapter = [
+                'title' => $validated['first_chapter_title'],
+                'content' => $validated['first_chapter_content'],
+            ];
+        }
+
+        DB::transaction(function () use ($validated, $slug, $firstChapter): void {
+            $story = Story::query()->create([
+                'title' => $validated['title'],
+                'slug' => $slug,
+                'description' => $validated['description'] ?? null,
+                'genres' => Story::sanitizeGenresList($validated['genres'] ?? null, null),
+                'serial_status' => $validated['serial_status'] ?? 'ongoing',
+            ]);
+
+            if ($firstChapter !== null) {
+                Chapter::createOrUpdateByTitleForStory(
+                    $story,
+                    $firstChapter['title'],
+                    $firstChapter['content'],
+                );
+            }
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated  UpdateStoryRequest
+     */
+    public function updateFromCmsValidated(Story $story, array $validated): void
+    {
+        if (array_key_exists('slug', $validated) && ($validated['slug'] === null || $validated['slug'] === '')) {
+            $validated['slug'] = Str::slug($story->title).'-'.$story->id;
+        }
+
+        $story->fill($validated)->save();
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $meta
+     * @return array<string, mixed>|null
+     */
+    private function enrichReadNeighbor(?array $meta): ?array
+    {
+        if ($meta === null) {
+            return null;
+        }
+        $row = Chapter::query()->where('id', $meta['id'])->first(['id', 'title', 'slug', 'audio_path', 'duration']);
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'id' => $row->id,
+            'title' => $row->title,
+            'slug' => (string) ($row->slug ?? ''),
+            'duration' => (int) $row->duration,
+            'audio_url' => $row->signedAudioStreamUrl(),
+        ];
     }
 }
