@@ -36,6 +36,8 @@ Route::prefix('admin')->name('cms.')->group(function (): void {
         Route::post('stories/{story}/chapters/bulk', [CmsChapterController::class, 'storeBulk'])->name('stories.chapters.bulk.store');
         Route::get('stories/{story}/chapters/strip-content', [CmsChapterController::class, 'stripContentForm'])->name('stories.chapters.strip-content');
         Route::post('stories/{story}/chapters/strip-content', [CmsChapterController::class, 'stripContentStore'])->name('stories.chapters.strip-content.store');
+        Route::get('stories/{story}/chapters/replace-content', [CmsChapterController::class, 'replaceContentForm'])->name('stories.chapters.replace-content');
+        Route::post('stories/{story}/chapters/replace-content', [CmsChapterController::class, 'replaceContentStore'])->name('stories.chapters.replace-content.store');
         Route::post('stories/{story}/chapters/{chapter}/enqueue-tts', [CmsChapterController::class, 'enqueueWorkerTts'])->name('stories.chapters.enqueue-tts');
         Route::resource('stories.chapters', CmsChapterController::class)->except(['show']);
 

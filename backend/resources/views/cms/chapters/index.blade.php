@@ -31,6 +31,7 @@
                 <a href="{{ route('cms.stories.chapters.create', $story) }}">Thêm một chương</a>
                 <a href="{{ route('cms.stories.chapters.bulk', $story) }}">Thêm nhiều chương</a>
                 <a href="{{ route('cms.stories.chapters.strip-content', $story) }}">Gỡ chuỗi hàng loạt</a>
+                <a href="{{ route('cms.stories.chapters.replace-content', $story) }}">Thay chuỗi hàng loạt</a>
             </div>
         </details>
     </div>

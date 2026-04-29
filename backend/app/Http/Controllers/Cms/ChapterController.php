@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Cms;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cms\StoreBulkChaptersRequest;
 use App\Http\Requests\Cms\StoreChapterRequest;
+use App\Http\Requests\Cms\ReplaceChapterContentRequest;
 use App\Http\Requests\Cms\StripChapterContentRequest;
 use App\Http\Requests\Cms\UpdateChapterRequest;
 use App\Models\Chapter;
@@ -143,6 +144,54 @@ class ChapterController extends Controller
         $status = $chaptersUpdated === 0
             ? 'Không có chương nào thay đổi (không tìm thấy chuỗi đã nhập hoặc nội dung sau xử lý trùng với hiện tại).'
             : "Đã cập nhật {$chaptersUpdated} chương; đã gỡ {$totalOccurrencesRemoved} lần xuất hiện chuỗi (trước bước chuẩn hóa nội dung).";
+
+        return redirect()->route('cms.stories.chapters.index', $story)->with('status', $status);
+    }
+
+    public function replaceContentForm(Story $story): View
+    {
+        return view('cms.chapters.replace-content', compact('story'));
+    }
+
+    public function replaceContentStore(ReplaceChapterContentRequest $request, Story $story): RedirectResponse
+    {
+        /** @var list<array{search: string, replacement: string}> $pairs */
+        $pairs = $request->replacePairs();
+
+        $chaptersUpdated = 0;
+        $totalOccurrencesReplaced = 0;
+
+        $story->chapters()
+            ->select(['id', 'content'])
+            ->orderBy('id')
+            ->chunkById(50, function ($chapters) use ($pairs, &$chaptersUpdated, &$totalOccurrencesReplaced): void {
+                foreach ($chapters as $chapter) {
+                    $original = (string) $chapter->content;
+                    $working = $original;
+                    $replacedHere = 0;
+
+                    foreach ($pairs as $pair) {
+                        $count = substr_count($working, $pair['search']);
+                        if ($count > 0) {
+                            $replacedHere += $count;
+                            $working = str_replace($pair['search'], $pair['replacement'], $working);
+                        }
+                    }
+
+                    $newContent = Story::sanitizeChapterContent($working);
+
+                    if ($newContent !== $original) {
+                        $chapter->content = $newContent;
+                        $chapter->save();
+                        $chaptersUpdated++;
+                        $totalOccurrencesReplaced += $replacedHere;
+                    }
+                }
+            });
+
+        $status = $chaptersUpdated === 0
+            ? 'Không có chương nào thay đổi (không tìm thấy chuỗi tìm hoặc nội dung sau xử lý trùng với hiện tại).'
+            : "Đã cập nhật {$chaptersUpdated} chương; đã thay {$totalOccurrencesReplaced} lần xuất hiện (trước bước chuẩn hóa nội dung).";
 
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', $status);
     }
