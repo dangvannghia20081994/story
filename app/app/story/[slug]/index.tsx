@@ -313,10 +313,29 @@ export default function StoryDetailScreen() {
     resumeChapterId != null &&
     firstChapterId != null &&
     resumeChapterId !== firstChapterId;
+  const twoReadButtons = showResume && resumeChapterId != null;
 
   return (
     <>
-      <Stack.Screen options={{ title: headerTitle }} />
+      <Stack.Screen
+        options={
+          {
+            title: headerTitle,
+            headerStyle: {
+              backgroundColor: scheme === "light" ? ui.indigo50 : ui.screenBg,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+              borderBottomColor: ui.shellBorder,
+            },
+            headerTitleStyle: {
+              color: ui.text,
+              fontWeight: "700",
+              fontSize: 15,
+            },
+            headerTintColor: ui.indigo600,
+            headerShadowVisible: false,
+          } as Record<string, unknown>
+        }
+      />
       {loading ? (
         <View style={[styles.center, { backgroundColor: ui.screenBg }]}>
           <ActivityIndicator size="large" color={ui.indigo600} />
@@ -333,6 +352,7 @@ export default function StoryDetailScreen() {
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={400}
         onScroll={onScrollNearEnd}
+        showsVerticalScrollIndicator={false}
       >
         {error ? (
           <Text style={[styles.error, { color: ui.error }]} accessibilityRole="alert">
@@ -340,163 +360,229 @@ export default function StoryDetailScreen() {
           </Text>
         ) : null}
 
-        <View style={[styles.shell, { backgroundColor: ui.shellBg, borderColor: ui.shellBorder }]}>
-          <View style={styles.accentBar}>
-            <View style={[styles.accentSeg, { backgroundColor: ui.accentBarLeft }]} />
-            <View style={[styles.accentSeg, { backgroundColor: ui.accentBarMid }]} />
-            <View style={[styles.accentSeg, { backgroundColor: ui.accentBarRight }]} />
-          </View>
-          <View style={styles.heroInner}>
-            <View style={styles.badges}>
-              {genreSlugs.map((g) => {
-                const lab = genreLabel(g);
-                return lab ? (
-                  <View
-                    key={g}
-                    style={[styles.badgeGenre, { borderColor: ui.indigo200, backgroundColor: ui.indigo50 }]}
-                  >
-                    <Text style={[styles.badgeGenreText, { color: ui.indigoTextOnSoft }]}>{lab}</Text>
+        <View style={[styles.heroBand, { backgroundColor: scheme === "light" ? ui.indigo50 : ui.screenBg }]}>
+          <View style={[styles.shell, styles.heroShell, { borderColor: ui.shellBorder, backgroundColor: "transparent" }]}>
+            <View style={[styles.heroPoster, { backgroundColor: ui.indigo800 }]}>
+              <View
+                pointerEvents="none"
+                style={[styles.heroPosterGlow, { backgroundColor: ui.accentBarMid }]}
+              />
+              <View
+                pointerEvents="none"
+                style={[styles.heroPosterGlow, styles.heroPosterGlow2, { backgroundColor: ui.accentBarRight }]}
+              />
+              <View style={styles.heroPosterContent}>
+                <View style={styles.heroPosterTop}>
+                  <View style={styles.heroPosterBadges}>
+                    {genreSlugs.map((g) => {
+                      const lab = genreLabel(g);
+                      return lab ? (
+                        <View key={g} style={styles.badgeOnPoster}>
+                          <Text style={styles.badgeOnPosterText}>{lab}</Text>
+                        </View>
+                      ) : null;
+                    })}
+                    {chaptersTotal > 0 ? (
+                      <View style={styles.badgeOnPosterMuted}>
+                        <Text style={styles.badgeOnPosterMutedText}>{chaptersTotal} chương</Text>
+                      </View>
+                    ) : null}
                   </View>
-                ) : null;
-              })}
+                </View>
+                <View style={styles.heroPosterMark}>
+                  <Text style={styles.heroPosterMarkText} allowFontScaling={false}>
+                    📚
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.heroPosterFooter, { backgroundColor: ui.accentBarLeft }]} />
+            </View>
+
+            <View style={[styles.heroBody, { backgroundColor: ui.shellBg }]}>
+              <Text style={[styles.heroTitle, { color: ui.text }]}>{story.title}</Text>
+              {story.description ? (
+                <Text style={[styles.description, { color: ui.textSecondary }]}>{story.description}</Text>
+              ) : (
+                <Text style={[styles.mutedText, { color: ui.textMuted }]}>Chưa có mô tả ngắn cho truyện này.</Text>
+              )}
               {chaptersTotal > 0 ? (
-                <View style={[styles.badgeMuted, { borderColor: ui.pillBorder, backgroundColor: ui.zinc100 }]}>
-                  <Text style={[styles.badgeMutedText, { color: ui.textSecondary }]}>
-                    {chaptersTotal} chương
+                <View
+                  style={[
+                    styles.statCard,
+                    {
+                      backgroundColor: scheme === "light" ? ui.indigo50 : ui.chapterRowBg,
+                      borderColor: ui.indigo200,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.statCardLabel, { color: ui.textMuted }]}>Audio</Text>
+                  <Text style={[styles.audioStat, { color: ui.text }]}>
+                    <Text style={{ fontWeight: "800", color: ui.indigo600 }}>{withAudioForStat}</Text>
+                    <Text style={{ color: ui.textMuted, fontWeight: "500" }}> / {chaptersTotal}</Text>
+                    <Text style={{ color: ui.textSecondary, fontWeight: "500" }}> chương có file</Text>
                   </Text>
                 </View>
               ) : null}
-            </View>
-            <Text style={[styles.title, { color: ui.text }]}>{story.title}</Text>
-            {story.description ? (
-              <Text style={[styles.description, { color: ui.textSecondary }]}>{story.description}</Text>
-            ) : (
-              <Text style={[styles.mutedText, { color: ui.textMuted }]}>Chưa có mô tả ngắn cho truyện này.</Text>
-            )}
-            {chaptersTotal > 0 ? (
-              <Text style={[styles.audioStat, { color: ui.textSecondary }]}>
-                <Text style={{ fontWeight: "600", color: ui.text }}>{withAudioForStat}</Text>
-                {" / "}
-                {chaptersTotal} chương đã có file audio.
-              </Text>
-            ) : null}
-            {chapters.length > 0 ? (
-              <View style={styles.heroReadRow}>
-                <Pressable
-                  onPress={openReadFromStart}
-                  style={({ pressed }) => [
-                    styles.primaryBtn,
-                    { backgroundColor: ui.primaryButton, opacity: pressed ? 0.9 : 1 },
-                  ]}
-                >
-                  <Text style={styles.primaryBtnText}>Đọc từ đầu</Text>
-                </Pressable>
-                {showResume && resumeChapterId != null ? (
+              {chapters.length > 0 ? (
+                <View style={[styles.heroReadRow, twoReadButtons && styles.heroReadRowTwo]}>
                   <Pressable
-                    onPress={() => openRead(resumeChapterId)}
+                    onPress={openReadFromStart}
                     style={({ pressed }) => [
-                      styles.outlineReadBtn,
+                      styles.heroReadBtn,
+                      twoReadButtons && styles.heroReadBtnGrow,
+                      !twoReadButtons && styles.heroReadBtnSingle,
+                      styles.primaryBtn,
                       {
-                        borderColor: ui.indigo200,
-                        backgroundColor: ui.shellBg,
-                        opacity: pressed ? 0.88 : 1,
+                        backgroundColor: ui.primaryButton,
+                        opacity: pressed ? 0.92 : 1,
+                        shadowColor: ui.indigo900,
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: scheme === "light" ? 0.18 : 0.35,
+                        shadowRadius: 5,
+                        elevation: 2,
                       },
                     ]}
                   >
-                    <Text style={[styles.outlineReadBtnText, { color: ui.indigo700 }]}>Đọc tiếp</Text>
+                    <Text style={styles.primaryBtnText}>Đọc từ đầu</Text>
                   </Pressable>
-                ) : null}
-              </View>
-            ) : null}
+                  {twoReadButtons ? (
+                    <Pressable
+                      onPress={() => openRead(resumeChapterId)}
+                      style={({ pressed }) => [
+                        styles.heroReadBtn,
+                        styles.heroReadBtnGrow,
+                        styles.outlineReadBtn,
+                        {
+                          borderColor: ui.indigo600,
+                          backgroundColor: scheme === "light" ? "#fff" : ui.shellBg,
+                          opacity: pressed ? 0.88 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.outlineReadBtnText, { color: ui.indigo600 }]}>Đọc tiếp</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
           </View>
         </View>
 
         {chapters.length > 0 && playUrl ? (
           <View style={[styles.shell, styles.playerCard, { backgroundColor: ui.shellBg, borderColor: ui.shellBorder }]}>
+            <View style={[styles.playerAccent, { backgroundColor: ui.indigo600 }]} />
             <Text style={[styles.playerLabel, { color: ui.textSecondary }]}>
-              Đang chọn: {playChapter?.title ?? ""}
+              Đang chọn · <Text style={{ color: ui.text, fontWeight: "600" }}>{playChapter?.title ?? ""}</Text>
             </Text>
             <Pressable
               onPress={togglePlay}
               style={({ pressed }) => [
                 styles.secondaryBtn,
-                { borderColor: ui.zinc200, backgroundColor: ui.chapterRowHover, opacity: pressed ? 0.85 : 1 },
+                {
+                  borderColor: ui.indigo200,
+                  backgroundColor: ui.indigo50,
+                  opacity: pressed ? 0.88 : 1,
+                },
               ]}
             >
-              <Text style={[styles.secondaryBtnText, { color: ui.text }]}>{playing ? "Tạm dừng" : "Phát audio"}</Text>
+              <Text style={[styles.secondaryBtnText, { color: ui.indigo700 }]}>
+                {playing ? "Tạm dừng" : "Phát audio"}
+              </Text>
             </Pressable>
           </View>
         ) : chapters.length > 0 ? (
-          <Text style={[styles.hint, { color: ui.textMuted }]}>
-            Chọn chương có audio trong danh sách, hoặc bấm Đọc từ đầu để dùng đọc máy.
-          </Text>
+          <View style={[styles.hintBox, { backgroundColor: ui.chapterRowBg, borderColor: ui.shellBorder }]}>
+            <Text style={[styles.hint, { color: ui.textSecondary }]}>
+              Chọn chương có audio trong danh sách, hoặc bấm <Text style={{ fontWeight: "700", color: ui.indigo600 }}>Đọc từ đầu</Text> để dùng đọc máy.
+            </Text>
+          </View>
         ) : null}
 
         <View style={[styles.shell, styles.listShell, { backgroundColor: ui.shellBg, borderColor: ui.shellBorder }]}>
           <View style={styles.listHeader}>
-            <Text style={[styles.listHeaderTitle, { color: ui.textMuted }]}>Danh sách chương</Text>
-            <View style={[styles.countPill, { backgroundColor: ui.zinc100 }]}>
-              <Text style={[styles.countPillText, { color: ui.textSecondary }]}>
+            <View style={styles.listHeaderLeft}>
+              <View style={[styles.listHeaderMark, { backgroundColor: ui.indigo600 }]} />
+              <View style={styles.listHeaderTitleWrap}>
+                <Text style={[styles.listHeaderTitle, { color: ui.text }]} numberOfLines={1}>
+                  Danh sách{"\u00A0"}chương
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.countPill, { backgroundColor: ui.indigo50, borderColor: ui.indigo200 }]}>
+              <Text style={[styles.countPillText, { color: ui.indigo700 }]} numberOfLines={1}>
                 {chapters.length}
-                {hasMoreChapters ? ` / ${chaptersTotal}` : ""} chương
+                {hasMoreChapters ? ` / ${chaptersTotal}` : ""}
+                {"\u00A0"}chương
               </Text>
             </View>
           </View>
           {chapters.length === 0 ? (
             <Text style={[styles.mutedText, { color: ui.textMuted, paddingVertical: 8 }]}>Truyện này chưa có chương.</Text>
           ) : (
-            <View style={[styles.listBorder, { borderColor: ui.divide, backgroundColor: ui.chapterRowBg }]}>
+            <View style={styles.chapterList}>
               {chapters.map((chapter, index) => {
                 const audio = chapterAudioUrl(chapter);
                 const isSelected = chapter.id === playChapterId;
                 const hasFile = Boolean(audio);
-                const isLast = index === chapters.length - 1;
                 return (
                   <View
                     key={chapter.id}
                     style={[
-                      styles.chapterRow,
-                      !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ui.divide },
-                      isSelected && { backgroundColor: ui.indigo50 },
+                      styles.chapterCard,
+                      {
+                        borderColor: isSelected ? ui.indigo600 : ui.shellBorder,
+                        backgroundColor: isSelected ? ui.indigo50 : ui.chapterRowBg,
+                        shadowColor: ui.shadowColor,
+                      },
                     ]}
                   >
-                    <View style={styles.chapterHead}>
-                      <View style={[styles.chapterIndex, { backgroundColor: ui.zinc200 }]}>
-                        <Text style={[styles.chapterIndexText, { color: ui.textSecondary }]}>
+                    <View style={styles.chapterCardRow}>
+                      <View style={[styles.chapterIndex, { backgroundColor: ui.indigo600 }]}>
+                        <Text style={[styles.chapterIndexText, { color: "#fff" }]}>
                           {chapter.chapter_number ?? index + 1}
                         </Text>
                       </View>
                       <View style={styles.chapterMeta}>
-                        <Text style={[styles.chapterTitle, { color: ui.text }]}>{chapter.title}</Text>
+                        <Text style={[styles.chapterTitle, { color: ui.text }]} numberOfLines={2}>
+                          {chapter.title}
+                        </Text>
                         <Text style={[styles.chapterSub, { color: ui.textMuted }]}>
                           {audioStatusLabel(hasFile)}
                           {chapter.duration > 0
-                            ? ` · ${Math.floor(chapter.duration / 60)} phút ${chapter.duration % 60}s`
+                            ? ` · ${Math.floor(chapter.duration / 60)}′${String(Math.floor(chapter.duration % 60)).padStart(2, "0")}″`
                             : ""}
                         </Text>
                       </View>
-                    </View>
-                    <View style={styles.chapterActions}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.btnRead,
-                          { borderColor: ui.zinc200, backgroundColor: ui.shellBg, opacity: pressed ? 0.85 : 1 },
-                        ]}
-                        onPress={() => openRead(chapter.id)}
-                      >
-                        <Text style={[styles.btnReadText, { color: ui.text }]}>Đọc</Text>
-                      </Pressable>
-                      {audio ? (
+                      <View style={styles.chapterActions}>
                         <Pressable
                           style={({ pressed }) => [
-                            styles.btnGhost,
-                            { borderColor: ui.indigo200, opacity: pressed ? 0.85 : 1 },
+                            styles.btnRead,
+                            {
+                              backgroundColor: ui.primaryButton,
+                              borderColor: ui.primaryButton,
+                              opacity: pressed ? 0.9 : 1,
+                            },
                           ]}
-                          onPress={() => setPlayChapterId(chapter.id)}
+                          onPress={() => openRead(chapter.id)}
                         >
-                          <Text style={[styles.btnGhostText, { color: ui.indigo700 }]}>Chọn phát</Text>
+                          <Text style={[styles.btnReadText, { color: "#fff" }]}>Đọc</Text>
                         </Pressable>
-                      ) : null}
+                        {audio ? (
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.btnGhost,
+                              {
+                                borderColor: ui.indigo600,
+                                backgroundColor: scheme === "light" ? "#fff" : ui.shellBg,
+                                opacity: pressed ? 0.88 : 1,
+                              },
+                            ]}
+                            onPress={() => setPlayChapterId(chapter.id)}
+                          >
+                            <Text style={[styles.btnGhostText, { color: ui.indigo600 }]}>Phát</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </View>
                   </View>
                 );
@@ -527,88 +613,247 @@ export default function StoryDetailScreen() {
 function createStyles(ui: ReturnType<typeof storyUiPalette>) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
-    scroll: { padding: 16, paddingBottom: 40, gap: 14 },
+    scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 48, gap: 18 },
+    heroBand: {
+      marginHorizontal: -16,
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      paddingBottom: 2,
+    },
     shell: {
       borderRadius: 16,
       borderWidth: 1,
       overflow: "hidden",
       shadowColor: ui.shadowColor,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 2,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.14,
+      shadowRadius: 14,
+      elevation: 4,
     },
-    accentBar: { flexDirection: "row", height: 4 },
-    accentSeg: { flex: 1 },
-    heroInner: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 20, gap: 12 },
-    badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    badgeGenre: {
-      paddingHorizontal: 12,
-      paddingVertical: 4,
+    heroShell: { borderRadius: 22, overflow: "hidden", backgroundColor: "transparent" },
+    heroPoster: {
+      minHeight: 152,
+      overflow: "hidden",
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+    },
+    heroPosterGlow: {
+      position: "absolute",
+      width: 240,
+      height: 240,
+      borderRadius: 120,
+      opacity: 0.38,
+      top: -72,
+      right: -56,
+    },
+    heroPosterGlow2: {
+      width: 200,
+      height: 200,
+      borderRadius: 100,
+      top: 36,
+      left: -80,
+      opacity: 0.3,
+    },
+    heroPosterContent: {
+      paddingHorizontal: 18,
+      paddingTop: 18,
+      paddingBottom: 12,
+      gap: 6,
+    },
+    heroPosterTop: { gap: 10 },
+    heroPosterBadges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    badgeOnPoster: {
+      paddingHorizontal: 11,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: "rgba(255,255,255,0.18)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.34)",
+    },
+    badgeOnPosterText: {
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 0.75,
+      textTransform: "uppercase",
+      color: "rgba(255,255,255,0.96)",
+    },
+    badgeOnPosterMuted: {
+      paddingHorizontal: 11,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: "rgba(0,0,0,0.22)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.24)",
+    },
+    badgeOnPosterMutedText: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.92)" },
+    heroPosterMark: {
+      alignSelf: "center",
+      marginTop: 6,
+      width: 76,
+      height: 76,
+      borderRadius: 22,
+      backgroundColor: "rgba(255,255,255,0.14)",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.28)",
+    },
+    heroPosterMarkText: { fontSize: 36, lineHeight: 40 },
+    heroPosterFooter: { height: 3, width: "100%" },
+    heroBody: {
+      marginTop: -14,
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 22,
+      gap: 14,
+    },
+    heroTitle: {
+      fontSize: 24,
+      fontWeight: "800",
+      letterSpacing: -0.55,
+      lineHeight: 30,
+    },
+    description: { fontSize: 15, lineHeight: 23 },
+    mutedText: { fontSize: 14, lineHeight: 21 },
+    statCard: {
+      borderRadius: 14,
+      borderWidth: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      gap: 4,
+    },
+    statCardLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
+    audioStat: { fontSize: 15, lineHeight: 22 },
+    heroReadRow: {
+      marginTop: 2,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "stretch",
+      gap: 10,
+    },
+    heroReadRowTwo: { flexWrap: "nowrap" },
+    heroReadBtn: {
+      minHeight: 44,
+      paddingVertical: 11,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    heroReadBtnGrow: { flex: 1, minWidth: 0, alignSelf: "stretch" },
+    heroReadBtnSingle: { alignSelf: "flex-start" },
+    primaryBtn: {
+      borderWidth: 1,
+      borderColor: "transparent",
+    },
+    primaryBtnText: { color: "#fff", fontSize: 14, fontWeight: "700", letterSpacing: -0.15 },
+    outlineReadBtn: {
+      borderWidth: 1.5,
+    },
+    outlineReadBtnText: { fontSize: 14, fontWeight: "700", letterSpacing: -0.15 },
+    playerCard: { padding: 18, gap: 12, marginTop: 0, position: "relative", overflow: "hidden" },
+    playerAccent: { position: "absolute", left: 0, right: 0, top: 0, height: 3 },
+    playerLabel: { fontSize: 14, lineHeight: 20, marginTop: 4 },
+    secondaryBtn: {
+      alignSelf: "flex-start",
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      borderWidth: 1.5,
+    },
+    secondaryBtnText: { fontSize: 15, fontWeight: "700" },
+    hintBox: {
+      borderRadius: 14,
+      borderWidth: 1,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+    },
+    hint: { fontSize: 14, lineHeight: 21 },
+    listShell: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 20, borderRadius: 20 },
+    listHeader: {
+      flexDirection: "row",
+      flexWrap: "nowrap",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 14,
+      marginBottom: 16,
+    },
+    listHeaderLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flex: 1,
+      minWidth: 0,
+    },
+    listHeaderMark: { width: 4, height: 22, borderRadius: 2, flexShrink: 0 },
+    listHeaderTitleWrap: { flex: 1, minWidth: 0, justifyContent: "center" },
+    listHeaderTitle: { fontSize: 18, fontWeight: "700", letterSpacing: -0.4 },
+    countPill: {
+      flexShrink: 0,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
       borderRadius: 999,
       borderWidth: 1,
     },
-    badgeGenreText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
-    badgeMuted: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
-    badgeMutedText: { fontSize: 12, fontWeight: "500" },
-    title: { fontSize: 28, fontWeight: "700", letterSpacing: -0.5, lineHeight: 34 },
-    description: { fontSize: 15, lineHeight: 22 },
-    mutedText: { fontSize: 14, lineHeight: 20 },
-    audioStat: { fontSize: 14 },
-    heroReadRow: {
-      marginTop: 4,
+    countPillText: { fontSize: 13, fontWeight: "700", letterSpacing: -0.15 },
+    chapterList: { gap: 12 },
+    chapterCard: {
+      borderRadius: 16,
+      borderWidth: 1.5,
+      paddingVertical: 4,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    chapterCardRow: {
       flexDirection: "row",
-      flexWrap: "wrap",
       alignItems: "center",
-      gap: 10,
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
     },
-    primaryBtn: {
-      alignSelf: "flex-start",
-      paddingVertical: 14,
-      paddingHorizontal: 22,
+    chapterIndex: {
+      width: 36,
+      height: 36,
       borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
     },
-    primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-    outlineReadBtn: {
-      alignSelf: "flex-start",
-      paddingVertical: 14,
-      paddingHorizontal: 22,
-      borderRadius: 12,
-      borderWidth: 1,
-    },
-    outlineReadBtnText: { fontSize: 15, fontWeight: "700" },
-    playerCard: { padding: 16, gap: 10, marginTop: 0 },
-    playerLabel: { fontSize: 14 },
-    secondaryBtn: { alignSelf: "flex-start", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1 },
-    secondaryBtnText: { fontSize: 14, fontWeight: "600" },
-    hint: { fontSize: 13, paddingHorizontal: 4, lineHeight: 20 },
-    listShell: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 18 },
-    listHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 },
-    listHeaderTitle: { fontSize: 11, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase" },
-    countPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-    countPillText: { fontSize: 12, fontWeight: "600" },
-    listBorder: { borderRadius: 12, borderWidth: 1, overflow: "hidden" },
-    chapterRow: { paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
-    chapterHead: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-    chapterIndex: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-    chapterIndexText: { fontSize: 12, fontWeight: "700" },
-    chapterMeta: { flex: 1, minWidth: 0, gap: 2 },
-    chapterTitle: { fontSize: 16, fontWeight: "600" },
-    chapterSub: { fontSize: 12 },
-    chapterActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    btnRead: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1 },
-    btnReadText: { fontSize: 12, fontWeight: "700" },
-    btnGhost: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, backgroundColor: "transparent" },
-    btnGhostText: { fontSize: 12, fontWeight: "700" },
-    loadMoreBtn: {
-      marginTop: 12,
-      alignSelf: "center",
+    chapterIndexText: { fontSize: 13, fontWeight: "800" },
+    chapterMeta: { flex: 1, minWidth: 0, gap: 4 },
+    chapterTitle: { fontSize: 15, fontWeight: "700", letterSpacing: -0.2 },
+    chapterSub: { fontSize: 12, fontWeight: "500" },
+    chapterActions: { flexDirection: "column", gap: 8, alignItems: "stretch", flexShrink: 0 },
+    btnRead: {
       paddingVertical: 10,
       paddingHorizontal: 18,
       borderRadius: 12,
       borderWidth: 1,
+      minWidth: 76,
+      alignItems: "center",
     },
-    loadMoreText: { fontSize: 14, fontWeight: "600" },
+    btnReadText: { fontSize: 14, fontWeight: "800" },
+    btnGhost: {
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      alignItems: "center",
+    },
+    btnGhostText: { fontSize: 13, fontWeight: "800" },
+    loadMoreBtn: {
+      marginTop: 14,
+      alignSelf: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 22,
+      borderRadius: 14,
+      borderWidth: 1.5,
+    },
+    loadMoreText: { fontSize: 15, fontWeight: "700" },
     error: { marginBottom: 4, fontSize: 14 },
   });
 }

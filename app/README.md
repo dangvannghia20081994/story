@@ -97,10 +97,11 @@ Dùng [EAS Build](https://docs.expo.dev/build/introduction/) trên cloud Expo (k
    - tạo file `.env` trong `app/` trước khi chạy `eas build`, **hoặc**
    - thêm `env` trong profile `preview` trong `eas.json` (vd. `"EXPO_PUBLIC_API_URL": "https://api.example.com"`), **hoặc**
    - dùng [EAS Secrets](https://docs.expo.dev/build-reference/variables/) / biến môi trường trên expo.dev.
-6. Chạy build APK:
+6. Chạy build APK (cần đã `eas login` và `eas init` / project liên kết):
    ```bash
-   eas build --platform android --profile preview
+   npm run build:apk
    ```
+   (tương đương `eas build --platform android --profile preview` — profile trong `eas.json` xuất **APK**.)
 7. Đợi build xong trên [expo.dev](https://expo.dev) → mở trang build → **Download** file `.apk` → chép sang điện thoại và cài (có thể phải bật “Nguồn không xác định” trong cài đặt Android).
 
 **Phiên bản Android:** mỗi lần gửi lên Play Store (hoặc một số kênh) cần tăng `versionCode` trong `app.json` → `expo.android.versionCode`. `expo.version` là chuỗi hiển thị (vd. `1.0.1`).

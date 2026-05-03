@@ -1,9 +1,10 @@
 import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import Colors from '@/constants/Colors';
+import { storyUiPalette } from '@/constants/storyUi';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
@@ -17,14 +18,35 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const scheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const ui = storyUiPalette(scheme);
+  const palette = Colors[scheme];
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: ui.indigo600,
+        tabBarInactiveTintColor: palette.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: palette.background,
+          borderTopColor: ui.shellBorder,
+        },
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
+        headerShadowVisible: false,
+        headerStyle: {
+          backgroundColor: scheme === 'light' ? ui.indigo50 : ui.screenBg,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: scheme === 'light' ? ui.indigo200 : ui.shellBorder,
+        },
+        headerTitleStyle: {
+          fontWeight: '700',
+          fontSize: 18,
+          letterSpacing: -0.35,
+          color: scheme === 'light' ? ui.indigo900 : ui.text,
+        },
+        headerTintColor: ui.indigo600,
       }}>
       <Tabs.Screen
         name="index"
@@ -37,9 +59,9 @@ export default function TabLayout() {
                 {({ pressed }) => (
                   <FontAwesome
                     name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                    size={24}
+                    color={ui.indigo600}
+                    style={{ marginRight: 15, opacity: pressed ? 0.55 : 1 }}
                   />
                 )}
               </Pressable>

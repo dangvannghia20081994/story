@@ -4,9 +4,11 @@
 # Tuỳ chọn:
 #   --with-crawler  Python crawler (cần crawler/.env + crawler/.venv)
 #   --with-worker   worker-tts Python (worker_redis.py — BLPOP Redis; luồng CMS «enqueue TTS»)
+#   --with-app      Expo (React Native + web) trong app/ — npm run start (Metro; web thường :8090 nếu đã cấu hình)
 # Chuẩn bị crawler: crawler/README.md
 # Tắt crawler: SKIP_CRAWLER_WORKER=1 ./run-dev.sh --with-crawler
 # Tắt worker:  SKIP_WORKER=1 ./run-dev.sh --with-worker  (alias: SKIP_WORKER_TTS / SKIP_QUEUE_WORKER)
+# Tắt Expo:    SKIP_APP=1 ./run-dev.sh --with-app
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,19 +17,24 @@ REDIS_SERVER="$REDIS_DIR/redis-server.exe"
 
 WITH_CRAWLER=0
 WITH_WORKER=0
+WITH_APP=0
 for arg in "$@"; do
   if [[ "$arg" == "--with-crawler" ]]; then
     WITH_CRAWLER=1
   elif [[ "$arg" == "--with-worker" || "$arg" == "--with-worker-tts" ]]; then
     WITH_WORKER=1
+  elif [[ "$arg" == "--with-app" ]]; then
+    WITH_APP=1
   elif [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
-    echo "Usage: $0 [--with-crawler] [--with-worker]"
+    echo "Usage: $0 [--with-crawler] [--with-worker] [--with-app]"
     echo "  Mặc định: Redis (nếu có), backend (php artisan serve), frontend (npm run dev)."
     echo "  --with-crawler   Crawler Python worker.py (cần crawler/.env + crawler/.venv)."
     echo "  --with-worker    worker-tts/worker_redis.py (VieNeu; cùng Redis list với nút enqueue TTS CMS)."
     echo "  (--with-worker-tts được coi như --with-worker, tương thích cũ.)"
+    echo "  --with-app       Expo app/ (npm run start — Metro; xem app/README.md)."
     echo "  SKIP_CRAWLER_WORKER=1  bỏ qua crawler dù có --with-crawler."
     echo "  SKIP_WORKER=1          bỏ qua worker-tts dù có --with-worker (alias: SKIP_WORKER_TTS, SKIP_QUEUE_WORKER)."
+    echo "  SKIP_APP=1             bỏ qua Expo dù có --with-app."
     exit 0
   fi
 done
@@ -74,6 +81,14 @@ fi
 
 start_service "backend" "$ROOT_DIR/backend" "php artisan serve --host=localhost --port=8000"
 start_service "frontend" "$ROOT_DIR/frontend" "npm run dev"
+
+if [[ "$WITH_APP" == "1" && "${SKIP_APP:-}" != "1" ]]; then
+  if [[ -f "$ROOT_DIR/app/package.json" ]]; then
+    start_service "app" "$ROOT_DIR/app" "npm run start"
+  else
+    echo "Warning: --with-app nhưng không thấy app/package.json — bỏ qua."
+  fi
+fi
 
 skip_worker=0
 if [[ "${SKIP_WORKER:-}" == "1" || "${SKIP_WORKER_TTS:-}" == "1" || "${SKIP_QUEUE_WORKER:-}" == "1" ]]; then

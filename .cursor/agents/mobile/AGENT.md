@@ -24,7 +24,8 @@ Bạn chịu trách nhiệm **`app/`**: Expo Router, tabs, màn hình truyện /
 - `app/(tabs)/`, `app/story/`, `app/_layout.tsx`
 - `constants/storyUi.ts` (palette truyện/chương đồng bộ màu frontend zinc + indigo)
 - `lib/webTitle.ts` — web: `document.title` (header native không đổi tab trình duyệt)
-- `lib/api.ts`, **`app.json`**, `.env.example`
+- `lib/api.ts`, `lib/storiesListQuery.ts` — tab **Truyện** (`(tabs)/index.tsx`): tìm theo tiêu đề qua `q` (giống `/stories` + `ListStoriesRequest`, debounce + phím tìm)
+- **`app.json`**, `.env.example`
 
 ## Biến & cấu hình
 
@@ -36,7 +37,7 @@ Bạn chịu trách nhiệm **`app/`**: Expo Router, tabs, màn hình truyện /
 
 ## Lệnh tham chiếu
 
-Xem `app/README.md`: `npm start`, `npm run web`, `npm run android` / `ios`, EAS Build; mục **«Các lệnh chạy trong container»** cho service `expo`.
+Xem `app/README.md`: `npm start`, `npm run web`, `npm run android` / `ios`, **`npm run build:apk`** / `npm run build:aab` (EAS); mục **«Các lệnh chạy trong container»** cho service `expo`.
 
 ## Ghi nhớ
 

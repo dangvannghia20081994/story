@@ -1,0 +1,21 @@
+/* Remove input outline for web */
+input,
+textarea,
+select {
+  outline: none !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Prevent default focus ring */
+*:focus-visible {
+  outline: none !important;
+}

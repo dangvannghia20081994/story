@@ -1,0 +1,13 @@
+# Extra upload exclusions (EAS merges with .gitignore)
+node_modules
+.expo
+dist
+web-build
+coverage
+.idea
+.vscode
+.cursor
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
