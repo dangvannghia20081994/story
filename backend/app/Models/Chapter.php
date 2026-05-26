@@ -18,8 +18,10 @@ class Chapter extends Model
         'title',
         'chapter_number',
         'content',
+        'content_segments',
         'audio_path',
         'duration',
+        'analyzed_at',
     ];
 
     protected function casts(): array
@@ -27,7 +29,9 @@ class Chapter extends Model
         return [
             'chapter_number' => 'integer',
             'duration' => 'integer',
+            'content_segments' => 'array',
             'tts_enqueued_at' => 'datetime',
+            'analyzed_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
@@ -124,8 +128,8 @@ SQL;
 
         $r = (array) $row;
         $chapterAttrs = array_intersect_key($r, array_flip([
-            'id', 'story_id', 'title', 'slug', 'chapter_number', 'content', 'audio_path',
-            'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
+            'id', 'story_id', 'title', 'slug', 'chapter_number', 'content', 'content_segments',
+            'audio_path', 'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
         ]));
         $chapter = static::hydrate([$chapterAttrs])->first();
         if ($chapter === null) {

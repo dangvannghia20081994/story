@@ -8,13 +8,13 @@ Luồng gợi ý: **Nginx** → PHP-FPM (Laravel `public/`); **Next.js** `npm ru
 
 ## Tổng quan module
 
-| Module | Thư mục | Chạy như |
-|--------|---------|-----------|
-| **API + CMS** | `backend/` | PHP-FPM + Nginx `root` → `backend/public` |
-| **Web** | `frontend/` | Node (`npm run build` + `npm run start` hoặc PM2) |
-| **Expo** | `app/` | Tuỳ chọn — xem `app/README.md` |
-| **Crawler** | `crawler/` | Python + Playwright, process nền (systemd) |
-| **Worker TTS** | `worker-tts/` | Python venv, `worker_redis.py`, process nền |
+| Module         | Thư mục           | Chạy như                                          |
+|----------------|-------------------|---------------------------------------------------|
+| **API + CMS**  | `backend/`        | PHP-FPM + Nginx `root` → `backend/public`         |
+| **Web**        | `frontend/`       | Node (`npm run build` + `npm run start` hoặc PM2) |
+| **Expo**       | `app/`            | Tuỳ chọn — xem `app/README.md`                    |
+| **Crawler**    | `worker-crawler/` | Python + Playwright, process nền (systemd)        |
+| **Worker TTS** | `worker-tts/`     | Python venv, `worker_redis.py`, process nền       |
 
 Tài liệu chi tiết API/CMS: [backend/README.md](backend/README.md). Docker tương đương: [GUIDE_VPS_HAS_DOCKER.md](GUIDE_VPS_HAS_DOCKER.md).
 
@@ -135,8 +135,8 @@ Tuỳ chọn — xem `app/README.md`.
 ## 6. Crawler (Python + Playwright)
 
 - **Backend:** `CRAWLER_INTERNAL_TOKEN`, `CRAWLER_REDIS_QUEUE`, `REDIS_*`.
-- **Worker:** Python 3.11+; `cd crawler && python3 -m venv .venv && source .venv/bin/activate`, `pip install -r requirements.txt`, `playwright install chromium`, **`crawler/.env`** (`crawler/.env.example`): `REDIS_HOST=127.0.0.1`, `CRAWLER_API_BASE_URL=https://api.example.com`, token trùng backend, queue trùng.
-- Chạy: `python worker.py` (systemd: `WorkingDirectory=/var/www/story/crawler`, `ExecStart=.../.venv/bin/python worker.py`).
+- **Worker:** Python 3.11+; `cd worker-crawler && python3 -m venv .venv && source .venv/bin/activate`, `pip install -r requirements.txt`, `playwright install chromium`, **`worker-crawler/.env`** (`worker-crawler/.env.example`): `REDIS_HOST=127.0.0.1`, `CRAWLER_API_BASE_URL=https://api.example.com`, token trùng backend, queue trùng.
+- Chạy: `python worker.py` (systemd: `WorkingDirectory=/var/www/story/worker-crawler`, `ExecStart=.../.venv/bin/python worker.py`).
 - **Bảo mật:** route `/api/internal/crawler/*` chỉ cho worker có header **`X-Crawler-Token`**.
 
 CMS: **`/admin/crawler-jobs`**. Chi tiết: `backend/README.md`.

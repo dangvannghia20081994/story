@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "postgres-story": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://story:story@localhost:5432/story"
+      ]
+    }
+  }
+}

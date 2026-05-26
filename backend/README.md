@@ -59,21 +59,32 @@ Code: `app/Http/Controllers/Cms/`, `app/Http/Requests/Cms/` (validate form CMS),
 | `config/cors.php` | `CORS_ALLOWED_ORIGINS`; khi `APP_ENV=local` (hoặc `CORS_ALLOW_LOCALHOST_PATTERN=true`) thêm pattern cho `http(s)://localhost` và `127.0.0.1` mọi cổng (Expo web / Metro) |
 | `config/scramble.php` | OpenAPI docs UI (`/docs/api`) và JSON spec (`/docs/api.json`) |
 | `config/crawler.php` | List Redis (`CRAWLER_REDIS_QUEUE`), token API nội bộ (`CRAWLER_INTERNAL_TOKEN`) |
+| `config/worker_tts.php` | List Redis (`WORKER_TTS_REDIS_QUEUE`), token (`WORKER_TTS_INTERNAL_TOKEN`), limit upload, extensions |
 | `config/cms.php` | Toast CMS: `CMS_TOAST_POSITION` (góc), `CMS_TOAST_DURATION_MS`; JS `window.cmsToast(message, { variant?, durationMs?, position? })` (partial `resources/views/cms/partials/toast.blade.php` trong layout CMS) |
 
 **Quy ước:** mỗi lần thêm/sửa config hoặc biến env liên quan backend → cập nhật **`backend/README.md`** và **`.cursor/agents/backend/AGENT.md`**.
 
 ### Crawler (CMS + worker ngoài PHP)
 
-Luồng: form **`/admin/crawler-jobs`** → bảng **`crawler_jobs`** (gồm tuỳ chọn **`chapter_list_next_page_selector`** — CSS link sang trang mục lục kế, ví dụ `.custom-page-item.nav-next .custom-page-link` cho tvtruyen; tuỳ chọn **`chapter_fetch_concurrency`** — tải nhiều trang chương song song, hoặc dùng **`CRAWLER_CHAPTER_CONCURRENCY`** trong `crawler/.env`) → **`Redis::rPush`** payload `{"crawler_job_id": id}`. Worker (**`crawler/worker.py`**) BLPOP, `GET` job, gom URL chương qua nhiều trang mục lục nếu có selector next, rồi quét chương (tuần tự hoặc async theo concurrency). Hướng dẫn: [GUIDE_WINDOW.md](../GUIDE_WINDOW.md), [crawler/README.md](../crawler/README.md).
+Luồng: form **`/admin/crawler-jobs`** → bảng **`crawler_jobs`** (gồm tuỳ chọn **`chapter_list_next_page_selector`** — CSS link sang trang mục lục kế, ví dụ `.custom-page-item.nav-next .custom-page-link` cho tvtruyen; tuỳ chọn **`chapter_fetch_concurrency`** — tải nhiều trang chương song song, hoặc dùng **`CRAWLER_CHAPTER_CONCURRENCY`** trong `worker-crawler/.env`) → **`Redis::rPush`** payload `{"crawler_job_id": id}`. Worker (**`worker-crawler/worker.py`**) BLPOP, `GET` job, gom URL chương qua nhiều trang mục lục nếu có selector next, rồi quét chương (tuần tự hoặc async theo concurrency). Hướng dẫn: [GUIDE_WINDOW.md](../GUIDE_WINDOW.md), [worker-crawler/README.md](../worker-crawler/README.md).
 
-**Docker:** service **`crawler`** (profile `crawler`) — `docker compose --profile crawler up -d --build`; cần **`crawler/.env`** (token trùng backend). Chi tiết: [docker/README.md](../docker/README.md).
+**Docker:** service **`worker-crawler`** (profile `crawler`) — `docker compose --profile crawler up -d --build`; cần **`worker-crawler/.env`** (token trùng backend). Chi tiết: [docker/README.md](../docker/README.md).
 
-**Token nội bộ:** nếu chưa có `CRAWLER_INTERNAL_TOKEN`, chạy **`php artisan crawler:internal-token`** (trong `backend/`), copy dòng in ra vào **`backend/.env`** và **`crawler/.env`**, rồi `php artisan config:clear` và khởi động lại worker.
+**Token nội bộ:** nếu chưa có `CRAWLER_INTERNAL_TOKEN`, chạy **`php artisan crawler:internal-token`** (trong `backend/`), copy dòng in ra vào **`backend/.env`** và **`worker-crawler/.env`**, rồi `php artisan config:clear` và khởi động lại worker.
 
 **Nội dung chương:** khi lưu (API, CMS, crawler nội bộ), `Story::sanitizeChapterContent()` áp dụng lên `content`: bỏ dòng quảng bá “đăng tải duy nhất” và **xóa chuỗi tham chiếu `tvtruyen.co.uk`** (kèm `www` / `https://` nếu có) khỏi text crawl.
 
 **Trùng tiêu đề chương:** `Chapter::createOrUpdateByTitleForStory()` — cùng `story_id` + cùng `title` thì **cập nhật `content`**, không tạo dòng mới (API crawler trả `chapter_created` + HTTP 200 khi update; `chapters_imported` chỉ tăng khi tạo mới).
+
+### Phân tích nhân vật (NER thủ công)
+
+Trích nhân vật + lexicon `type=name` được thực hiện **thủ công** (script offline / sub-agent `story-analyzer`), không qua pipeline auto. Quy trình:
+
+1. Dump chapter content qua `docker exec story-db-1 psql ... > analysis/<slug>/chapters.json`.
+2. Chạy regex Hán-Việt + scoring (freq + speak_attrib) → ranked TSV.
+3. Insert `characters` + `lexicons` qua SQL có review tay.
+
+Tham khảo `.claude/agents/story-analyzer.md` cho pipeline chi tiết.
 
 ## API Docs (OpenAPI / Swagger-like)
 

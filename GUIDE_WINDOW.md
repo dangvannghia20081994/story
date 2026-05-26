@@ -2,30 +2,30 @@
 
 Cài **PostgreSQL**, **Redis**, **PHP ≥ 8.4**, **Composer**, **Node.js 20+**, rồi chạy Laravel + Next.js thủ công. Stack Docker: [README.md](README.md) hoặc [GUIDE_VPS_HAS_DOCKER.md](GUIDE_VPS_HAS_DOCKER.md). VPS không Docker: [GUIDE_VPS_NO_DOCKER.md](GUIDE_VPS_NO_DOCKER.md).
 
-Monorepo: **`backend/`** (Laravel API + CMS), **`frontend/`** (Next.js), tuỳ chọn **`app/`** (Expo), tuỳ chọn **`crawler/`**, **`worker-tts/`**.
+Monorepo: **`backend/`** (Laravel API + CMS), **`frontend/`** (Next.js), tuỳ chọn **`app/`** (Expo), tuỳ chọn **`worker-crawler/`**, **`worker-tts/`**.
 
 ---
 
 ## Tổng quan module
 
-| Module | Thư mục | Chạy trên Windows |
-|--------|---------|-------------------|
-| **API + CMS** | `backend/` | `php artisan serve` hoặc IIS/Apache + PHP |
-| **Web** | `frontend/` | `npm run dev` |
-| **Expo** | `app/` | `npx expo` — xem `app/README.md` |
-| **Crawler** | `crawler/` | `python worker.py` (Playwright + venv khuyến nghị) |
-| **Worker TTS** | `worker-tts/` | `python worker_redis.py` trong **venv** |
+| Module         | Thư mục           | Chạy trên Windows                                  |
+|----------------|-------------------|----------------------------------------------------|
+| **API + CMS**  | `backend/`        | `php artisan serve` hoặc IIS/Apache + PHP          |
+| **Web**        | `frontend/`       | `npm run dev`                                      |
+| **Expo**       | `app/`            | `npx expo` — xem `app/README.md`                   |
+| **Crawler**    | `worker-crawler/` | `python worker.py` (Playwright + venv khuyến nghị) |
+| **Worker TTS** | `worker-tts/`     | `python worker_redis.py` trong **venv**            |
 
 ---
 
 ## 1. Phụ thuộc hệ thống
 
-| Thành phần | Gợi ý |
-|-------------|--------|
-| **PostgreSQL** | [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) — cổng 5432, user/mật khẩu. |
-| **Redis** | [Memurai](https://www.memurai.com/), hoặc Redis trên **WSL2**, hoặc port Windows — `localhost:6379`. |
+| Thành phần             | Gợi ý                                                                                                                                                                                                               |
+|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **PostgreSQL**         | [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) — cổng 5432, user/mật khẩu.                                                                                                         |
+| **Redis**              | [Memurai](https://www.memurai.com/), hoặc Redis trên **WSL2**, hoặc port Windows — `localhost:6379`.                                                                                                                |
 | **PHP 8.4 + Composer** | [windows.php.net](https://windows.php.net/download/) — bật `pgsql`, `openssl`, `curl`, `mbstring`, `zip`, `bcmath` trong `php.ini`; [Composer](https://getcomposer.org/download/). Hoặc **Laragon** nếu đủ PHP 8.4. |
-| **Node.js 20+** | [nodejs.org](https://nodejs.org/) LTS. |
+| **Node.js 20+**        | [nodejs.org](https://nodejs.org/) LTS.                                                                                                                                                                              |
 
 ---
 
@@ -97,14 +97,14 @@ Xem `app/README.md`.
 
 ## 5. Crawler (Python + Playwright)
 
-CMS **`/admin/crawler-jobs`** → Redis `crawler:queue` → **`crawler/worker.py`** → API `/api/internal/crawler/*` (header **`X-Crawler-Token`**).
+CMS **`/admin/crawler-jobs`** → Redis `crawler:queue` → **`worker-crawler/worker.py`** → API `/api/internal/crawler/*` (header **`X-Crawler-Token`**).
 
 **Backend:** `CRAWLER_INTERNAL_TOKEN`, `CRAWLER_REDIS_QUEUE`.
 
 **Worker:**
 
 ```bash
-cd crawler
+cd worker-crawler
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -114,9 +114,9 @@ REM Sửa .env: REDIS_*, CRAWLER_API_BASE_URL=http://127.0.0.1:8000 , CRAWLER_IN
 python worker.py
 ```
 
-`worker.py` nạp **`crawler/.env`** qua dotenv.
+`worker.py` nạp **`worker-crawler/.env`** qua dotenv.
 
-**Git Bash — [`run-dev.sh`](run-dev.sh):** `./run-dev.sh` (Redis + backend + frontend). **`./run-dev.sh --with-crawler`** — crawler Python (cần `crawler/.env` + `crawler/.venv`). **`./run-dev.sh --with-worker`** — `worker-tts/worker_redis.py` (VieNeu, cùng Redis list với nút «enqueue TTS» CMS). Có thể gộp cờ. `./run-dev.sh --help`. Tắt crawler / worker TTS: `SKIP_CRAWLER_WORKER=1` / `SKIP_WORKER=1` (alias cũ: `SKIP_WORKER_TTS`, `SKIP_QUEUE_WORKER`).
+**Git Bash — [`run-dev.sh`](run-dev.sh):** `./run-dev.sh` (Redis + backend + frontend). **`./run-dev.sh --with-crawler`** — crawler Python (cần `worker-crawler/.env` + `worker-crawler/.venv`). **`./run-dev.sh --with-worker`** — `worker-tts/worker_redis.py` (VieNeu, cùng Redis list với nút «enqueue TTS» CMS). Có thể gộp cờ. `./run-dev.sh --help`. Tắt crawler / worker TTS: `SKIP_CRAWLER_WORKER=1` / `SKIP_WORKER=1` (alias cũ: `SKIP_WORKER_TTS`, `SKIP_QUEUE_WORKER`).
 
 ---
 

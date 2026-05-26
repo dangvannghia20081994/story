@@ -8,7 +8,8 @@ Thư mục này chứa **Dockerfile** dùng chung với `docker-compose.yml` ở
 |------|-----------|
 | `frontend.Dockerfile` | Service `frontend` — `context: ./frontend`, `dockerfile: ../docker/frontend.Dockerfile` |
 | `expo.Dockerfile` | Service `expo` — `context: ./app`, `dockerfile: ../docker/expo.Dockerfile` |
-| `crawler.Dockerfile` | Service `crawler` (profile `crawler`) — `context: ./crawler`, image Playwright + Python |
+| `crawler.Dockerfile` | Service `worker-crawler` (profile `crawler`) — `context: ./worker-crawler`, image Playwright + Python |
+| `worker-tts.Dockerfile` | Service `worker-tts` (profile `worker-tts`) — `context: ./worker-tts`, VieNeu-TTS + ffmpeg |
 
 ## Cấu hình qua Compose (gốc repo)
 
@@ -20,17 +21,18 @@ Thư mục này chứa **Dockerfile** dùng chung với `docker-compose.yml` ở
 | Backend | `backend/.env` + override compose (`DB_HOST`, `REDIS_HOST`, `REDIS_CLIENT`, `REDIS_PREFIX`) |
 | Frontend | `docker-compose.yml` (`NEXT_PUBLIC_API_URL`, `API_URL`) |
 | Expo | `docker-compose.yml` (`EXPO_PUBLIC_API_URL`, `8090:8081`, `command` chạy `npm install` + `expo start --web --host lan`) — xem `expo.Dockerfile` |
-| Crawler (profile **`crawler`**) | `crawler/.env` + override compose (`REDIS_HOST=redis`, `CRAWLER_API_BASE_URL=http://backend:8000`) |
+| Crawler (profile **`crawler`**) | `worker-crawler/.env` + override compose (`REDIS_HOST=redis`, `CRAWLER_API_BASE_URL=http://backend:8000`) |
+| Worker-TTS (profile **`worker-tts`**) | `worker-tts/.env` + mount `worker-tts/input.wav:/app/input.wav:ro` |
 
 **Expo trong Docker:** Expo SDK mới chỉ chấp nhận `--host lan|tunnel|localhost` (không còn `0.0.0.0`). Metro web lắng nghe **8081**; flag `--port` của `expo start` **không** áp dụng cho web nên map host **8090:8081**. Nếu thiếu gói trên volume `expo_node_modules`, lệnh `npm install` trong `command` sẽ đồng bộ trước khi start.
 
 ### Crawler (Python / Playwright)
 
-- **Phiên bản:** `crawler/requirements.txt` (`playwright==…`) và `docker/crawler.Dockerfile` (`FROM mcr.microsoft.com/playwright/python:v….-jammy`) phải **cùng bản** (khi nâng Playwright, đổi cả hai rồi `docker compose build crawler --no-cache`).
-- **Bật:** `cp crawler/.env.example crawler/.env`, điền `CRAWLER_INTERNAL_TOKEN` trùng `backend/.env`, rồi:
+- **Phiên bản:** `worker-crawler/requirements.txt` (`playwright==…`) và `docker/crawler.Dockerfile` (`FROM mcr.microsoft.com/playwright/python:v….-jammy`) phải **cùng bản** (khi nâng Playwright, đổi cả hai rồi `docker compose build worker-crawler --no-cache`).
+- **Bật:** `cp worker-crawler/.env.example worker-crawler/.env`, điền `CRAWLER_INTERNAL_TOKEN` trùng `backend/.env`, rồi:
   - `docker compose --profile crawler up -d --build`
-- **Tắt (mặc định):** không truyền profile — stack không khởi động container crawler (không cần `crawler/.env`).
-- Log: `docker compose logs -f crawler`
+- **Tắt (mặc định):** không truyền profile — stack không khởi động container crawler (không cần `worker-crawler/.env`).
+- Log: `docker compose logs -f worker-crawler`
 
 Sau khi **thêm/sửa biến backend trong compose hoặc `.env.example`**, cập nhật **`compose.env.example`** / **`backend/README.md`** / **`README.md` gốc** và **`AGENT.md`** tương ứng.
 

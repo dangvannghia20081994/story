@@ -29,6 +29,7 @@ class ChapterController extends Controller
         $q = trim((string) $request->query('q', ''));
         $tts = trim((string) $request->query('tts', ''));
         $audio = trim((string) $request->query('audio', ''));
+        $analyzed = trim((string) $request->query('analyzed', ''));
         $sort = trim((string) $request->query('sort', 'read_asc'));
 
         $allowedTts = ['', 'ready', 'queued', 'pending', 'no_text'];
@@ -38,6 +39,10 @@ class ChapterController extends Controller
         $allowedAudio = ['', '1', '0'];
         if (! in_array($audio, $allowedAudio, true)) {
             $audio = '';
+        }
+        $allowedAnalyzed = ['', '1', '0'];
+        if (! in_array($analyzed, $allowedAnalyzed, true)) {
+            $analyzed = '';
         }
         $allowedSort = ['read_asc', 'read_desc', 'updated_desc', 'updated_asc', 'id_desc', 'id_asc'];
         if (! in_array($sort, $allowedSort, true)) {
@@ -56,6 +61,16 @@ class ChapterController extends Controller
         } elseif ($audio === '0') {
             $query->where(function ($sub): void {
                 $sub->whereNull('audio_path')->orWhere('audio_path', '');
+            });
+        }
+
+        if ($analyzed === '1') {
+            $query->whereNotNull('content_segments')
+                ->whereRaw("content_segments::text != '[]'");
+        } elseif ($analyzed === '0') {
+            $query->where(function ($sub): void {
+                $sub->whereNull('content_segments')
+                    ->orWhereRaw("content_segments::text = '[]'");
             });
         }
 
@@ -90,7 +105,7 @@ class ChapterController extends Controller
 
         $chapters = $query->paginate(30)->withQueryString();
 
-        return view('cms.chapters.index', compact('story', 'chapters', 'q', 'tts', 'audio', 'sort'));
+        return view('cms.chapters.index', compact('story', 'chapters', 'q', 'tts', 'audio', 'analyzed', 'sort'));
     }
 
     public function create(Story $story): View
@@ -162,7 +177,7 @@ class ChapterController extends Controller
         $totalOccurrencesReplaced = 0;
 
         $story->chapters()
-            ->select(['id', 'content'])
+            ->select(['id', 'content', 'content_segments'])
             ->orderBy('id')
             ->chunkById(50, function ($chapters) use ($pairs, &$chaptersUpdated, &$totalOccurrencesReplaced): void {
                 foreach ($chapters as $chapter) {
@@ -180,8 +195,32 @@ class ChapterController extends Controller
 
                     $newContent = Story::sanitizeChapterContent($working);
 
-                    if ($newContent !== $original) {
+                    // Replace trong content_segments (array of {speaker, text}) với cùng rules.
+                    $segments = $chapter->content_segments;
+                    $newSegments = null;
+                    if (is_array($segments) && count($segments) > 0) {
+                        $newSegments = array_map(function (mixed $seg) use ($pairs): mixed {
+                            if (! is_array($seg) || ! array_key_exists('text', $seg)) {
+                                return $seg;
+                            }
+                            $text = (string) $seg['text'];
+                            foreach ($pairs as $pair) {
+                                $text = str_replace($pair['search'], $pair['replacement'], $text);
+                            }
+                            $seg['text'] = $text;
+
+                            return $seg;
+                        }, $segments);
+                    }
+
+                    $dirty = $newContent !== $original
+                        || ($newSegments !== null && $newSegments !== $segments);
+
+                    if ($dirty) {
                         $chapter->content = $newContent;
+                        if ($newSegments !== null) {
+                            $chapter->content_segments = $newSegments;
+                        }
                         $chapter->save();
                         $chaptersUpdated++;
                         $totalOccurrencesReplaced += $replacedHere;
@@ -234,7 +273,11 @@ class ChapterController extends Controller
     {
         $this->chapterService->assertBelongsToStory($story, $chapter);
 
-        return view('cms.chapters.edit', compact('story', 'chapter'));
+        $nav = Chapter::readNavigationFor($story, (int) $chapter->getKey());
+        $prevChapter = $nav['prev'] ?? null;
+        $nextChapter = $nav['next'] ?? null;
+
+        return view('cms.chapters.edit', compact('story', 'chapter', 'prevChapter', 'nextChapter'));
     }
 
     public function update(UpdateChapterRequest $request, Story $story, Chapter $chapter): RedirectResponse
@@ -244,6 +287,40 @@ class ChapterController extends Controller
         $chapter->fill($request->validated())->save();
 
         return redirect()->route('cms.stories.chapters.index', $story)->with('status', 'Đã cập nhật chương.');
+    }
+
+    public function updateSpeakers(Request $request, Story $story, Chapter $chapter): RedirectResponse
+    {
+        $this->chapterService->assertBelongsToStory($story, $chapter);
+
+        $segments = $chapter->content_segments;
+        if (empty($segments)) {
+            return back()->withErrors(['speakers' => 'Chương này chưa có content_segments.']);
+        }
+
+        $segmentCount = count($segments);
+
+        // Danh sách speaker hợp lệ: narration, _unknown, + tên nhân vật của truyện
+        $characterNames = $story->characters()->pluck('name')->toArray();
+        $validSpeakers = array_merge(['narration', '_unknown'], $characterNames);
+
+        $validated = $request->validate([
+            'speakers' => ['required', 'array', "size:{$segmentCount}"],
+            'speakers.*' => ['required', 'string', 'in:'.implode(',', $validSpeakers)],
+        ]);
+
+        $newSegments = [];
+        foreach ($segments as $i => $seg) {
+            $newSegments[] = [
+                'speaker' => $validated['speakers'][$i],
+                'text' => $seg['text'],
+            ];
+        }
+
+        $chapter->content_segments = $newSegments;
+        $chapter->save();
+
+        return back()->with('status', "Đã cập nhật speaker cho {$segmentCount} segment.");
     }
 
     public function destroy(Story $story, Chapter $chapter): RedirectResponse

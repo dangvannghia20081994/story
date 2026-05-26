@@ -76,16 +76,16 @@ services:
     depends_on:
       - backend
 
-  # Cần `crawler/.env` (token đồng bộ backend). Bật: docker compose --profile crawler up -d
-  crawler:
+  # Cần `worker-crawler/.env` (token đồng bộ backend). Bật: docker compose --profile crawler up -d
+  worker-crawler:
     profiles: ["crawler"]
     build:
-      context: ./crawler
+      context: ./worker-crawler
       dockerfile: ../docker/crawler.Dockerfile
     volumes:
-      - ./crawler:/app
+      - ./worker-crawler:/app
     env_file:
-      - ./crawler/.env
+      - ./worker-crawler/.env
     environment:
       REDIS_HOST: redis
       CRAWLER_API_BASE_URL: http://backend:8000

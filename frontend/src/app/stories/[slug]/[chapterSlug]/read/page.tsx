@@ -18,11 +18,17 @@ import {
 } from "@/lib/storyPath";
 import { useChapterPlainWithLexicons } from "@/contexts/LexiconContext";
 
+type ContentSegment = {
+  speaker: string;
+  text: string;
+};
+
 type Chapter = {
   id: number;
   title: string;
   slug?: string | null;
   content: string;
+  content_segments?: ContentSegment[] | null;
   audio_path: string | null;
   audio_url?: string | null;
   duration: number;
@@ -568,10 +574,41 @@ function ReadStoryPageContent() {
             {currentChapter.title}
           </h2>
           <div
-            className="whitespace-pre-wrap text-pretty leading-[1.85] text-zinc-800 selection:bg-indigo-200/60 selection:text-zinc-900 dark:text-zinc-200 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100"
+            className="text-pretty leading-[1.85] text-zinc-800 selection:bg-indigo-200/60 selection:text-zinc-900 dark:text-zinc-200 dark:selection:bg-indigo-900/50 dark:selection:text-zinc-100"
             style={{ fontSize: `${fontSize}px` }}
           >
-            {readDisplayPlain}
+            {currentChapter.content_segments?.length ? (
+              <div className="space-y-3">
+                {currentChapter.content_segments.map((seg, i) => {
+                  const isCharacter = seg.speaker !== "narration" && seg.speaker !== "_unknown";
+                  const isUnknown = seg.speaker === "_unknown";
+                  const isDialogue = isCharacter || isUnknown;
+                  const rawText = seg.text ?? "";
+                  const stripped = rawText.replace(/^[\s"“”]+/, "").replace(/[\s"“”]+$/, "");
+                  const displayText = isDialogue ? `"${stripped}"` : rawText;
+                  return (
+                    <p key={i}>
+                      {isCharacter && (
+                        <span className="mr-2 font-semibold text-indigo-600 dark:text-indigo-400">
+                          {seg.speaker} nói:
+                        </span>
+                      )}
+                      <span
+                        className={
+                          seg.speaker === "narration"
+                            ? "italic text-zinc-600 dark:text-zinc-400"
+                            : ""
+                        }
+                      >
+                        {displayText}
+                      </span>
+                    </p>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="whitespace-pre-wrap">{readDisplayPlain}</div>
+            )}
           </div>
         </article>
       </main>

@@ -10,7 +10,7 @@ cp backend/.env.example backend/.env
 # docker compose run --rm backend php artisan key:generate
 # Tuỳ chọn: cp compose.env.example .env (biến Compose chung, xem compose.env.example)
 docker compose up --build
-# Crawler worker (Playwright) — tuỳ chọn: cần crawler/.env + token trùng backend, rồi:
+# Crawler worker (Playwright) — tuỳ chọn: cần worker-crawler/.env + token trùng backend, rồi:
 # docker compose --profile crawler up -d --build
 ```
 
@@ -18,18 +18,19 @@ docker compose up --build
 
 **Hướng dẫn theo môi trường:** [Windows — không Docker](GUIDE_WINDOW.md) · [VPS có Docker](GUIDE_VPS_HAS_DOCKER.md) · [VPS không Docker](GUIDE_VPS_NO_DOCKER.md)
 
-| Dịch vụ   | URL / cổng |
-|-----------|------------|
-| API       | http://localhost:8000 |
-| API Docs  | http://localhost:8000/docs/api |
-| Next.js   | http://localhost:3000 |
-| Expo web  | http://localhost:8090 |
-| Coqui TTS (tuỳ chọn, `coqui/`) | http://localhost:5002 — Docker (`coqui/run.ps1`) hoặc **không Docker**: `coqui/run-native.ps1` |
-| Postgres  | localhost:5432 |
-| Redis     | localhost:6379 |
-| Crawler worker (Python, tuỳ chọn) | **Docker:** `docker compose --profile crawler up -d` (xem [docker/README.md](docker/README.md)). **Host:** `crawler/worker.py` + `crawler/.env` — [GUIDE_WINDOW.md](GUIDE_WINDOW.md), [run-dev.sh](run-dev.sh) |
+| Dịch vụ                                | URL / cổng                                                                                                                                                                                                                   |
+|----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| API                                    | http://localhost:8000                                                                                                                                                                                                        |
+| API Docs                               | http://localhost:8000/docs/api                                                                                                                                                                                               |
+| Next.js                                | http://localhost:3000                                                                                                                                                                                                        |
+| Expo web                               | http://localhost:8090                                                                                                                                                                                                        |
+| Coqui TTS (tuỳ chọn, `coqui/`)         | http://localhost:5002 — Docker (`coqui/run.ps1`) hoặc **không Docker**: `coqui/run-native.ps1`                                                                                                                               |
+| Postgres                               | localhost:5432                                                                                                                                                                                                               |
+| Redis                                  | localhost:6379                                                                                                                                                                                                               |
+| Crawler worker (Python, tuỳ chọn)      | **Docker:** `docker compose --profile crawler up -d` (xem [docker/README.md](docker/README.md)). **Host:** `worker-crawler/worker.py` + `worker-crawler/.env` — [GUIDE_WINDOW.md](GUIDE_WINDOW.md), [run-dev.sh](run-dev.sh) |
+| Worker-TTS (Python, tuỳ chọn)          | `docker compose --profile worker-tts up -d --build` — tổng hợp giọng VieNeu-TTS theo job Redis (xem [worker-tts/README.md](worker-tts/README.md))                                                                            |
 
-Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, **`crawler/README.md`**, và **`docker/README.md`** cho image Docker / biến Compose.
+Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, **`worker-crawler/README.md`**, và **`docker/README.md`** cho image Docker / biến Compose.
 
 ## Quy ước: thêm cấu hình hoặc config
 
@@ -43,10 +44,10 @@ Mỗi khi thêm/sửa **config, biến môi trường, Docker, hoặc file cấu
 
 Trong `.cursor/agents/` có **3 thư mục**, mỗi nơi một file `AGENT.md` mô tả vai trò khi làm việc trong codebase tương ứng:
 
-| Thư mục | Vai trò |
-|---------|---------|
-| `.cursor/agents/backend/` | API Laravel, DB, Storage, CORS |
-| `.cursor/agents/frontend/` | Next.js, SSR fetch, UI web |
-| `.cursor/agents/mobile/` | Expo / React Native + web Metro |
+| Thư mục                    | Vai trò                         |
+|----------------------------|---------------------------------|
+| `.cursor/agents/backend/`  | API Laravel, DB, Storage, CORS  |
+| `.cursor/agents/frontend/` | Next.js, SSR fetch, UI web      |
+| `.cursor/agents/mobile/`   | Expo / React Native + web Metro |
 
 Mở hoặc `@` đúng `AGENT.md` khi giao việc theo từng phần để agent bám đúng ranh giới trách nhiệm. Khi đổi config, luôn **đồng bộ README folder + `AGENT.md`** (xem mục quy ước phía trên).

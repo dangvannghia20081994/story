@@ -6,16 +6,16 @@ Hướng dẫn cho máy chủ Linux (Ubuntu/Debian) đã cài **Docker Engine** 
 
 ## Tổng quan module (monorepo)
 
-| Module | Thư mục | Trong Compose | Ghi chú ngắn |
-|--------|---------|----------------|--------------|
-| **API + CMS** | `backend/` | `backend` | Laravel 12: REST `/api/*`, Blade CMS `/admin/*`, Scramble `/docs/api` |
-| **Web** | `frontend/` | `frontend` | Next.js, biến `NEXT_PUBLIC_API_URL` / `API_URL` |
-| **Expo** | `app/` | `expo` (tuỳ chọn) | `EXPO_PUBLIC_API_URL` |
-| **Reverse proxy** | `docker/nginx/` | `nginx` | Cổng **80** → frontend + API (xem `docker/nginx/`) |
-| **DB** | — | `db` | PostgreSQL 16 |
-| **Redis** | — | `redis` | Queue crawler, queue TTS, cache Laravel |
-| **Crawler** | `crawler/` | `crawler` (**profile `crawler`**) | Playwright; `crawler/.env` + token trùng backend |
-| **Worker TTS** | `worker-tts/` | `worker-tts` (**profile `worker-tts`**) | VieNeu + Redis BLPOP + upload API nội bộ |
+| Module            | Thư mục           | Trong Compose                            | Ghi chú ngắn                                                          |
+|-------------------|-------------------|------------------------------------------|-----------------------------------------------------------------------|
+| **API + CMS**     | `backend/`        | `backend`                                | Laravel 12: REST `/api/*`, Blade CMS `/admin/*`, Scramble `/docs/api` |
+| **Web**           | `frontend/`       | `frontend`                               | Next.js, biến `NEXT_PUBLIC_API_URL` / `API_URL`                       |
+| **Expo**          | `app/`            | `expo` (tuỳ chọn)                        | `EXPO_PUBLIC_API_URL`                                                 |
+| **Reverse proxy** | `docker/nginx/`   | `nginx`                                  | Cổng **80** → frontend + API (xem `docker/nginx/`)                    |
+| **DB**            | —                 | `db`                                     | PostgreSQL 16                                                         |
+| **Redis**         | —                 | `redis`                                  | Queue crawler, queue TTS, cache Laravel                               |
+| **Crawler**       | `worker-crawler/` | `worker-crawler` (**profile `crawler`**) | Playwright; `worker-crawler/.env` + token trùng backend               |
+| **Worker TTS**    | `worker-tts/`     | `worker-tts` (**profile `worker-tts`**)  | VieNeu + Redis BLPOP + upload API nội bộ                              |
 
 Chi tiết image: [docker/README.md](docker/README.md). Chi tiết API/CMS: [backend/README.md](backend/README.md).
 
@@ -60,14 +60,14 @@ docker compose run --rm backend php artisan key:generate
 
 Compose **publish** (mặc định):
 
-| Cổng | Dịch vụ |
-|------|---------|
+| Cổng   | Dịch vụ                                                            |
+|--------|--------------------------------------------------------------------|
 | **80** | **nginx** → proxy tới Next + API (xem `docker/nginx/default.conf`) |
-| 8000 | Laravel `artisan serve` (API trực tiếp, debug) |
-| 3000 | Next.js |
-| 8090 | Expo web (nếu bật service) |
-| 5432 | PostgreSQL |
-| 6379 | Redis |
+| 8000   | Laravel `artisan serve` (API trực tiếp, debug)                     |
+| 3000   | Next.js                                                            |
+| 8090   | Expo web (nếu bật service)                                         |
+| 5432   | PostgreSQL                                                         |
+| 6379   | Redis                                                              |
 
 **Production:** không nên mở **5432** / **6379** ra internet; có thể bỏ `ports` của `db` / `redis` trong compose nếu chỉ container nội bộ cần. User chỉ vào **80/443** qua Nginx.
 
@@ -108,13 +108,13 @@ OpenAPI tĩnh (tuỳ chọn): `docker compose exec backend php artisan scramble:
 **Cách A — Docker (khuyến nghị trên VPS có đủ RAM cho Chromium):**
 
 ```bash
-cp crawler/.env.example crawler/.env
+cp worker-crawler/.env.example worker-crawler/.env
 # Điền CRAWLER_INTERNAL_TOKEN (trùng backend), REDIS_HOST=redis không cần nếu compose đã set, CRAWLER_API_BASE_URL=http://backend:8000
 docker compose --profile crawler up -d --build
-docker compose logs -f crawler
+docker compose logs -f worker-crawler
 ```
 
-**Cách B — Chạy worker trên host** (Redis publish 6379): cài Python + Playwright trên host, `crawler/.env` với `REDIS_HOST=127.0.0.1`, `CRAWLER_API_BASE_URL` trỏ tới API (port 8000 hoặc qua Nginx).
+**Cách B — Chạy worker trên host** (Redis publish 6379): cài Python + Playwright trên host, `worker-crawler/.env` với `REDIS_HOST=127.0.0.1`, `CRAWLER_API_BASE_URL` trỏ tới API (port 8000 hoặc qua Nginx).
 
 CMS tạo job: **`/admin/crawler-jobs`**. Luồng: Redis list `CRAWLER_REDIS_QUEUE` → worker → `GET/PATCH/POST /api/internal/crawler/*` (header **`X-Crawler-Token`**).
 
@@ -137,12 +137,12 @@ CMS tạo job: **`/admin/crawler-jobs`**. Luồng: Redis list `CRAWLER_REDIS_QUE
 
 ## 8. CMS và tài liệu API
 
-| URL | Mô tả |
-|-----|--------|
-| `/admin/login` | Đăng nhập CMS (`admin@example.com` sau seed — đổi mật khẩu) |
-| `/admin` | Dashboard |
-| `/docs/api` | Scramble UI |
-| `/docs/api.json` | OpenAPI JSON |
+| URL              | Mô tả                                                       |
+|------------------|-------------------------------------------------------------|
+| `/admin/login`   | Đăng nhập CMS (`admin@example.com` sau seed — đổi mật khẩu) |
+| `/admin`         | Dashboard                                                   |
+| `/docs/api`      | Scramble UI                                                 |
+| `/docs/api.json` | OpenAPI JSON                                                |
 
 User thường chỉ cần Nginx cổng 80/443; API có thể chỉ lộ qua `/api` trên cùng domain frontend.
 
@@ -156,6 +156,6 @@ User thường chỉ cần Nginx cổng 80/443; API có thể chỉ lộ qua `/a
 - [ ] `php artisan migrate --force`, `storage:link`, đổi mật khẩu seed (`backend/README.md`)
 - [ ] Backup volume Postgres (`pgdata`) hoặc dump định kỳ
 - [ ] Không expose DB/Redis; HTTPS (Nginx/Caddy) phía trước
-- [ ] (Tuỳ chọn) Profile `crawler` / `worker-tts` đã bật và log không lỗi
+- [ ] (Tuỳ chọn) Profile `crawler` (service `worker-crawler`) / `worker-tts` đã bật và log không lỗi
 
 Tham chiếu: [README.md](README.md), [GUIDE_VPS_NO_DOCKER.md](GUIDE_VPS_NO_DOCKER.md), [GUIDE_WINDOW.md](GUIDE_WINDOW.md).

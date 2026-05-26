@@ -57,6 +57,11 @@
             <option value="1" @selected(($audio ?? '') === '1')>Có đường dẫn audio</option>
             <option value="0" @selected(($audio ?? '') === '0')>Chưa có audio</option>
         </select>
+        <select name="analyzed" class="stories-filter-bar__genre" aria-label="Lọc trạng thái phân tích segments">
+            <option value="" @selected(($analyzed ?? '') === '')>Segments: tất cả</option>
+            <option value="1" @selected(($analyzed ?? '') === '1')>Đã phân tích</option>
+            <option value="0" @selected(($analyzed ?? '') === '0')>Chưa phân tích</option>
+        </select>
         <select name="sort" class="stories-filter-bar__genre" style="min-width: 13rem; max-width: 17rem;" aria-label="Sắp xếp">
             <option value="read_asc" @selected(($sort ?? 'read_asc') === 'read_asc')>Thứ tự đọc (số chương ↑)</option>
             <option value="read_desc" @selected(($sort ?? '') === 'read_desc')>Thứ tự đọc (số chương ↓)</option>
@@ -67,7 +72,7 @@
         </select>
         <div class="stories-filter-bar__actions">
             <button type="submit" class="btn btn-primary">Lọc</button>
-            @if (($q ?? '') !== '' || ($tts ?? '') !== '' || ($audio ?? '') !== '' || ($sort ?? 'read_asc') !== 'read_asc')
+            @if (($q ?? '') !== '' || ($tts ?? '') !== '' || ($audio ?? '') !== '' || ($analyzed ?? '') !== '' || ($sort ?? 'read_asc') !== 'read_asc')
                 <a href="{{ url()->current() }}" class="btn">Xóa lọc</a>
             @endif
         </div>
@@ -79,6 +84,7 @@
                 <thead>
                     <tr>
                         <th>Tiêu đề</th>
+                        <th>Segments</th>
                         <th>Trạng thái TTS</th>
                         <th>Audio</th>
                         <th class="th-actions">Thao tác</th>
@@ -88,6 +94,17 @@
                     @forelse ($chapters as $chapter)
                         <tr>
                             <td><strong style="font-weight: 500;">{{ $chapter->title }}</strong></td>
+                            <td>
+                                @php
+                                    $segs = $chapter->content_segments;
+                                    $hasSegments = is_array($segs) && count($segs) > 0;
+                                @endphp
+                                @if ($hasSegments)
+                                    <span class="cms-badge cms-badge--tts-ready" title="{{ $chapter->analyzed_at ? 'Phân tích lúc '.$chapter->analyzed_at->timezone(config('app.timezone'))->format('d/m/Y H:i') : '' }}">&#10003; Đã phân tích</span>
+                                @else
+                                    <span class="muted">&#8203;Chưa</span>
+                                @endif
+                            </td>
                             <td>
                                 <span
                                     id="chapter-tts-badge-{{ $chapter->id }}"
@@ -142,7 +159,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có chương. Dùng <strong>Thêm chương</strong> ở trên.</td></tr>
+                        <tr><td colspan="5" class="muted" style="padding: 1.5rem; text-align: center;">Chưa có chương. Dùng <strong>Thêm chương</strong> ở trên.</td></tr>
                     @endforelse
                 </tbody>
             </table>
