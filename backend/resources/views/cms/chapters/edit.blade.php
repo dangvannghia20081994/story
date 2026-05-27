@@ -112,6 +112,19 @@
             usort($charactersSorted, fn($a, $b) => ($speakerCounts[$b] ?? 0) <=> ($speakerCounts[$a] ?? 0));
             $chipOrder = array_merge(['narration', '_unknown'], $charactersSorted);
 
+            // Chia chip thành 2 nhóm: dùng trong chapter (count > 0) và không dùng
+            // → mặc định chỉ hiện nhóm "dùng" để hotbar không phình to với story >100 nhân vật.
+            $usedChips = [];
+            $unusedChips = [];
+            foreach ($chipOrder as $sp) {
+                $cnt = $speakerCounts[$sp] ?? 0;
+                if ($sp === 'narration' || $sp === '_unknown' || $cnt > 0) {
+                    $usedChips[] = $sp;
+                } else {
+                    $unusedChips[] = $sp;
+                }
+            }
+
             // Build map speaker → color name (key trong palette) để expose sang JS
             // JS sẽ dùng map này trong applyBadge
             $speakerColorMap = [];
@@ -157,56 +170,138 @@
                     border-radius: 0.5rem;
                     padding: 0.55rem 0.75rem;
                     margin-bottom: 0.75rem;
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 0.4rem 0.5rem;
-                    align-items: center;
                     box-shadow: 0 2px 8px rgba(15,23,42,0.07);
                 ">
-                    <span class="muted" style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.25rem; flex-shrink: 0;">Speaker:</span>
-                    @foreach ($chipOrder as $chipIdx => $sp)
-                        @php
-                            $cnt = $speakerCounts[$sp] ?? 0;
-                            $c   = $speakerColor($sp);
-                        @endphp
-                        <button
-                            type="button"
-                            class="speaker-chip"
-                            data-speaker="{{ $sp }}"
-                            data-chip-idx="{{ $chipIdx }}"
+                    {{-- Toolbar: label + search + toggle --}}
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
+                        <span class="muted" style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0;">Speaker:</span>
+                        <input
+                            type="search"
+                            id="chip-search"
+                            placeholder="Lọc theo tên… ({{ count($unusedChips) }} chưa dùng)"
                             style="
-                                display: inline-flex;
-                                align-items: center;
-                                gap: 0.3rem;
-                                padding: 0.3rem 0.7rem;
-                                border-radius: 9999px;
-                                border: 2px solid transparent;
-                                background: {{ $c['bg'] }};
-                                color: {{ $c['text'] }};
-                                font-size: 0.78rem;
-                                font-weight: 600;
-                                cursor: pointer;
-                                font-family: inherit;
-                                transition: transform 0.1s, box-shadow 0.1s;
-                                white-space: nowrap;
+                                flex: 1;
+                                min-width: 8rem;
+                                max-width: 18rem;
+                                font-size: 0.76rem;
+                                padding: 0.22rem 0.55rem;
+                                border: 1px solid var(--surface-border);
+                                border-radius: 0.35rem;
+                                background: var(--surface);
+                                color: var(--text);
                             "
-                            title="Hotkey: {{ $chipIdx + 1 <= 9 ? $chipIdx + 1 : '-' }}"
+                            autocomplete="off"
                         >
-                            <span class="chip-label">{{ $sp }}</span>
-                            <span class="chip-counter" data-speaker="{{ $sp }}" style="
-                                display: inline-flex;
-                                align-items: center;
-                                justify-content: center;
-                                min-width: 1.1rem;
-                                height: 1.1rem;
-                                padding: 0 0.2rem;
-                                border-radius: 9999px;
-                                background: rgba(0,0,0,0.12);
-                                font-size: 0.68rem;
-                                font-weight: 700;
-                            ">{{ $cnt }}</span>
-                        </button>
-                    @endforeach
+                        @if (count($unusedChips) > 0)
+                            <button
+                                type="button"
+                                id="chip-toggle-all"
+                                class="btn"
+                                style="font-size: 0.72rem; padding: 0.2rem 0.55rem;"
+                                data-expanded="0"
+                            >Hiện tất cả ({{ count($unusedChips) }})</button>
+                        @endif
+                    </div>
+
+                    {{-- Chip container: cap chiều cao, scroll khi quá nhiều --}}
+                    <div id="chip-list" style="
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 0.4rem 0.5rem;
+                        align-items: center;
+                        max-height: 8rem;
+                        overflow-y: auto;
+                    ">
+                        @foreach ($usedChips as $chipIdx => $sp)
+                            @php
+                                $cnt = $speakerCounts[$sp] ?? 0;
+                                $c   = $speakerColor($sp);
+                            @endphp
+                            <button
+                                type="button"
+                                class="speaker-chip"
+                                data-speaker="{{ $sp }}"
+                                data-chip-idx="{{ $chipIdx }}"
+                                data-used="1"
+                                style="
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 0.3rem;
+                                    padding: 0.3rem 0.7rem;
+                                    border-radius: 9999px;
+                                    border: 2px solid transparent;
+                                    background: {{ $c['bg'] }};
+                                    color: {{ $c['text'] }};
+                                    font-size: 0.78rem;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    font-family: inherit;
+                                    transition: transform 0.1s, box-shadow 0.1s;
+                                    white-space: nowrap;
+                                "
+                                title="Hotkey: {{ $chipIdx + 1 <= 9 ? $chipIdx + 1 : '-' }}"
+                            >
+                                <span class="chip-label">{{ $sp }}</span>
+                                <span class="chip-counter" data-speaker="{{ $sp }}" style="
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    min-width: 1.1rem;
+                                    height: 1.1rem;
+                                    padding: 0 0.2rem;
+                                    border-radius: 9999px;
+                                    background: rgba(0,0,0,0.12);
+                                    font-size: 0.68rem;
+                                    font-weight: 700;
+                                ">{{ $cnt }}</span>
+                            </button>
+                        @endforeach
+                        @foreach ($unusedChips as $offset => $sp)
+                            @php
+                                $chipIdx = count($usedChips) + $offset;
+                                $cnt = $speakerCounts[$sp] ?? 0;
+                                $c   = $speakerColor($sp);
+                            @endphp
+                            <button
+                                type="button"
+                                class="speaker-chip chip-unused"
+                                data-speaker="{{ $sp }}"
+                                data-chip-idx="{{ $chipIdx }}"
+                                data-used="0"
+                                style="
+                                    display: none;
+                                    align-items: center;
+                                    gap: 0.3rem;
+                                    padding: 0.3rem 0.7rem;
+                                    border-radius: 9999px;
+                                    border: 2px solid transparent;
+                                    background: {{ $c['bg'] }};
+                                    color: {{ $c['text'] }};
+                                    font-size: 0.78rem;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    font-family: inherit;
+                                    transition: transform 0.1s, box-shadow 0.1s;
+                                    white-space: nowrap;
+                                    opacity: 0.65;
+                                "
+                            >
+                                <span class="chip-label">{{ $sp }}</span>
+                                <span class="chip-counter" data-speaker="{{ $sp }}" style="
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    min-width: 1.1rem;
+                                    height: 1.1rem;
+                                    padding: 0 0.2rem;
+                                    border-radius: 9999px;
+                                    background: rgba(0,0,0,0.12);
+                                    font-size: 0.68rem;
+                                    font-weight: 700;
+                                ">{{ $cnt }}</span>
+                            </button>
+                        @endforeach
+                    </div>
                 </div>
 
                 {{-- Segment rows --}}
@@ -326,6 +421,8 @@
 
     // ─── DOM refs ─────────────────────────────────────────────────────────────
     var chips = document.querySelectorAll('.speaker-chip');
+    var chipSearch = document.getElementById('chip-search');
+    var chipToggleAll = document.getElementById('chip-toggle-all');
     var modifiedCounter   = document.getElementById('modified-counter');
     var modifiedCount     = document.getElementById('modified-count');
     var modifiedCounterBot = document.getElementById('modified-counter-bottom');
@@ -493,9 +590,46 @@
     if (resetBtn)    { resetBtn.addEventListener('click',    doReset); }
     if (resetBtnBot) { resetBtnBot.addEventListener('click', doReset); }
 
+    // ─── Chip filter (search) + toggle unused ────────────────────────────────
+    var showAllUnused = false;
+
+    function chipDefaultDisplay(chip) {
+        // Chip "used" luôn inline-flex; "unused" chỉ show khi toggle bật.
+        return (chip.dataset.used === '1' || showAllUnused) ? 'inline-flex' : 'none';
+    }
+
+    function applyChipFilter() {
+        var q = (chipSearch && chipSearch.value || '').trim().toLowerCase();
+        chips.forEach(function (chip) {
+            var name = (chip.dataset.speaker || '').toLowerCase();
+            var matchesSearch = q === '' || name.indexOf(q) !== -1;
+            if (q !== '') {
+                // Khi đang search → show mọi chip match, bất kể used/unused
+                chip.style.display = matchesSearch ? 'inline-flex' : 'none';
+            } else {
+                chip.style.display = chipDefaultDisplay(chip);
+            }
+        });
+    }
+
+    if (chipSearch) {
+        chipSearch.addEventListener('input', applyChipFilter);
+    }
+    if (chipToggleAll) {
+        var collapsedLabel = chipToggleAll.textContent; // "Hiện tất cả (N)"
+        var expandedLabel = 'Ẩn nhân vật chưa dùng';
+        chipToggleAll.addEventListener('click', function () {
+            showAllUnused = !showAllUnused;
+            chipToggleAll.dataset.expanded = showAllUnused ? '1' : '0';
+            chipToggleAll.textContent = showAllUnused ? expandedLabel : collapsedLabel;
+            applyChipFilter();
+        });
+    }
+
     // ─── Init ─────────────────────────────────────────────────────────────────
     updateChipCounters();
     updateModifiedUI();
+    applyChipFilter();
 
 })();
 </script>

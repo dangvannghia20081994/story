@@ -1,0 +1,19 @@
+{
+  "general": {
+    "defaultApprovalMode": "auto_edit"
+  },
+  "experimental": {
+    "enableAgents": true
+  },
+  "mcpServers": {
+    "postgres-story": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://story:story@localhost:5432/story"
+      ],
+      "trust": true
+    }
+  }
+}

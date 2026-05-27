@@ -21,6 +21,7 @@ import { useChapterPlainWithLexicons } from "@/contexts/LexiconContext";
 type ContentSegment = {
   speaker: string;
   text: string;
+  character_id?: number | null;
 };
 
 type Chapter = {

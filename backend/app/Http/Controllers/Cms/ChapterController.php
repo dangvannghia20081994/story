@@ -301,8 +301,8 @@ class ChapterController extends Controller
         $segmentCount = count($segments);
 
         // Danh sách speaker hợp lệ: narration, _unknown, + tên nhân vật của truyện
-        $characterNames = $story->characters()->pluck('name')->toArray();
-        $validSpeakers = array_merge(['narration', '_unknown'], $characterNames);
+        $characters = $story->characters()->pluck('id', 'name')->toArray();
+        $validSpeakers = array_merge(['narration', '_unknown'], array_keys($characters));
 
         $validated = $request->validate([
             'speakers' => ['required', 'array', "size:{$segmentCount}"],
@@ -311,9 +311,16 @@ class ChapterController extends Controller
 
         $newSegments = [];
         foreach ($segments as $i => $seg) {
+            $speaker = $validated['speakers'][$i];
+            $charId = null;
+            if ($speaker !== 'narration' && $speaker !== '_unknown') {
+                $charId = $characters[$speaker] ?? null;
+            }
+
             $newSegments[] = [
-                'speaker' => $validated['speakers'][$i],
+                'speaker' => $speaker,
                 'text' => $seg['text'],
+                'character_id' => $charId,
             ];
         }
 

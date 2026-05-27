@@ -73,11 +73,18 @@ export interface Story {
   chapters?: Chapter[];
 }
 
+export interface ContentSegment {
+  speaker: string;
+  text: string;
+  character_id?: number | null;
+}
+
 export interface Chapter {
   id: number;
   story_id?: number;
   title: string;
   content: string;
+  content_segments?: ContentSegment[] | null;
   audio_path: string | null;
   audio_url?: string | null;
   duration: number;

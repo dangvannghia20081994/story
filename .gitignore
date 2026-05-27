@@ -100,5 +100,6 @@ Vieneu/.venv/
 # --- Misc ---
 *.log
 coverage/
+analysis/
 .nyc_output/
 *.tsbuildinfo

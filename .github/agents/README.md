@@ -1,0 +1,67 @@
+---
+name: agents-readme
+description: Documentation for agent routing (not an agent).
+model: gpt-5.2-codex
+tools: Read
+---
+
+# Claude Code agents — project `story`
+
+Project-local agents (chỉ load khi Claude Code chạy trong `/home/nghiadv/IdeaProjects/story`). Theo cấu trúc Lucy-style: 1 coordinator + 7 sub-agent theo layer.
+
+> Đọc thêm: **`CLAUDE.md`** ở root repo — context tổng quan + routing nhanh cho assistant khi mở repo.
+
+## Cấu trúc
+
+```
+story-master (gpt-5.2-codex, coordinator)
+├── backend-laravel        — Laravel API + CMS Blade
+├── frontend-next          — Next.js web
+├── mobile-expo            — Expo (RN + web)
+├── worker-crawler-python  — Playwright crawler worker
+├── worker-tts-python      — Python TTS workers (worker-tts + worker-voice)
+├── devops-docker          — Docker Compose + nginx
+├── db-postgres            — Postgres query helper (read-only mặc định)
+└── story-analyzer         — Phân tích truyện thủ công: NER nhân vật + gom thoại + insert characters/lexicons
+```
+
+## Khi nào dùng agent nào
+
+| User intent / file đụng | Agent |
+|---|---|
+| Sửa route API, controller, migration, CMS Blade, model Laravel | `backend-laravel` |
+| Sửa page Next.js, component web, audio player web, SSR fetch | `frontend-next` |
+| Sửa screen Expo, RN, web Metro, EAS, `app.json` | `mobile-expo` |
+| Sửa logic crawl Playwright, selector mục lục/chương, `worker.py` | `worker-crawler-python` |
+| Sửa pipeline TTS, model selection, upload format mp3/m4a | `worker-tts-python` |
+| Sửa `docker-compose.yml`, Dockerfile, nginx, port, profile | `devops-docker` |
+| Query Postgres để debug data | `db-postgres` |
+| Phân tích truyện thủ công (manual NER theo story_id, gom thoại, insert đợt lớn) | `story-analyzer` |
+| Task chạm ≥2 layer / cần điều phối | `story-master` (coordinator) |
+
+## MCP — cấp quyền & kiểm tra nhanh
+
+Nếu MCP đã hiện trong danh sách nhưng gọi không được, thường do **chưa cấp quyền tool** hoặc **server chưa load đúng**. Cách xử lý nhanh:
+1. Dùng `/env` để kiểm tra MCP đã được load vào session hiện tại chưa.
+2. Dùng `/mcp` để enable/add lại server nếu cần.
+3. Khi bị chặn quyền, dùng `/allow-all` hoặc chấp nhận prompt khi CLI hỏi.
+4. `github-mcp-server` là **read-only**; MCP workspace kiểu `npx` (vd `postgres-story`) cần `node/npx` chạy được — thiếu runtime thì tool sẽ không sẵn sàng dù vẫn hiện.
+5. Nếu vẫn lỗi, dùng `/restart` để reload cấu hình MCP.
+
+## Quan hệ với `.cursor/agents/`
+
+Folder `.cursor/agents/` là agent cho **Cursor IDE** — **chỉ có 3 layer**: `backend/`, `frontend/`, `mobile/`. Folder `.claude/agents/` này là agent cho **Claude Code CLI** — đầy đủ 8 agent (1 coordinator + 7 sub-agent).
+
+Khi sửa env/config layer **backend / frontend / mobile**: sync **cả 2 file** — `.cursor/agents/<layer>/AGENT.md` và `.claude/agents/<name>.md` để Cursor và Claude khớp nhau.
+
+Khi sửa **crawler / worker-tts / devops / db**: chỉ cần update `.claude/agents/<name>.md` + README folder code (không có file Cursor tương ứng).
+
+## Bổ sung mới
+
+- Agent cho layer mới (vd `coqui/`) → tạo file mới trong folder này, update bảng routing ở trên + `story-master.md` mục "Cấu trúc team".
+- Đổi tool / model của agent → sửa frontmatter `name:` / `model:` / `tools:` của file đó.
+
+## Tham khảo
+
+- Convention dev project: `README.md` gốc repo, `backend/README.md`, `frontend/README.md`, `app/README.md`, `worker-crawler/README.md`, `worker-tts/README.md`, `docker/README.md`.
+- Cursor agents tương ứng: `.cursor/agents/README.md`.
