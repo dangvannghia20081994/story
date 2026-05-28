@@ -22,6 +22,8 @@ class Chapter extends Model
         'audio_path',
         'duration',
         'analyzed_at',
+        'coverage',
+        'speaker_quality',
     ];
 
     protected function casts(): array
@@ -32,6 +34,8 @@ class Chapter extends Model
             'content_segments' => 'array',
             'tts_enqueued_at' => 'datetime',
             'analyzed_at' => 'datetime',
+            'coverage' => 'decimal:2',
+            'speaker_quality' => 'decimal:2',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

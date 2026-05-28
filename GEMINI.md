@@ -58,7 +58,7 @@ Khi thay đổi `.env*`, `config/*`, `app.json`, `next.config.ts`, `docker-compo
 - **Phạm vi (Scope)**: Không tự ý refactor ngoài phạm vi yêu cầu. Nếu thấy code xấu, chỉ đề xuất trong báo cáo.
 - **Shared Components**: Hạn chế sửa các thành phần dùng chung. Nếu bắt buộc, phải liệt kê danh sách các bên liên quan và xác nhận rủi ro với người dùng.
 - **Git**: Không dùng các lệnh hủy diệt (`reset --hard`, `push --force`) trừ khi được yêu cầu rõ ràng. Không `--no-verify`.
-- **Database**: Mặc định dùng SELECT/EXPLAIN. Các lệnh thay đổi dữ liệu (DML/DDL) phải được người dùng xác nhận.
+- **Database**: Mặc định dùng SELECT/EXPLAIN để nghiên cứu. Các lệnh thay đổi dữ liệu (DML/DDL) có thể thực hiện trực tiếp qua MCP hoặc shell command sau khi được người dùng xác nhận rõ ràng. Ưu tiên MCP cho các thao tác dữ liệu thuần túy để đạt tốc độ cao nhất.
 - **Thẩm định (Validation)**: Mọi thay đổi code phải đi kèm với việc chạy test hoặc kiểm tra thủ công kỹ lưỡng.
 
 ## Chạy nhanh (Quick Start)

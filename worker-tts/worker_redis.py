@@ -96,8 +96,13 @@ def normalize_upload_format_env_value(raw: str | None) -> str:
 
 
 def normalize_tts_text(text: str) -> str:
-    """Bỏ dòng trống / dòng chỉ khoảng trắng, ký tự zero-width; gộp đoạn bằng một space (tránh khoảng lặng kỳ khi infer)."""
+    """Bỏ dòng trống / dòng chỉ khoảng trắng, ký tự zero-width; gộp đoạn bằng một space (tránh khoảng lặng kỳ khi infer).
+    Giảm các marker thường gây silence dài (chấm lửng, em-dash) về dấu phẩy."""
     text = _ZW_RE.sub("", text)
+    # VieNeu hay sinh silence rất dài ở "..." / "…" / em-dash → ép về dấu phẩy.
+    text = text.replace("…", ", ")
+    text = re.sub(r"\.{2,}", ", ", text)
+    text = re.sub(r"[—–]+", ", ", text)
     text = text.strip()
     if not text:
         return ""
@@ -108,6 +113,9 @@ def normalize_tts_text(text: str) -> str:
             parts.append(s)
     out = " ".join(parts)
     out = re.sub(r"\s+", " ", out, flags=re.UNICODE)
+    # Gộp dấu phẩy liên tiếp + khoảng trắng dư sau khi thay ellipsis / em-dash.
+    out = re.sub(r"\s+,", ",", out)
+    out = re.sub(r"(?:,\s*){2,}", ", ", out)
     return out.strip()
 
 
@@ -230,6 +238,175 @@ def upload_audio(chapter_id: int, file_path: Path, multipart_name: str, content_
         raise RuntimeError(f"API {r.status_code}: {r.text[:2000]}")
 
 
+def _apply_pitch_tempo(in_wav: Path, out_wav: Path, pitch: int, tempo: float, sample_rate: int) -> None:
+    """Pitch shift bằng asetrate + tempo bằng atempo (chuỗi atempo nếu cần ngoài [0.5, 2.0])."""
+    if pitch == 0 and abs(tempo - 1.0) < 0.01:
+        # No-op: chỉ copy
+        shutil.copyfile(in_wav, out_wav)
+        return
+    factor = 2 ** (pitch / 12)
+    new_rate = int(sample_rate * factor)
+    final_tempo = (1 / factor) * tempo
+    atempos: list[str] = []
+    t = final_tempo
+    while t < 0.5:
+        atempos.append("atempo=0.5")
+        t /= 0.5
+    while t > 2.0:
+        atempos.append("atempo=2.0")
+        t /= 2.0
+    atempos.append(f"atempo={t:.4f}")
+    filt = f"asetrate={new_rate},aresample={sample_rate}," + ",".join(atempos)
+    ffmpeg_bin = (os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"
+    subprocess.run(
+        [ffmpeg_bin, "-y", "-loglevel", "error", "-i", str(in_wav),
+         "-af", filt, "-ar", str(sample_rate), str(out_wav)],
+        check=True,
+    )
+
+
+def _gen_silence(out_wav: Path, ms: int, sample_rate: int) -> None:
+    duration = ms / 1000.0
+    ffmpeg_bin = (os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"
+    subprocess.run(
+        [ffmpeg_bin, "-y", "-loglevel", "error",
+         "-f", "lavfi", "-i", f"anullsrc=channel_layout=mono:sample_rate={sample_rate}",
+         "-t", f"{duration:.3f}", str(out_wav)],
+        check=True,
+    )
+
+
+def _concat_to_mp3(parts: list[Path], out_mp3: Path) -> None:
+    list_file = out_mp3.parent / f"{out_mp3.stem}_concat.txt"
+    list_file.write_text("\n".join(f"file '{p}'" for p in parts), encoding="utf-8")
+    out_mp3.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg_bin = (os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"
+    subprocess.run(
+        [ffmpeg_bin, "-y", "-loglevel", "error",
+         "-f", "concat", "-safe", "0", "-i", str(list_file),
+         "-codec:a", "libmp3lame", "-b:a", "128k", str(out_mp3)],
+        check=True,
+    )
+    list_file.unlink(missing_ok=True)
+
+
+def _process_multi_speaker(tts, msg: dict, chapter_id: int) -> None:
+    """Multi-speaker pipeline: synth từng segment với preset voice (nếu set) hoặc reference voice clone (fallback). Ghép thành mp3, upload."""
+    segments = msg.get("segments") or []
+    if not isinstance(segments, list) or not segments:
+        print(f"[worker-tts] multi: chapter_id={chapter_id} không có segments", file=sys.stderr)
+        return
+
+    silence_ms = int(msg.get("silence_ms", 250))
+    sample_rate = int(getattr(tts, "sample_rate", 24000) or 24000)
+    total = len(segments) + 3
+    print(f"[worker-tts] chapter={chapter_id}  multi-speaker mode: {len(segments)} segments, sample_rate={sample_rate}", flush=True)
+
+    # Preload preset voices (chỉ những key thực sự cần). Segment voice=null → dùng reference voice clone (load lazy).
+    needed_voices = sorted({v for v in (seg.get("voice") for seg in segments) if v})
+    voice_cache: dict[str, object] = {}
+    _stage(chapter_id, 1, total, f"Load {len(needed_voices)} preset voices + reference voice: {needed_voices or '[none]'}")
+    for vkey in needed_voices:
+        try:
+            voice_cache[vkey] = tts.get_preset_voice(vkey)
+        except Exception as e:
+            print(f"[worker-tts] preset {vkey} lỗi: {e}", file=sys.stderr)
+
+    reference_voice: object | None = None
+    ref_path = reference_audio_path()
+
+    def get_voice_or_reference(vkey: str | None) -> object | None:
+        """Trả preset voice nếu vkey có giá trị + load OK; ngược lại trả reference voice (cache lazy)."""
+        nonlocal reference_voice
+        if vkey and vkey in voice_cache:
+            return voice_cache[vkey]
+        if reference_voice is None:
+            if not ref_path.is_file():
+                print(f"[worker-tts] reference voice file không tồn tại: {ref_path}", file=sys.stderr)
+                return None
+            try:
+                reference_voice = tts.encode_reference(str(ref_path))
+            except Exception as e:
+                print(f"[worker-tts] encode_reference lỗi: {e}", file=sys.stderr)
+                return None
+        return reference_voice
+
+    work_dir = Path(tempfile.mkdtemp(prefix="multi_tts_"))
+    parts: list[Path] = []
+    silence_path = work_dir / "silence.wav"
+    _gen_silence(silence_path, silence_ms, sample_rate)
+
+    try:
+        for idx, seg in enumerate(segments, 1):
+            speaker = (seg.get("speaker") or "narration").strip()
+            text = normalize_tts_text(str(seg.get("text") or ""))
+            if not text:
+                continue
+            vkey = seg.get("voice")  # None → fallback reference voice clone
+            pitch = int(seg.get("pitch", 0))
+            tempo = float(seg.get("tempo", 1.0))
+            voice = get_voice_or_reference(vkey)
+            if voice is None:
+                print(f"[worker-tts]   ⚠ seg #{idx} voice={vkey!r} không có voice + reference — skip", file=sys.stderr)
+                continue
+
+            voice_label = vkey if vkey else "ref"
+            _stage(chapter_id, 2, total, f"Seg {idx}/{len(segments)} ({speaker} → {voice_label}, p={pitch}, t={tempo})")
+            raw_wav = work_dir / f"seg_{idx:04d}_raw.wav"
+            try:
+                audio = tts.infer(text=text, voice=voice)
+                tts.save(audio, str(raw_wav))
+            except Exception as e:
+                print(f"[worker-tts]   ⚠ infer lỗi seg #{idx}: {e}", file=sys.stderr)
+                continue
+
+            if pitch == 0 and abs(tempo - 1.0) < 0.01:
+                final_wav = raw_wav
+            else:
+                final_wav = work_dir / f"seg_{idx:04d}_pp.wav"
+                try:
+                    _apply_pitch_tempo(raw_wav, final_wav, pitch, tempo, sample_rate)
+                except subprocess.CalledProcessError as e:
+                    print(f"[worker-tts]   ⚠ ffmpeg lỗi seg #{idx}: {e} — dùng raw", file=sys.stderr)
+                    final_wav = raw_wav
+
+            parts.append(final_wav)
+            if idx < len(segments):
+                parts.append(silence_path)
+
+        if not parts:
+            print(f"[worker-tts] chapter={chapter_id} không có segment hợp lệ", file=sys.stderr)
+            return
+
+        out_fmt = upload_audio_format()
+        out_ext = "mp3" if out_fmt != "wav" else "wav"
+        out_path = work_dir / f"chapter_{chapter_id}_multi.{out_ext}"
+        _stage(chapter_id, total - 1, total, f"Ghép {len(parts)} parts → {out_ext.upper()}")
+        if out_ext == "mp3":
+            _concat_to_mp3(parts, out_path)
+        else:
+            # Concat wav giữ nguyên format
+            list_file = work_dir / "concat.txt"
+            list_file.write_text("\n".join(f"file '{p}'" for p in parts), encoding="utf-8")
+            ffmpeg_bin = (os.environ.get("FFMPEG_PATH") or "ffmpeg").strip() or "ffmpeg"
+            subprocess.run(
+                [ffmpeg_bin, "-y", "-loglevel", "error",
+                 "-f", "concat", "-safe", "0", "-i", str(list_file),
+                 "-c", "copy", str(out_path)],
+                check=True,
+            )
+
+        # out_path đã đúng format (wav hoặc mp3) sau bước concat — không qua build_upload_payload (vốn chỉ convert từ wav).
+        mime_map = {"wav": "audio/wav", "mp3": "audio/mpeg", "m4a": "audio/mp4"}
+        multipart_name = f"chapter.{out_ext}"
+        mime = mime_map.get(out_ext, "application/octet-stream")
+        _stage(chapter_id, total, total, "Upload lên backend API")
+        upload_audio(chapter_id, out_path, multipart_name, mime)
+        print(f"[worker-tts] chapter={chapter_id}  multi-speaker hoàn tất (upload OK)", flush=True)
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
 def process_message(tts, raw: str) -> None:
     try:
         msg = json.loads(raw)
@@ -238,14 +415,24 @@ def process_message(tts, raw: str) -> None:
         return
 
     chapter_id = msg.get("chapter_id")
-    text = msg.get("text")
-    if chapter_id is None or text is None or str(text).strip() == "":
-        print(f"[worker-tts] Thiếu chapter_id hoặc text: {msg!r}", file=sys.stderr)
+    if chapter_id is None:
+        print(f"[worker-tts] Thiếu chapter_id: {msg!r}", file=sys.stderr)
         return
     try:
         chapter_id = int(chapter_id)
     except (TypeError, ValueError):
         print(f"[worker-tts] chapter_id không phải số: {msg!r}", file=sys.stderr)
+        return
+
+    mode = (msg.get("mode") or "single").strip().lower()
+    if mode == "multi-speaker":
+        _process_multi_speaker(tts, msg, chapter_id)
+        return
+
+    # Single-voice (legacy) flow
+    text = msg.get("text")
+    if text is None or str(text).strip() == "":
+        print(f"[worker-tts] Thiếu text cho single mode: {msg!r}", file=sys.stderr)
         return
 
     ref = reference_audio_path()

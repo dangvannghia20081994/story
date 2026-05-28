@@ -235,11 +235,18 @@ class Story extends Model
         });
 
         static::created(function (Story $story): void {
-            if ($story->slug !== null && $story->slug !== '') {
-                return;
+            if ($story->slug === null || $story->slug === '') {
+                $base = Str::slug($story->title) ?: 'story';
+                $story->forceFill(['slug' => $base.'-'.$story->id])->saveQuietly();
             }
-            $base = Str::slug($story->title) ?: 'story';
-            $story->forceFill(['slug' => $base.'-'.$story->id])->saveQuietly();
+
+            // Auto-tạo 2 pseudo-character system cho multi-speaker TTS (narration + _unknown).
+            foreach (['narration', '_unknown'] as $sysName) {
+                Character::query()->updateOrCreate(
+                    ['story_id' => $story->id, 'name' => $sysName],
+                    ['is_system' => true],
+                );
+            }
         });
     }
 

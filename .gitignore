@@ -103,3 +103,10 @@ coverage/
 analysis/
 .nyc_output/
 *.tsbuildinfo
+
+# --- DB dump backup (không đưa vào git, bind-restore thủ công) ---
+backup_*.sql
+*.dump
+
+# --- Output test TTS (audio, segments JSON local) ---
+worker-tts/output/

@@ -10,6 +10,7 @@ use App\Models\Character;
 use App\Models\Story;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class CharacterController extends Controller
@@ -70,7 +71,20 @@ class CharacterController extends Controller
     {
         $this->assertBelongs($story, $character);
 
-        $character->fill($request->validated())->save();
+        $data = $request->validated();
+        $deleteVoice = (bool) ($data['delete_voice_file'] ?? false);
+        unset($data['voice_file'], $data['delete_voice_file']);
+
+        $character->fill($data);
+
+        if ($deleteVoice) {
+            $this->deleteCharacterVoice($character);
+        }
+        if ($request->hasFile('voice_file')) {
+            $this->storeCharacterVoice($character, $request->file('voice_file'));
+        }
+
+        $character->save();
 
         return redirect()->route('cms.stories.characters.index', $story)->with('status', 'Đã cập nhật nhân vật.');
     }
@@ -78,9 +92,31 @@ class CharacterController extends Controller
     public function destroy(Story $story, Character $character): RedirectResponse
     {
         $this->assertBelongs($story, $character);
+        $this->deleteCharacterVoice($character);
         $character->delete();
 
         return redirect()->route('cms.stories.characters.index', $story)->with('status', 'Đã xóa nhân vật.');
+    }
+
+    private function deleteCharacterVoice(Character $character): void
+    {
+        $path = $character->voice_reference_path;
+        if (is_string($path) && $path !== '') {
+            Storage::disk('local')->delete($path);
+        }
+        $character->voice_reference_path = null;
+    }
+
+    private function storeCharacterVoice(Character $character, \Illuminate\Http\UploadedFile $file): void
+    {
+        if ($character->voice_reference_path) {
+            Storage::disk('local')->delete($character->voice_reference_path);
+        }
+        $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'wav');
+        $filename = $character->getKey().'.'.$ext;
+        $relative = Character::VOICE_DIR.'/'.$filename;
+        Storage::disk('local')->putFileAs(Character::VOICE_DIR, $file, $filename);
+        $character->voice_reference_path = $relative;
     }
 
     private function assertBelongs(Story $story, Character $character): void

@@ -41,7 +41,7 @@ Regex/heuristic gặp 35% sai trên đối thoại phức tạp (đã test trên
   ```
   mcp__postgres-story__query(sql="SELECT id, chapter_number, title FROM chapters WHERE story_id=1 AND analyzed_at IS NULL ORDER BY chapter_number LIMIT 25")
   ```
-- **WRITE DB** (DML): MCP chỉ read-only → dùng `docker compose exec -T backend php artisan tinker --execute='...'`.
+- **WRITE DB** (DML): Có thể dùng trực tiếp MCP `mcp__postgres-story__query` để chạy lệnh `INSERT`, `UPDATE`, `DELETE` (nhanh hơn nhiều so với shell). Chỉ dùng `php artisan tinker` khi cần xử lý logic phức tạp của Laravel (như Events, Observers hoặc các hàm xử lý Model đặc thù).
 - **Output folder**: `analysis/<story_slug>/`.
 
 ## Cờ flag `analyzed_at` — CHỌN CHAPTER ĐỂ XỬ LÝ

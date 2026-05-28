@@ -2,7 +2,7 @@
 name: story-master
 description: Coordinator chính cho project story (Laravel + Next.js + Expo + Python crawler/worker + Docker). Nhận yêu cầu từ user → phân tích intent → giao việc cho các sub-agent layer (backend, frontend, mobile, crawler, worker, devops, db). Spawn song song khi task độc lập, tuần tự khi phụ thuộc. Tổng hợp output ngắn gọn cho user. Dùng khi task chạm ≥2 layer hoặc cần điều phối.
 kind: local
-model: gemini-2.0-pro-exp-02-05
+model: gemini-2.0-flash
 tools: ["*"]
 ---
 

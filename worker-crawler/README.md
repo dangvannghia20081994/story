@@ -71,6 +71,16 @@ python worker.py
 
 Log stdout có prefix **`[crawler]`**: body thô từ Redis sau `BLPOP`, số URL chương, từng bước quét + **POST API lưu ngay** sau mỗi chương (và `chapters_imported` / `story_id` từ response).
 
+## Làm sạch nội dung chương (sanitize)
+
+Sau khi extract text từ HTML, hàm **`_sanitize_chapter_content`** trong `crawl_lib.py` tự động làm sạch trước khi POST lên API:
+
+- **Strip markdown**: `**...**` / `*...*` → giữ text bên trong, bỏ dấu `*` (vd. `**Tên nhân vật**` → `Tên nhân vật`).
+- **Normalize smart quotes**: `"` `"` → `"`; `'` `'` → `'` (về ASCII thẳng; không đụng dấu `«»` hay `—`).
+- **Loại artifact biên tập AI**: bỏ dòng bắt đầu bằng `Biên tập lại:`, `Văn bản đã biên tập:`, `Dưới đây là văn bản đã được biên tập lại:` (artifact từ AI biên tập lẫn vào content).
+
+Xử lý này **chỉ áp cho chương crawl mới**. Dữ liệu cũ đã lưu trong DB cần backfill riêng (xem khuyến nghị ở dưới).
+
 CLI ví dụ:
 
 ```bash

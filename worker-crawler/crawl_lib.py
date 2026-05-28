@@ -19,6 +19,50 @@ DEFAULT_UA = (
 # Dòng không có chữ: trống, hoặc chỉ ... / … / ??? (lặp thêm cùng kiểu).
 _CRAWLER_JUNK_ONLY_LINE = re.compile(r"^(?:\.{3,}|…|\?{3,})$", re.UNICODE)
 
+# Dòng artifact "biên tập AI": prefix rõ ràng, không lẫn nội dung truyện thật.
+# Khớp cả tiếng Việt có dấu lẫn không dấu; không phân biệt hoa/thường.
+_EDITORIAL_ARTIFACT_LINE = re.compile(
+    r"^(Biên\s*tập\s*lại\s*:|Văn\s*bản\s*đã\s*biên\s*tập\s*:|"
+    r"Dưới\s*đây\s*là\s*văn\s*bản\s*đã\s*(được\s*)?biên\s*tập(\s*lại)?\s*:)",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def _sanitize_chapter_content(text: str) -> str:
+    """Làm sạch noise trong nội dung chương sau khi extract từ HTML.
+
+    1. Strip markdown bold/italic: ``**...**`` / ``*...* `` → giữ text bên trong, bỏ ký tự ``*``.
+       Ví dụ: ``**Tên nhân vật**`` → ``Tên nhân vật``.
+    2. Normalize smart/curly quotes về ASCII thẳng:
+       ``"`` ``"`` → ``"``; ``'`` ``'`` → ``'``.
+       (Convention project: dùng quote thẳng trong DB; thoại tiếng Việt dùng dấu «–» / «—» — không đụng.)
+    3. Loại bỏ dòng/đoạn đầu dòng là artifact hướng dẫn AI biên tập rõ ràng
+       (ví dụ: ``Biên tập lại:``, ``Văn bản đã biên tập:``,
+       ``Dưới đây là văn bản đã được biên tập lại:``).
+    """
+    if not text:
+        return text
+
+    # 1. Strip markdown bold/italic: **...** và *...*
+    #    Thứ tự: xử lý ** trước * để tránh nhầm lẫn khi lồng nhau.
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text, flags=re.DOTALL)
+    text = re.sub(r"\*(.+?)\*", r"\1", text, flags=re.DOTALL)
+
+    # 2. Normalize smart quotes → ASCII thẳng
+    text = text.replace("“", '"').replace("”", '"')  # " " → "
+    text = text.replace("‘", "'").replace("’", "'")  # ' ' → '
+
+    # 3. Bỏ dòng artifact biên tập AI (chỉ khi cả dòng là artifact)
+    lines = text.split("\n")
+    cleaned: list[str] = []
+    for line in lines:
+        if _EDITORIAL_ARTIFACT_LINE.match(line.strip()):
+            continue
+        cleaned.append(line)
+    text = "\n".join(cleaned)
+
+    return text
+
 
 def _normalize_crawler_plaintext_lines(text: str) -> str:
     """Bỏ mọi dòng trống; bỏ dòng chỉ gồm dấu lặp / chấm hỏi lặp (vd. ..., ???)."""
@@ -192,6 +236,7 @@ def clean_content(html_content: str) -> str:
         tag.decompose()
     text = soup.get_text(separator="\n")
     text = _normalize_crawler_plaintext_lines(text)
+    text = _sanitize_chapter_content(text)
     return text.strip()
 
 

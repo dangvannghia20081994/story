@@ -109,9 +109,10 @@ services:
       REDIS_HOST: redis
       BACKEND_API_BASE_URL: http://backend:8000
       REFERENCE_AUDIO_PATH: /app/input.wav
-    # Mount file giọng mẫu (bắt buộc khi chạy), ví dụ:
+    # Mount file giọng mẫu (bắt buộc khi chạy) + thư mục voice file per-character do CMS upload.
     volumes:
       - ./worker-tts/input.wav:/app/input.wav:ro
+      - ./backend/storage/app/private/voices:/app/voices:ro
     depends_on:
       redis:
         condition: service_started

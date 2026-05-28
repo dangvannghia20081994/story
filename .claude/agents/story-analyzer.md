@@ -77,6 +77,33 @@ UPDATE chapters SET analyzed_at = NULL WHERE story_id = <id> [AND chapter_number
 
 **Báo cáo cuối** phải show: `processed=N, skipped (already analyzed)=M, failed=K`.
 
+## Coverage QA — QUÉT CHAPTER CẦN RE-ANALYZE
+
+`chapters.coverage` (decimal) lưu **độ phủ nội dung** của `content_segments` so với `content`, theo metric **no-whitespace (nw)**:
+
+```
+coverage = SUM(len(segment.text sau khi bỏ \s)) / len(content sau khi bỏ \s) * 100
+```
+
+Tính/ghi lại bằng artisan command: `php artisan chapters:recompute-coverage [--id=<id> ...] [--dry-run]`. Sau khi re-analyze 1 chapter, **bắt buộc chạy lại** command cho chapter đó (hoặc set coverage) để cột không bị stale.
+
+**Tiêu chí chapter CẦN re-analyze** (2 nhóm bất thường):
+- `coverage < 95` → **under-coverage**: tách thiếu, bỏ sót nội dung (đoạn narration/thoại không emit).
+- `coverage > 100` → **over-coverage**: segment chứa text KHÔNG có trong content — thường do segment **lạc chapter** (lẫn nội dung chapter khác), text bị nhân đôi, hoặc LLM thêm chữ không có trong nguồn. **Phải regenerate segment từ content hiện tại** của đúng chapter đó.
+- `95 ≤ coverage ≤ 100` → **OK**, không cần đụng (phần hụt <5% là quote/markdown/whitespace, không phải mất nội dung).
+
+**Query quét** (qua MCP read-only):
+```
+mcp__postgres-story__query(sql="SELECT id, chapter_number, coverage FROM chapters WHERE analyzed_at IS NOT NULL AND (coverage < 95 OR coverage > 100) ORDER BY coverage ASC")
+```
+
+Nếu cột `coverage` còn NULL (chưa populate) → chạy `chapters:recompute-coverage` trước, hoặc tính nw on-the-fly:
+```
+mcp__postgres-story__query(sql="WITH seg AS (SELECT c.id, length(regexp_replace(c.content,'\\s','','g')) AS cnw, COALESCE(SUM(length(regexp_replace(s->>'text','\\s','','g'))),0) AS snw FROM chapters c LEFT JOIN LATERAL jsonb_array_elements(c.content_segments) s ON true WHERE c.analyzed_at IS NOT NULL GROUP BY c.id, c.content) SELECT id, round(100.0*snw/NULLIF(cnw,0),1) AS cov FROM seg WHERE 100.0*snw/NULLIF(cnw,0) < 95 OR 100.0*snw/NULLIF(cnw,0) > 100 ORDER BY cov")
+```
+
+Snapshot tham khảo (point-in-time): `analysis/<slug>/coverage-ok.json` — danh sách chapter đã verify OK; cột `coverage` trong DB mới là nguồn chuẩn (live).
+
 ## Pipeline LLM
 
 ### B1. Lấy content (qua MCP)
@@ -92,6 +119,33 @@ mcp__postgres-story__query(sql="SELECT id, chapter_number, title, content FROM c
 ```
 
 Lưu ý: response MCP là JSON inline. Nếu content rất dài (10k+ char/chapter), có thể chia query 5-10 chapter mỗi lần.
+
+### B1.5. Làm sạch artifact crawler trong `content` (BẮT BUỘC, trước khi tách segment)
+
+Nguồn crawl đôi khi lẫn **"hướng dẫn biên tập AI"** (meta-text của bước dịch/biên tập, KHÔNG phải nội dung truyện). Các artifact này làm bẩn `content`, thổi phồng `content_len` → kéo tụt coverage, và nếu emit thành segment sẽ làm hỏng TTS. Trước khi phân tích MỖI chapter, quét content và GỠ artifact khỏi `content` (update DB), GIỮ NGUYÊN text truyện thật ở hai đầu.
+
+**Dấu hiệu nhận diện artifact** (LLM reasoning, không cần khớp tuyệt đối):
+- Marker biên tập: `"Dưới đây là văn bản đã được biên tập lại:"`, `"Văn bản đã biên tập:"`, `"**Văn bản đã biên tập:**"`, `"bản dịch thô"`, `"biên tập bản dịch"`.
+- Câu chỉ dẫn xưng "Tôi"/"tôi sẽ" nói về việc dịch/biên tập/đại từ nhân xưng/phong cách (vd `"Được rồi, hãy bắt đầu biên tập bản dịch thô này. Tôi sẽ cố gắng làm cho nó trôi chảy..."`).
+- Bullet phân tích đại từ kiểu LLM: `"* **<Tên>:** ... là nam giới/nữ giới. Vậy, đây là **hắn/nàng**."`
+- Bất kỳ đoạn meta-commentary nào nói VỀ văn bản thay vì LÀ văn bản truyện.
+
+**Cách xử lý**:
+1. Xác định CHÍNH XÁC chuỗi artifact (chỉ đoạn meta — KHÔNG ăn vào câu truyện thật liền kề). Cảnh giác: nhiều khi câu truyện thật nằm ngay sau marker (vd marker `"Văn bản đã biên tập:"` rồi tới câu kết chương thật) — chỉ gỡ marker/chỉ dẫn, GIỮ câu truyện.
+2. `str_replace` gỡ artifact, rồi `UPDATE chapters.content` (tinker). KHÔNG cắt theo offset, KHÔNG regex tham lam.
+3. Verify: `content_len` giảm đúng bằng độ dài chuỗi đã gỡ; in ~150 ký tự quanh chỗ gỡ để xác nhận truyện liền mạch.
+4. Tách segment trên content ĐÃ sạch.
+5. **Report cho user** chapter nào có artifact + đã gỡ bao nhiêu ký tự, và **note story-master báo `worker-crawler-python`** review selector nguồn (vì artifact là lỗi tầng crawl, cần fix gốc).
+
+```bash
+docker compose exec -T backend php artisan tinker --execute='
+$c = App\Models\Chapter::find(<id>);
+$bad = "Dưới đây là văn bản đã được biên tập lại:\n"; // chuỗi artifact CHÍNH XÁC
+$new = str_replace($bad, "", $c->content);
+if ($new === $c->content) { echo "ARTIFACT NOT FOUND — dừng, không đoán mò\n"; }
+else { $c->content = $new; $c->save(); echo "removed ".(mb_strlen($c->content)>0 ? "ok" : "")."\n"; }
+'
+```
 
 ### B2. Phân tích bằng LLM reasoning (KHÔNG script regex)
 
@@ -137,8 +191,8 @@ Cho mỗi chapter, đọc full content + danh sách `characters` (cùng story) �
 
 **Quy tắc bỏ qua segment** (apply TRƯỚC khi emit JSON):
 - **Text rỗng**: nếu `text` sau khi trim toàn bộ whitespace (`\n`, `\t`, space, U+00A0…) ra string rỗng → KHÔNG emit segment. Không tạo segment chỉ chứa newline/whitespace.
-- **Text chỉ punctuation đơn lẻ** (vd `"."`, `","`, `"…"`, `"—"`) không kèm content → KHÔNG emit. Trừ khi đó là dialogue ngắt quãng có ý nghĩa (vd `"..."` thể hiện im lặng/lưỡng lự) — chỉ giữ khi context rõ là 1 nhân vật phát ra.
-- **Lý do**: segment rỗng làm bẩn DB, gây lag UI (extra rows hotbar/segments-list), không đóng góp cho TTS hay reading flow.
+- **Text chỉ chứa dấu chấm/ellipsis/punctuation** (vd `"."`, `".."`, `"..."`, `"…"`, `"……"`, `","`, `"—"`, `"-"`, hoặc tổ hợp các ký tự này + whitespace, KHÔNG có chữ cái/chữ số nào) → **LUÔN BỎ, KHÔNG emit** — kể cả khi nghi là "im lặng/lưỡng lự". Lời thoại rỗng hoặc chỉ có `...` không đóng góp cho TTS lẫn reading flow, chỉ làm bẩn DB. Nếu muốn diễn tả ngập ngừng thì phải có chữ kèm theo (vd `"Ta... ta không biết."` → giữ; `"..."` đơn lẻ → bỏ).
+- **Lý do**: segment rỗng / chỉ punctuation làm bẩn DB, gây lag UI (extra rows hotbar/segments-list), TTS đọc thành khoảng lặng vô nghĩa.
 
 **Acceptance test bắt buộc** (story_id=1 chapter_number=3 = chapter id=2):
 
