@@ -37,17 +37,23 @@ Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`,
 Mỗi khi thêm/sửa **config, biến môi trường, Docker, hoặc file cấu hình** gắn với một vùng repo:
 
 1. **`README.md` trong folder tương ứng** — bổ sung bảng/mục hướng dẫn: tên biến, ý nghĩa, ví dụ giá trị, chỗ đọc trong code (file `config/*`, `.env.example`, v.v.).
-2. **`AGENT.md` của sub-agent tương ứng** trong `.cursor/agents/<backend|frontend|mobile>/` — cập nhật cùng nội dung (env, ranh giới, file config) để agent AI và người đọc không lệch nhau.
+2. **`AGENT.md` / file `.md` sub-agent** trong `.cursor/agents/` (xem bảng dưới) — cập nhật cùng nội dung (env, ranh giới, file config) để agent AI và người đọc không lệch nhau.
 3. Nếu thay đổi **Docker Compose** hoặc env chung: cập nhật **`compose.env.example`**, **`docker/README.md`** (nếu đụng image/compose), và **README gốc** nếu đổi URL/cổng hoặc luồng chạy.
 
 ## Sub-agent (vai trò AI theo vùng code)
 
-Trong `.cursor/agents/` có **3 thư mục**, mỗi nơi một file `AGENT.md` mô tả vai trò khi làm việc trong codebase tương ứng:
+Trong `.cursor/agents/` có **9 sub-agent** (đồng bộ `.claude/agents/`). Chi tiết: [`.cursor/agents/README.md`](.cursor/agents/README.md).
 
-| Thư mục                    | Vai trò                         |
-|----------------------------|---------------------------------|
-| `.cursor/agents/backend/`  | API Laravel, DB, Storage, CORS  |
-| `.cursor/agents/frontend/` | Next.js, SSR fetch, UI web      |
-| `.cursor/agents/mobile/`   | Expo / React Native + web Metro |
+| Agent / thư mục   | Vai trò                       |
+|-------------------|-------------------------------|
+| `story-master`    | Coordinator — task ≥2 layer   |
+| `backend/`        | API Laravel, CMS, DB, Storage |
+| `frontend/`       | Next.js web, audio client     |
+| `mobile/`         | Expo / RN + web Metro         |
+| `worker-crawler/` | Crawler Playwright + Redis    |
+| `worker-tts/`     | TTS VieNeu / vi-xtts          |
+| `devops-docker/`  | Docker Compose, nginx         |
+| `db-postgres/`    | Query Postgres debug          |
+| `story-analyzer/` | Phân tích truyện, NER, thoại  |
 
-Mở hoặc `@` đúng `AGENT.md` khi giao việc theo từng phần để agent bám đúng ranh giới trách nhiệm. Khi đổi config, luôn **đồng bộ README folder + `AGENT.md`** (xem mục quy ước phía trên).
+Gọi sub-agent: **`/backend-laravel`** (file `.md` phẳng) hoặc **`@.cursor/agents/backend/AGENT.md`**. Khi đổi config, **đồng bộ README folder + agent docs**.

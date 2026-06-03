@@ -34,11 +34,12 @@ story-master (opus, coordinator)
 
 ## Quan hệ với `.cursor/agents/`
 
-Folder `.cursor/agents/` là agent cho **Cursor IDE** — **chỉ có 3 layer**: `backend/`, `frontend/`, `mobile/`. Folder `.claude/agents/` này là agent cho **Claude Code CLI** — đầy đủ 8 agent (1 coordinator + 7 sub-agent).
+Folder `.cursor/agents/` là sub-agent cho **Cursor IDE** — **đủ 9 agent** (1 coordinator + 8 specialist), đồng bộ với folder này:
 
-Khi sửa env/config layer **backend / frontend / mobile**: sync **cả 2 file** — `.cursor/agents/<layer>/AGENT.md` và `.claude/agents/<name>.md` để Cursor và Claude khớp nhau.
+- File phẳng `.cursor/agents/<name>.md` — Cursor Task tool / `/tên-agent`
+- Thư mục `.cursor/agents/<layer>/AGENT.md` — @-mention thủ công trong chat
 
-Khi sửa **crawler / worker-tts / devops / db**: chỉ cần update `.claude/agents/<name>.md` + README folder code (không có file Cursor tương ứng).
+Khi sửa bất kỳ agent nào: sync **`.cursor/agents/<name>.md`**, **`.cursor/agents/<layer>/AGENT.md`** (nếu có), và **`.claude/agents/<name>.md`** + README folder code.
 
 ## Bổ sung mới
 

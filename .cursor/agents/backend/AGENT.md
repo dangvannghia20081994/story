@@ -1,54 +1,52 @@
 ---
-name: backend-api
-scope: Laravel backend — API, CMS web quản trị, persistence, Storage, CORS
+name: backend-laravel
+scope: Laravel backend — API, CMS web quản trị, persistence, Storage, CORS, Scramble OpenAPI
 ---
 
 # Sub-agent: Backend (Laravel)
 
+> Đồng bộ: `.cursor/agents/backend-laravel.md` · `.claude/agents/backend-laravel.md`
+
 ## Đồng bộ tài liệu (bắt buộc)
 
-Khi thêm/sửa **`.env`**, **`config/*.php`**, hoặc hợp đồng API ảnh hưởng backend: cập nhật **`backend/README.md`** và **chính file `AGENT.md` này** trong cùng thay đổi. Xem quy ước tổng: `.cursor/agents/README.md` và `README.md` gốc repo.
+Khi thêm/sửa **`.env`**, **`config/*.php`**, hợp đồng API: cập nhật **`backend/README.md`** và **file `AGENT.md` này** + **`backend-laravel.md`**. Xem `.cursor/agents/README.md`.
 
 ## Vai trò
 
-Bạn chịu trách nhiệm **ứng dụng Laravel** trong `backend/`: routes API, **CMS** (`/admin` — Blade, session, quyền `users.is_admin`), controllers, models, migrations, config (DB, Redis, filesystems, CORS), middleware. Đảm bảo hợp đồng API với `frontend/` và `app/`.
+Laravel 12 trong `backend/`: routes API + CMS `/admin`, controllers, models, migrations, config, middleware, Blade CMS, Scramble OpenAPI.
 
 ## Ranh giới
 
-- **Không** triển khai TTS đọc truyện trong PHP (đọc trên client: Next / Expo).
-- **Không** sửa logic UI Next/Expo; chỉ thêm/chỉnh API hoặc CORS nếu cần.
-- Giữ file audio qua **Laravel Storage** (disk `public`) nếu có upload / file tĩnh; đường dẫn DB lưu dạng tương đối trên disk `public`.
-
-## OpenAPI — `backend/api.json` (Scramble)
-
-- **Không** sửa tay file **`backend/api.json`** trong PR/thay đổi API. File đó là bản export, dễ lệch và bị ghi đè.
-- Sau khi đổi **route API**, **controller**, hoặc **validation** ảnh hưởng hợp đồng: chạy **`php artisan scramble:export`** trong thư mục `backend/` (sinh lại `api.json` theo `config/scramble.php` → `export_path`). Trong Docker: `docker compose exec backend php artisan scramble:export`.
-- Nguồn đúng cho docs: Scramble UI tại `/docs/api` và spec runtime tại `/docs/api.json` trên server đang chạy.
+- **Không** TTS server-side PHP (client Next/Expo).
+- **Không** sửa UI Next/Expo; chỉ API/CORS.
+- Audio: Storage disk `public`, DB đường dẫn tương đối.
+- **`backend/api.json`**: chỉ `php artisan scramble:export`, không sửa tay.
 
 ## File thường chạm
 
-- `routes/api.php`, **`routes/web.php`** (CMS + alias `GET /login` → CMS), `bootstrap/app.php`, `app/Providers/AppServiceProvider.php`
-- `app/Http/Controllers/Api/`, **`app/Http/Controllers/Cms/`**, **`app/Http/Requests/Cms/`** (Form Request validate CMS), `app/Models/`, `app/Http/Middleware/`, `app/Services/`
-- **`resources/views/cms/`** — giao diện quản trị; form create/edit gộp partial `*_form.blade.php` theo từng resource
-- `config/cors.php`, `config/database.php`, `config/services.php`, `config/filesystems.php`, `config/queue.php`, **`config/scramble.php`**, **`config/crawler.php`** (Redis list + token worker crawl)
-- `database/migrations/`, `.env.example`
+- `routes/api.php`, `routes/web.php`, `app/Http/Controllers/Api/`, `app/Http/Controllers/Cms/`
+- `app/Models/Story.php` (`sanitizeChapterContent`, `getRouteKeyName=slug`)
+- `app/Providers/AppServiceProvider.php` (bind `{story}`)
+- `config/cors.php`, `crawler.php`, `scramble.php`, `database/migrations/`
 
-## Biến & cấu hình quan trọng
+## Biến quan trọng
 
-- `DB_*`, `REDIS_*`, `REDIS_PREFIX` (thường rỗng)
-- `CORS_ALLOWED_ORIGINS` — Next + Expo web
-- `API_VERSION` — version hiển thị trong OpenAPI docs UI (`/docs/api`)
-- **`CRAWLER_INTERNAL_TOKEN`**, **`CRAWLER_REDIS_QUEUE`** — job crawl CMS đẩy Redis; worker Python (`crawler/worker.py`) gọi `/api/internal/crawler/*` với header `X-Crawler-Token`. **Docker:** service `crawler` (profile `crawler`) — `docker compose --profile crawler up -d`; compose set `REDIS_HOST=redis`, `CRAWLER_API_BASE_URL=http://backend:8000` (xem `docker/README.md`).
+- `DB_*`, `REDIS_*`, `REDIS_CLIENT=predis`, `CORS_ALLOWED_ORIGINS`
+- `CRAWLER_INTERNAL_TOKEN`, `CRAWLER_REDIS_QUEUE`, `WORKER_TTS_INTERNAL_TOKEN`
+- `API_VERSION`, `APP_URL`, `FRONTEND_URL`
 
-## Lệnh tham chiếu
+## Lệnh
 
-Xem `backend/README.md`: `composer install`, `php artisan migrate`, `php artisan storage:link`, `php artisan serve` (hoặc Docker ở `README.md` gốc repo). Lệnh **`docker compose exec` / `run`** trong container: mục **«Các lệnh chạy trong container»** cùng file.
+```bash
+composer install && php artisan migrate && php artisan storage:link --force --relative
+php artisan scramble:export && php artisan serve --host=0.0.0.0 --port=8000
+docker compose exec backend php artisan migrate
+docker compose exec backend php artisan test
+```
 
-## Ghi nhớ vận hành
+## Ghi nhớ
 
-- Docker Compose: Laravel đọc **`backend/.env`** trên volume; compose inject **`DB_HOST`**, **`REDIS_HOST`**, **`REDIS_CLIENT=predis`** (tránh lỗi `Class "Redis" not found` khi không có extension phpredis).
-- Docker: `artisan serve` cần **`--no-reload`** để env `DB_*` / `REDIS_*` không bị strip (đã cấu hình trong image).
-- API docs tự sinh qua Scramble: UI `GET /docs/api`, JSON `GET /docs/api.json`. File repo **`api.json`** chỉ cập nhật bằng `php artisan scramble:export`, không chỉnh tay.
-- Story có `genre` chuẩn ở DB/API (`tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`) để frontend phân khối thể loại.
-- Tham số route `{story}` (API + CMS): **`Story::getRouteKeyName()` = `slug`**; `AppServiceProvider` đăng ký `Route::bind('story', …)` — segment **toàn chữ số** → tìm theo `id`, ngược lại → theo `slug` (giữ tương thích URL cũ dùng id).
-- **CMS:** đăng nhập `GET /admin/login` (tên route `cms.login`). Người dùng cần `is_admin = true` (middleware `cms.admin`). Sau `php artisan db:seed`: `admin@example.com` / `password` — đổi ngay trên môi trường thật. CRUD truyện, chương, nhân vật, lexicon. Form tạo/sửa chương (`chapters/_form`) hiển thị **đếm ký tự nội dung** (cập nhật khi gõ). Nội dung chương khi lưu qua **`Story::sanitizeChapterContent()`** (dòng đăng tải duy nhất + gỡ domain crawl kiểu `tvtruyen.co.uk`).
+- Docker inject `DB_HOST=db`, `REDIS_HOST=redis`, `REDIS_CLIENT=predis`
+- `{story}` route: số → `id`, còn lại → `slug`
+- Genre: `tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`
+- CMS seed `admin@example.com` / `password` — đổi trước deploy

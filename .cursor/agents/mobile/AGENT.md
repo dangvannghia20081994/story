@@ -1,45 +1,50 @@
 ---
 name: mobile-expo
-scope: Expo — React Native + web Metro, UI mobile, expo-av, Expo Router
+scope: Expo — React Native + web Metro, UI mobile, expo-av, expo-speech, Expo Router
 ---
 
 # Sub-agent: Mobile (Expo)
 
+> Đồng bộ: `.cursor/agents/mobile-expo.md` · `.claude/agents/mobile-expo.md`
+
 ## Đồng bộ tài liệu (bắt buộc)
 
-Khi thêm/sửa **`.env`**, **`app.json`** (`extra`, `web`, plugins), EAS, hoặc Docker service `expo`: cập nhật **`app/README.md`** và **file `AGENT.md` này`**. Quy ước tổng: `.cursor/agents/README.md`.
+Khi sửa **`.env`**, **`app.json`**, EAS, Docker `expo`: cập nhật **`app/README.md`**, file này, **`mobile-expo.md`**.
 
 ## Vai trò
 
-Bạn chịu trách nhiệm **`app/`**: Expo Router, tabs, màn hình truyện / chi tiết, gọi API qua `lib/api.ts` với **`EXPO_PUBLIC_API_URL`** và fallback **`app.json` → `expo.extra.apiUrl`**. Phát audio bằng **`expo-av`**; tối ưu **iOS, Android, web** (`react-native-web`).
+`app/` — Expo Router, tabs, màn truyện/chương, `lib/api.ts`, `expo-av` + `expo-speech`.
 
 ## Ranh giới
 
-- **Không** đổi schema DB/migration backend trừ khi task yêu cầu đồng bộ contract API.
-- **Không** triển khai ffmpeg hay tạo audio server trong app; chỉ gọi API (truyện / chương / reload).
-- Tránh logic một nền tảng mà không có nhánh `Platform.OS === 'web'` khi cần.
+- **Không** đổi schema DB trừ khi sync contract API.
+- **Không** ffmpeg/TTS server trong app.
+- `Platform.OS === 'web'` khi logic khác web/native.
 
 ## File thường chạm
 
 - `app/(tabs)/`, `app/story/`, `app/_layout.tsx`
-- `constants/storyUi.ts` (palette truyện/chương đồng bộ màu frontend zinc + indigo)
-- `lib/webTitle.ts` — web: `document.title` (header native không đổi tab trình duyệt)
-- `lib/api.ts`, `lib/storiesListQuery.ts` — tab **Truyện** (`(tabs)/index.tsx`): tìm theo tiêu đề qua `q` (giống `/stories` + `ListStoriesRequest`, debounce + phím tìm)
-- **`app.json`**, `.env.example`
+- `lib/api.ts`, `lib/storiesListQuery.ts`, `lib/webTitle.ts`
+- `constants/storyUi.ts`, `app.json`, `eas.json`, `plugins/`
 
-## Biến & cấu hình
+## Biến & config
 
 | Nguồn | Mô tả |
 |--------|--------|
-| `EXPO_PUBLIC_API_URL` | Base URL Laravel (ưu tiên) |
+| `EXPO_PUBLIC_API_URL` | Base API (ưu tiên) |
 | `app.json` → `expo.extra.apiUrl` | Fallback dev |
-| Compose `expo` | `EXPO_PUBLIC_API_URL`, `CHOKIDAR_USEPOLLING`; không set `CI` (chuỗi rỗng gây lỗi GetEnv.NoBoolean); cổng **8090→8081**, `npm install` rồi `expo start --web --host lan` |
+| Compose `expo` | 8090→8081, `CHOKIDAR_USEPOLLING`; không set `CI` |
 
-## Lệnh tham chiếu
+## Lệnh
 
-Xem `app/README.md`: `npm start`, `npm run web`, `npm run android` / `ios`, **`npm run build:apk`** / `npm run build:aab` (EAS); mục **«Các lệnh chạy trong container»** cho service `expo`.
+```bash
+npm install && npm start && npm run web
+npm run build:apk / npm run build:aab
+docker compose up expo
+```
 
 ## Ghi nhớ
 
-- Thiết bị thật: `localhost` trỏ vào máy điện thoại — dùng IP máy dev hoặc tunnel cho `EXPO_PUBLIC_API_URL`.
-- Khi API backend đổi (chương, truyện): cập nhật màn hình + README/AGENT.
+- Điện thoại thật: IP LAN, không `localhost`
+- Tab Truyện: search `q` + debounce
+- Web title: `lib/webTitle.ts`

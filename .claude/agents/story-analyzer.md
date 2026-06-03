@@ -17,6 +17,15 @@ Cho 1 `chapter_id` hoặc 1 `story_id`, sinh ra:
    - Nếu `speaker` là `narration` hoặc `_unknown` → `character_id = null`.
 4. **File text** dialogue gom theo nhân vật (analysis offline cho user review).
 
+## ⚠️ RULE CỐT LÕI: phân tích = update chapter NGAY trong cùng lượt
+
+Khi user yêu cầu "phân tích chapter X", chính yêu cầu đó đã bao gồm việc **ghi kết quả phân tích vào DB cho đúng chapter đó** — đây KHÔNG phải DML phát sinh ngoài scope, mà là bước hoàn tất của task user đã đặt. Phân tích xong nhưng để chapter ở trạng thái "đã tách segment nhưng chưa lưu" coi như **chưa hoàn thành**.
+
+- Một lượt phân tích 1 chapter = tách segment → `UPDATE chapters.content_segments` → set `analyzed_at = now()` → recompute `coverage`, làm liền mạch trong cùng lượt (xem [B5](#b5-insert-vào-db)). Không tách thành 2 phiên "phân tích" rồi "lưu sau".
+- Phạm vi write ở đây giới hạn ĐÚNG (các) chapter mà user yêu cầu phân tích — không lan sang chapter khác.
+- Vẫn **confirm scope** trước khi insert `characters`/`lexicons` hàng loạt (top N / full story) — phần đó không đổi.
+- Tự thực hiện bằng tinker (B5), KHÔNG gọi Python worker.
+
 ## Tại sao LLM thay vì regex
 
 Regex/heuristic gặp 35% sai trên đối thoại phức tạp (đã test trên chapter id=2 story_id=1). LLM reasoning đạt 100% trên cùng test set vì hiểu:
@@ -191,7 +200,7 @@ Cho mỗi chapter, đọc full content + danh sách `characters` (cùng story) �
 
 **Quy tắc bỏ qua segment** (apply TRƯỚC khi emit JSON):
 - **Text rỗng**: nếu `text` sau khi trim toàn bộ whitespace (`\n`, `\t`, space, U+00A0…) ra string rỗng → KHÔNG emit segment. Không tạo segment chỉ chứa newline/whitespace.
-- **Text chỉ chứa dấu chấm/ellipsis/punctuation** (vd `"."`, `".."`, `"..."`, `"…"`, `"……"`, `","`, `"—"`, `"-"`, hoặc tổ hợp các ký tự này + whitespace, KHÔNG có chữ cái/chữ số nào) → **LUÔN BỎ, KHÔNG emit** — kể cả khi nghi là "im lặng/lưỡng lự". Lời thoại rỗng hoặc chỉ có `...` không đóng góp cho TTS lẫn reading flow, chỉ làm bẩn DB. Nếu muốn diễn tả ngập ngừng thì phải có chữ kèm theo (vd `"Ta... ta không biết."` → giữ; `"..."` đơn lẻ → bỏ).
+- **Text chỉ chứa dấu/ký hiệu (symbol-only)** (vd `"."`, `".."`, `"..."`, `"…"`, `"……"`, `","`, `"—"`, `"-"`, `"*"`, `"***"`, `"* * *"`, `"---"`, `"==="`, `"___"`, dots bọc ngoặc kép `"..."`/`“…”`/`“......”`, lone `"`/`'`, hoặc tổ hợp các ký tự này + whitespace — tức `regexp_replace(text,'[^0-9A-Za-zÀ-ỹĐđ]','','g')` ra rỗng) → **LUÔN BỎ, KHÔNG emit** — kể cả khi nghi là "im lặng/lưỡng lự" hay scene-break. Những chuỗi này (ngập ngừng rỗng, dấu phân cảnh, markdown sót) không đóng góp cho TTS lẫn reading flow, chỉ làm bẩn DB. **Đồng thời gỡ luôn các dòng symbol-only này khỏi `content`** (xem B1.5) để không tách lại lần sau. Nếu muốn diễn tả ngập ngừng thì phải có chữ kèm theo (vd `"Ta... ta không biết."` → giữ; `"..."`/`"***"` đơn lẻ → bỏ).
 - **Lý do**: segment rỗng / chỉ punctuation làm bẩn DB, gây lag UI (extra rows hotbar/segments-list), TTS đọc thành khoảng lặng vô nghĩa.
 
 **Acceptance test bắt buộc** (story_id=1 chapter_number=3 = chapter id=2):
@@ -224,9 +233,11 @@ Khi user yêu cầu test → chạy phân tích chapter 2, đối chiếu với 
 - `analysis/<slug>/dialogues/_unknown.txt` — thoại chưa gán (cho user review thủ công).
 - `analysis/<slug>/segments/<chapter_n>.json` — JSON segments mỗi chapter (chuẩn bị insert DB).
 
-### B5. Insert vào DB (CHỈ khi user yêu cầu rõ)
+### B5. Insert vào DB
 
-**LUÔN HỎI scope trước**: 1 chapter, top N nhân vật, hay full story?
+**`content_segments` + `analyzed_at` + `coverage` của (các) chapter đang phân tích → LUÔN ghi** ngay trong cùng lượt (xem [RULE CỐT LÕI](#️-rule-cốt-lõi-phân-tích--update-chapter-ngay-trong-cùng-lượt)). KHÔNG hỏi lại.
+
+**`characters` / `lexicons` hàng loạt → HỎI scope trước**: 1 chapter, top N nhân vật, hay full story?
 
 **Insert `characters`**:
 ```bash
@@ -287,7 +298,7 @@ $c->save();
 
 ## Quy tắc bắt buộc
 
-1. **Mặc định READ-ONLY** trên DB. Chỉ chạy DML khi user yêu cầu rõ ("insert", "delete", "merge", "update segments").
+1. **DB**: được phép write `content_segments` + `analyzed_at` + `coverage` cho ĐÚNG (các) chapter user yêu cầu phân tích — đây là bước hoàn tất của task, KHÔNG cần hỏi lại (xem RULE CỐT LÕI). Các DML khác (insert `characters`/`lexicons` hàng loạt, `delete`, `merge`) vẫn chỉ chạy khi user yêu cầu rõ và đã confirm scope.
 2. **Confirm scope** trước insert hàng loạt (1 chapter / top N / full story).
 3. **Mỗi truyện 1 folder** `analysis/<slug>/`.
 4. **Acceptance test chapter 2 trước batch lớn** — nếu fail → review reasoning, không tự fix bằng heuristic.

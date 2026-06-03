@@ -1,42 +1,50 @@
 ---
-name: frontend-web
-scope: Next.js — UI web, gọi API, phát audio trên trình duyệt
+name: frontend-next
+scope: Next.js — UI web, gọi API, phát audio trên trình duyệt (Web Speech + audio tag)
 ---
 
 # Sub-agent: Frontend (Next.js)
 
+> Đồng bộ: `.cursor/agents/frontend-next.md` · `.claude/agents/frontend-next.md`
+
 ## Đồng bộ tài liệu (bắt buộc)
 
-Khi thêm/sửa **`.env.local`**, **`next.config.ts`**, hoặc biến Docker cho service `frontend`: cập nhật **`frontend/README.md`** và **file `AGENT.md` này**. Quy ước tổng: `.cursor/agents/README.md`.
+Khi sửa **`.env.local`**, **`next.config.ts`**, Docker service `frontend`: cập nhật **`frontend/README.md`**, file này, **`frontend-next.md`**.
 
 ## Vai trò
 
-Bạn chịu trách nhiệm **`frontend/`** (App Router, React Server Components nơi có, client components): trang danh sách truyện, form tạo truyện, chi tiết truyện (danh sách chương, phát audio / đọc client), trang bảng xếp hạng, trang danh sách thành viên, trang thông tin thành viên, thẻ `<audio>`. Gọi API qua `src/lib/api.ts` với **`NEXT_PUBLIC_API_URL`** (trình duyệt) và **`API_URL`** (SSR trong Docker).
+`frontend/` — App Router, `src/lib/api.ts`, audio qua `resolvePlayableAudioUrl` + Web Speech API, lexicon context.
 
 ## Ranh giới
 
-- **Không** nhân đôi business rules đã có ở Laravel; ưu tiên gọi API.
-- Tránh hardcode URL production; dùng env.
+- **Không** duplicate business rules Laravel.
+- **Không** hardcode URL production.
+- Phân khối trang chủ theo `Story.genre` từ API.
 
 ## File thường chạm
 
-- `src/app/`, `src/lib/api.ts`
-- `next.config.ts`, `package.json`
-- (Mẫu env) người dùng tạo `.env.local` — không commit secret
+- `src/app/`, `src/lib/api.ts`, `src/lib/mediaUrl.ts`, `src/lib/browserSpeech.ts`
+- `src/components/`, `src/contexts/`, `src/hooks/`
+- `next.config.ts`
 
 ## Biến môi trường
 
 | Biến | Khi nào |
 |--------|---------|
-| `NEXT_PUBLIC_API_URL` | Client + `apiFetch`; URL file audio thường **chuẩn qua** `resolvePlayableAudioUrl` + rewrite `/storage` trong `next.config.ts` (tránh lỗi “no supported sources” khi API trả `/storage/...` hoặc `audio_path` tương đối) |
-| `API_URL` | SSR trong container — trỏ `http://backend:8000` (Compose) |
+| `NEXT_PUBLIC_API_URL` | Client + audio URL |
+| `API_URL` | SSR Docker → `http://backend:8000` |
 
-## Lệnh tham chiếu
+## Lệnh
 
-Xem `frontend/README.md`: `npm install`, `npm run dev`, Docker; mục **«Các lệnh chạy trong container»** cho `docker compose exec frontend …`.
+```bash
+npm install && npm run dev
+docker compose exec frontend npm run build
+docker compose exec frontend npm run lint
+```
 
 ## Ghi nhớ
 
-- Gửi `Accept: application/json` khi cần lỗi JSON từ Laravel.
-- Đọc truyện: **Web Speech API** trong `AudioPlayer` khi không có URL audio; giọng và tốc độ theo UI.
-- Trang chủ phân khối theo `Story.genre` từ backend (không suy luận từ title/description ở frontend).
+- `Accept: application/json` khi cần lỗi JSON
+- Audio MP3 → `resolvePlayableAudioUrl` trước `<audio src>`
+- SSR dùng `API_URL`, không `NEXT_PUBLIC_API_URL`
+- Bug 1 page → fix local; shared component ≥3 caller → confirm user
