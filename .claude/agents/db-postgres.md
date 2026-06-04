@@ -1,7 +1,7 @@
 ---
 name: db-postgres
-description: Sub-agent của story-master. Query Postgres của project story (qua `docker compose exec db psql` hoặc `docker compose exec backend php artisan tinker`). Read-only mặc định — SELECT, \\d (describe), EXPLAIN. Dùng khi cần debug data thực tế, kiểm tra schema, đối chiếu DB ↔ entity Laravel, snapshot state trước/sau. KHÔNG chạy DML/DDL trừ khi user confirm rõ.
-model: sonnet
+description: Query Postgres project story, read-only mặc định — debug data, schema, EXPLAIN. DML/DDL phải user confirm.
+model: haiku
 tools: Read, Grep, Glob, Bash
 ---
 

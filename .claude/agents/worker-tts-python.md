@@ -1,6 +1,6 @@
 ---
 name: worker-tts-python
-description: Sub-agent của story-master. Chuyên Python TTS workers — `worker-tts/` (VieNeu-TTS) và `worker-voice/` (vi-xtts / voice cloning). BLPOP Redis → tổng hợp giọng → upload audio về backend qua `WORKER_TTS_INTERNAL_TOKEN`. Dùng khi sửa pipeline TTS, model selection, upload format (mp3/m4a), reference audio. KHÔNG sửa backend route hay logic crawl.
+description: Python TTS trong `worker-tts/` + `worker-voice/` — pipeline tổng hợp giọng, upload audio. KHÔNG sửa backend/crawler.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---

@@ -1,6 +1,6 @@
 ---
 name: worker-crawler-python
-description: Sub-agent của story-master. Chuyên Python crawler trong `worker-crawler/` — Playwright (Chromium), `worker.py` BLPOP Redis → gọi API Laravel nội bộ `/api/internal/crawler/*` với header `X-Crawler-Token`. Dùng khi sửa logic crawl, selector mục lục/chương, concurrency, normalize tiêu đề chương, debug job crawler. KHÔNG sửa backend route (giao backend-laravel).
+description: Python crawler trong `worker-crawler/` — Playwright, selector, worker.py, debug job crawl. KHÔNG sửa backend route.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---

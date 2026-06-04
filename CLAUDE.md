@@ -30,7 +30,13 @@ Monorepo đọc truyện online. Người dùng đọc trên web/app, **giọng 
 
 ## Quy tắc routing cho assistant
 
-**Đụng ≥2 layer hoặc cần điều phối** → dùng `story-master` (coordinator). Còn lại spawn đúng sub-agent layer:
+**Rule delegation (tiết kiệm token)** — theo thứ tự:
+
+1. **Task đơn giản 1-2 bước** (đọc/sửa vài file, 1 query read-only, git status/log/diff, hỏi đáp) → **tự làm trực tiếp, KHÔNG spawn agent** — spawn cho việc nhỏ tốn token hơn tự làm.
+2. **Task 1 layer, nặng** (nhiều file, chạy test/build dài) → spawn đúng **1 sub-agent layer** theo bảng dưới, không qua coordinator.
+3. **Task chạm ≥2 layer hoặc cần song song** → `story-master` (coordinator).
+
+Prompt cho agent: self-contained nhưng ngắn — không paste nguyên văn doc dài.
 
 | File / intent                                                                         | Agent                              |
 |---------------------------------------------------------------------------------------|------------------------------------|

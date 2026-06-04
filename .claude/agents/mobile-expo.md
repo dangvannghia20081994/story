@@ -1,6 +1,6 @@
 ---
 name: mobile-expo
-description: Sub-agent của story-master. Chuyên Expo trong `app/` — RN iOS/Android + web Metro, Expo Router, `expo-av` / `expo-speech`, gọi API qua `lib/api.ts`. Dùng khi sửa UI mobile, tab/screen, EAS build (APK/AAB), `app.json` config. KHÔNG đổi schema backend; chỉ đồng bộ contract API client.
+description: Expo trong `app/` — UI mobile, Expo Router, EAS build, `app.json`. KHÔNG đổi schema backend.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---

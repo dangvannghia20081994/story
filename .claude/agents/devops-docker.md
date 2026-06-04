@@ -1,7 +1,7 @@
 ---
 name: devops-docker
-description: Sub-agent của story-master. Chuyên Docker / Compose / nginx — `docker-compose.yml`, `docker/`, `compose.env.example`, Dockerfile từng service (backend, frontend, expo, crawler, worker-tts), nginx routes. Dùng khi sửa image, port mapping, volume, profile, healthcheck, env compose-level, reverse proxy. KHÔNG sửa code app (giao layer agent).
-model: sonnet
+description: Docker/Compose/nginx — `docker-compose.yml`, `docker/`, Dockerfile, port, profile, env compose-level. KHÔNG sửa code app.
+model: haiku
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 

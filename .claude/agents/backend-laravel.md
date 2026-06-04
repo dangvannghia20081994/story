@@ -1,6 +1,6 @@
 ---
 name: backend-laravel
-description: Sub-agent của story-master. Chuyên backend Laravel trong `backend/` — API JSON, CMS Blade `/admin`, controllers, models, migrations, Postgres, Redis, Storage disk public, CORS, Scramble OpenAPI. Đọc + sửa + chạy artisan/test. Dùng khi cần sửa route, controller, migration, CMS, lexicon, crawler internal endpoint. KHÔNG sửa frontend/mobile/Python worker.
+description: Laravel trong `backend/` — route, controller, migration, CMS `/admin`, artisan/test. KHÔNG sửa frontend/mobile/worker.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---

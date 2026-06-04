@@ -1,6 +1,6 @@
 ---
 name: frontend-next
-description: Sub-agent của story-master. Chuyên Next.js trong `frontend/` — App Router, RSC + client component, gọi API qua `src/lib/api.ts`, phát audio trên trình duyệt (Web Speech API + `<audio>`). Dùng khi sửa UI web, form, route page, SSR fetch, audio player. KHÔNG sửa backend logic, mobile, hoặc duplicate business rules.
+description: Next.js trong `frontend/` — UI web, App Router, SSR fetch, audio trình duyệt. KHÔNG sửa backend/mobile.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
