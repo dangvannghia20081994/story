@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Novel Crawler</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="panel">
+        <h2 class="panel-title">Crawl cả site (nhiều truyện)</h2>
+        <div class="field">
+          <label for="siteUrl">Link trang chủ / danh sách</label>
+          <input id="siteUrl" type="url" value="https://www.tvtruyen.ink/">
+        </div>
+
+        <div class="grid">
+          <label class="field">
+            <span>Max chapters / truyện</span>
+            <input id="siteMaxChapters" type="number" min="1" placeholder="Trống = tất cả">
+          </label>
+          <label class="field">
+            <span>Số luồng (concurrency)</span>
+            <input id="siteConcurrency" type="number" min="1" value="40">
+          </label>
+          <label class="field">
+            <span>Delay (ms)</span>
+            <input id="siteDelayMs" type="number" min="0" step="100" value="500">
+          </label>
+          <label class="check">
+            <input id="siteForce" type="checkbox">
+            <span>Tải lại chapter</span>
+          </label>
+        </div>
+
+        <div class="site-actions">
+          <button id="listStories">Lấy danh sách truyện</button>
+          <button id="crawlSelected" disabled>Crawl truyện đã chọn</button>
+        </div>
+
+        <div id="storyListHead" class="story-list-head" hidden>
+          <label class="check">
+            <input id="selectAll" type="checkbox" checked>
+            <span>Chọn tất cả</span>
+          </label>
+          <span id="storyCount"></span>
+        </div>
+        <div id="storyList" class="story-list"></div>
+        <div id="siteProgress" class="site-progress"></div>
+      </section>
+
+      <hr class="sep">
+
+      <section class="panel">
+        <h2 class="panel-title">Crawl 1 truyện</h2>
+        <div class="field">
+          <label for="url">Novel URL</label>
+          <input id="url" type="url" value="https://www.tvtruyen.ink/tu-hai-nhi-bat-dau-nhap-dao-dich.html">
+        </div>
+
+        <div class="grid">
+          <label class="field">
+            <span>Từ chương</span>
+            <input id="fromIndex" type="number" min="1" placeholder="Index đầu">
+          </label>
+          <label class="field">
+            <span>Đến chương</span>
+            <input id="toIndex" type="number" min="1" placeholder="Index cuối">
+          </label>
+          <label class="field">
+            <span>Max chapters</span>
+            <input id="maxChapters" type="number" min="1" placeholder="Trống = tất cả">
+          </label>
+          <label class="field">
+            <span>Số luồng (concurrency)</span>
+            <input id="concurrency" type="number" min="1" max="80" value="40">
+          </label>
+          <label class="field">
+            <span>Delay (ms)</span>
+            <input id="delayMs" type="number" min="0" step="100" value="400">
+          </label>
+          <label class="check">
+            <input id="listOnly" type="checkbox">
+            <span>Chỉ lấy catalog</span>
+          </label>
+          <label class="check">
+            <input id="refreshCatalog" type="checkbox">
+            <span>Refresh catalog</span>
+          </label>
+          <label class="check">
+            <input id="force" type="checkbox">
+            <span>Tải lại chapter</span>
+          </label>
+        </div>
+
+        <button id="start">Start Crawl</button>
+      </section>
+
+      <section class="panel">
+        <div class="status">
+          <span id="status">idle</span>
+          <div class="status-right">
+            <button id="stop" disabled>Dừng</button>
+            <span id="jobId"></span>
+          </div>
+        </div>
+        <div id="progress" class="progress" hidden>
+          <div class="progress-label"><span id="progressText"></span></div>
+          <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        </div>
+        <pre id="logs"></pre>
+        <div id="links" class="links"></div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

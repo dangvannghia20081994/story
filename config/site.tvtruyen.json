@@ -1,0 +1,18 @@
+{
+  "name": "tvtruyen",
+  "baseUrl": "https://www.tvtruyen.ink",
+  "selectors": {
+    "title": "#comic_name, h1, h3.title",
+    "author": ".author .item-value, [itemprop='author']",
+    "chapterList": "#list-chapter a[href], #mobile-list-chapter a.chapter-link[href]",
+    "chapterTitle": "h1, h2",
+    "chapterContent": ".chapter-content, .content, #chapter-content, .chapter-c"
+  },
+  "request": {
+    "delayMs": 500,
+    "concurrency": 4,
+    "timeoutMs": 20000,
+    "maxRetries": 3,
+    "userAgent": "Mozilla/5.0 NovelCrawler/1.0"
+  }
+}

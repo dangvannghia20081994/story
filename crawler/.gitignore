@@ -1,7 +1,0 @@
-.env
-venv/
-.venv/
-__pycache__/
-*.pyc
-truyen_data.json
-output.json
