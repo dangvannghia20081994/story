@@ -15,7 +15,9 @@ from datetime import datetime, timezone
 import psycopg2
 import psycopg2.extras
 
-DB_DSN = "host=localhost port=5432 dbname=story user=story password=story"
+DB_DSN = os.environ.get(
+    "DB_DSN", "host=localhost port=5432 dbname=story user=story password=story"
+)
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
@@ -63,10 +65,75 @@ def strip_follow_along_notice(text: str) -> str:
     return text[:pos].rstrip()
 
 
+# Dòng credit nhóm dịch — có thể ở đầu (header) hoặc cuối (footer) chương.
+# Bắt cả biến thể "Người dịch", "Biên" và dấu cách tùy ý trước dấu ":".
+_CREDIT_RE = re.compile(
+    r"^[\s]*(Dịch giả|Người dịch|Biên tập|Biên|Nhóm dịch|Nguồn truyện|Nguồn)\s*:",
+    re.UNICODE,
+)
+_DASH_RE = re.compile(r"^[\s]*-{3,}[\s]*$", re.UNICODE)
+
+
+def strip_translator_credit_footer(text: str) -> str:
+    """Xóa các DÒNG credit nhóm dịch (Dịch giả/Người dịch/Biên/Biên tập/Nhóm dịch/Nguồn:…)
+    dù ở đầu hay cuối chương. Chỉ bỏ đúng dòng credit + dòng phân cách '-----' liền kề,
+    KHÔNG cắt phần nội dung truyện xung quanh."""
+    if not text:
+        return text
+    lines = re.split(r"\r\n|\r|\n", text)
+    keep = [not _CREDIT_RE.match(ln) for ln in lines]
+    # Bỏ luôn dòng gạch ngang nếu nó chỉ kề sát (trên/dưới) một dòng credit đã bỏ.
+    for i, ln in enumerate(lines):
+        if keep[i] and _DASH_RE.match(ln):
+            prev_removed = i > 0 and not keep[i - 1]
+            next_removed = i + 1 < len(lines) and not keep[i + 1]
+            if prev_removed or next_removed:
+                keep[i] = False
+    out = [ln for ln, k in zip(lines, keep) if k]
+    return "\n".join(out).strip()
+
+
+_PROMO_RE = re.compile(
+    r"(Hãy tham gia Group|Hãy vào\s+.*để đọc truyện nhanh|cập nhật truyện nhanh nhất|vietwriter)",
+    re.IGNORECASE | re.UNICODE,
+)
+
+# Ad inline trong ngoặc: "( đọc truyện tại truyenyy.Pro để ủng hộ dịch giả nhé ... )".
+# Xóa cụm trong ngoặc bám theo "đọc truyện tại <site>" thay vì cắt cả chương.
+_INLINE_AD_RE = re.compile(
+    r"\(\s*đọc truyện tại[^)]*\)\s*", re.IGNORECASE | re.UNICODE
+)
+
+
+def strip_inline_repost_ads(text: str) -> str:
+    """Xóa các cụm quảng bá inline "( đọc truyện tại … )" lẫn trong câu."""
+    if not text:
+        return text
+    return _INLINE_AD_RE.sub("", text)
+
+
+def strip_repost_site_promo_block(text: str) -> str:
+    """Cắt khối quảng bá site repost (Vietwriter / mời theo Group Facebook) tới hết chương."""
+    if not text:
+        return text
+    lines = re.split(r"\r\n|\r|\n", text)
+    cut = None
+    for i, line in enumerate(lines):
+        if _PROMO_RE.search(line):
+            cut = i
+            break
+    if cut is None:
+        return text
+    return "\n".join(lines[:cut]).rstrip()
+
+
 def sanitize_content(text: str) -> str:
     text = strip_exclusive_publishing_notice(text)
     text = strip_known_source_domains(text)
     text = strip_known_source_labels(text)
+    text = strip_translator_credit_footer(text)
+    text = strip_inline_repost_ads(text)
+    text = strip_repost_site_promo_block(text)
     text = strip_follow_along_notice(text)
     return text
 
@@ -114,17 +181,47 @@ def title_from_folder(folder: str) -> str:
     return folder.replace("-", " ").title()
 
 
+def read_story_meta(story_dir: str, folder: str) -> dict:
+    """Đọc meta.json của truyện. Title lấy từ meta; fallback về tên folder.
+
+    Trả {title, description}. meta.json có dạng:
+        {"title": "A LINH", "author": "Zhihu", "sourceUrl": "...", ...}
+    """
+    meta_path = os.path.join(story_dir, "meta.json")
+    title = title_from_folder(folder)
+    description = None
+    try:
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        t = (meta.get("title") or "").strip()
+        if t:
+            title = t
+        author = (meta.get("author") or "").strip()
+        if author:
+            description = f"Tác giả: {author}"
+    except FileNotFoundError:
+        pass
+    except Exception as e:  # meta lỗi không nên chặn import chương
+        print(f"  WARN reading meta.json for {folder}: {e}")
+    return {"title": title[:500], "description": description}
+
+
 # ── DB helpers ───────────────────────────────────────────────────────────────
 
-def get_or_create_story(cur, slug: str, title: str) -> int:
+def get_or_create_story(cur, slug: str, title: str, description: str | None = None) -> int:
     cur.execute("SELECT id FROM stories WHERE slug = %s", (slug,))
     row = cur.fetchone()
     if row:
+        # Đồng bộ lại title/description từ meta.json cho truyện đã tồn tại.
+        cur.execute(
+            "UPDATE stories SET title = %s, description = COALESCE(%s, description), updated_at = NOW() WHERE id = %s",
+            (title, description, row[0]),
+        )
         return row[0]
     cur.execute(
         "INSERT INTO stories (title, slug, description, genres, serial_status, created_at, updated_at) "
-        "VALUES (%s, %s, NULL, %s, 'ongoing', NOW(), NOW()) RETURNING id",
-        (title, slug, json.dumps([])),
+        "VALUES (%s, %s, %s, %s, 'ongoing', NOW(), NOW()) RETURNING id",
+        (title, slug, description, json.dumps([])),
     )
     return cur.fetchone()[0]
 
@@ -163,8 +260,8 @@ def import_story(cur, story_slug: str) -> dict:
     if not chapter_files:
         return {"skipped": True, "reason": "no chapter files"}
 
-    story_title = title_from_folder(story_slug)
-    story_id = get_or_create_story(cur, story_slug, story_title)
+    meta = read_story_meta(story_dir, story_slug)
+    story_id = get_or_create_story(cur, story_slug, meta["title"], meta["description"])
 
     existing_titles = get_existing_chapter_titles(cur, story_id)
     existing_slugs = get_existing_chapter_slugs(cur, story_id)
@@ -191,7 +288,7 @@ def import_story(cur, story_slug: str) -> dict:
             errors += 1
             continue
 
-        # Truncate to DB column limits
+        # Truncate to DB column limits (chapters.title = varchar(255))
         title = title[:255]
 
         if title in existing_titles:

@@ -161,13 +161,97 @@ class Story extends Model
     }
 
     /**
-     * Chuẩn hóa body chương khi lưu (CMS, API, crawler nội bộ): dòng quảng bá độc quyền + domain nguồn crawl + nhãn nguồn + cắt footer theo dõi.
+     * Xóa các DÒNG credit nhóm dịch (xuất hiện ở đầu hoặc cuối chương từ một số nguồn crawl):
+     * «Dịch giả: …», «Người dịch: …», «Biên: …», «Biên tập: …», «Nhóm dịch: …», «Nguồn: Truyenyy.com»,
+     * kèm dòng phân cách «-----» liền kề. Chỉ bỏ đúng các dòng đó, KHÔNG cắt nội dung truyện xung quanh.
+     */
+    public static function stripTranslatorCreditFooter(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+
+        $lines = preg_split('/\R/u', $text) ?: [];
+        $creditRe = '/^[\p{Zs}\s]*(Dịch giả|Người dịch|Biên tập|Biên|Nhóm dịch|Nguồn truyện|Nguồn)\s*:/u';
+        $dashRe = '/^[\p{Zs}\s]*-{3,}[\p{Zs}\s]*$/u';
+
+        $keep = [];
+        foreach ($lines as $i => $line) {
+            $keep[$i] = preg_match($creditRe, $line) !== 1;
+        }
+        // Bỏ luôn dòng gạch ngang nếu kề sát (trên/dưới) một dòng credit đã bỏ.
+        foreach ($lines as $i => $line) {
+            if ($keep[$i] && preg_match($dashRe, $line) === 1) {
+                $prevRemoved = $i > 0 && ! $keep[$i - 1];
+                $nextRemoved = isset($lines[$i + 1]) && ! $keep[$i + 1];
+                if ($prevRemoved || $nextRemoved) {
+                    $keep[$i] = false;
+                }
+            }
+        }
+
+        $out = [];
+        foreach ($lines as $i => $line) {
+            if ($keep[$i]) {
+                $out[] = $line;
+            }
+        }
+
+        return trim(implode("\n", $out));
+    }
+
+    /**
+     * Xóa cụm quảng bá inline trong ngoặc «( đọc truyện tại …Pro để ủng hộ dịch giả nhé … )»
+     * lẫn giữa câu, không cắt cả chương.
+     */
+    public static function stripInlineRepostAds(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+
+        return (string) preg_replace('/\(\s*đọc truyện tại[^)]*\)\s*/iu', '', $text);
+    }
+
+    /**
+     * Cắt khối quảng bá site repost (Vietwriter & lời mời theo Group Facebook) từ dòng
+     * khớp đầu tiên tới hết chương. Bao gồm câu mời «Hãy tham gia Group … trên Facebook»,
+     * «Hãy vào …vietwriter… để đọc truyện nhanh hơn» và domain vietwriter.
+     */
+    public static function stripRepostSitePromoBlock(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+
+        $lines = preg_split('/\R/u', $text) ?: [];
+        $promoRe = '/(Hãy tham gia Group|Hãy vào\s+.*để đọc truyện nhanh|cập nhật truyện nhanh nhất|vietwriter)/iu';
+        $cut = null;
+        for ($i = 0; $i < count($lines); $i++) {
+            if (preg_match($promoRe, $lines[$i]) === 1) {
+                $cut = $i;
+                break;
+            }
+        }
+
+        if ($cut === null) {
+            return $text;
+        }
+
+        return rtrim(implode("\n", array_slice($lines, 0, $cut)));
+    }
+
+    /**
+     * Chuẩn hóa body chương khi lưu (CMS, API, crawler nội bộ): dòng quảng bá độc quyền + domain nguồn crawl + nhãn nguồn + footer nhóm dịch + khối quảng bá site repost + cắt footer theo dõi.
      */
     public static function sanitizeChapterContent(string $text): string
     {
         $text = self::stripExclusivePublishingNoticeLines($text);
         $text = self::stripKnownRepostedSourceDomains($text);
         $text = self::stripKnownRepostedSourceLabels($text);
+        $text = self::stripTranslatorCreditFooter($text);
+        $text = self::stripInlineRepostAds($text);
+        $text = self::stripRepostSitePromoBlock($text);
 
         return self::stripFromFollowAlongNotice($text);
     }

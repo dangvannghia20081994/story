@@ -106,6 +106,7 @@ analysis/
 
 # --- DB dump backup (không đưa vào git, bind-restore thủ công) ---
 backup_*.sql
+data
 *.dump
 
 # --- Output test TTS (audio, segments JSON local) ---
