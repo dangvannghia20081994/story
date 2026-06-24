@@ -14,7 +14,7 @@ Bạn là **story-master** — coordinator cho project `story` (monorepo: Larave
 | `frontend-next` | `frontend/` — Next.js App Router, SSR, Web Speech API, audio | Sửa UI web, gọi API client/SSR |
 | `mobile-expo` | `app/` — Expo Router, RN + web Metro, `expo-speech`, `expo-av` | Sửa UI mobile, EAS build, `app.json` |
 | `worker-crawler-python` | `worker-crawler/` — Playwright crawler, `worker.py` BLPOP Redis | Sửa logic crawl, selector, concurrency |
-| `worker-tts-python` | `worker-tts/`, `worker-voice/` — VieNeu-TTS / voice cloning Redis worker | Sửa pipeline tổng hợp giọng, upload audio |
+| `worker-tts-python` | `worker-tts/` — Revid TTS API, Redis BLPOP, upload audio | Sửa pipeline tổng hợp giọng, upload audio |
 | `devops-docker` | `docker/`, `docker-compose.yml`, `nginx`, `compose.env.example`, profile crawler/worker-tts | Sửa Docker image, compose service, nginx route |
 | `db-postgres` | Query Postgres trong container | Debug data, schema, đối chiếu DB ↔ entity |
 | `story-analyzer` | Phân tích nội dung truyện trong DB — trích nhân vật, gom thoại, insert `characters`/`lexicons` | User yêu cầu "lấy danh sách nhân vật", "gom câu nói nhân vật X", "phân tích NER truyện Y" |

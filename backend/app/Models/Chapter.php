@@ -345,13 +345,22 @@ SQL;
     }
 
     /**
+     * Có audio 1-giọng (audio_single_path) — pipeline TTS hiện tại.
+     * audio_multiple_path để dành phase "đa vai" sau, KHÔNG tính ở trạng thái CMS.
+     */
+    public function hasSingleAudio(): bool
+    {
+        return is_string($this->audio_single_path) && $this->audio_single_path !== '';
+    }
+
+    /**
      * Trạng thái TTS cho CMS: audio xong, đã RPUSH Redis, chưa đẩy hàng, hoặc thiếu text.
      *
      * @return 'ready'|'queued'|'pending'|'no_text'
      */
     public function cmsTtsStatusKey(): string
     {
-        if ($this->hasAudioFile()) {
+        if ($this->hasSingleAudio()) {
             return 'ready';
         }
         if (WorkerTtsQueue::plainTextFromChapter($this) === '') {
@@ -367,8 +376,8 @@ SQL;
     public function cmsTtsStatusLabel(): string
     {
         return match ($this->cmsTtsStatusKey()) {
-            'ready' => 'Đã có audio',
-            'queued' => 'Đã xếp hàng TTS',
+            'ready' => 'Hoàn tất',
+            'queued' => 'Đã xếp hàng',
             'pending' => 'Chưa đẩy hàng',
             'no_text' => 'Thiếu nội dung',
         };

@@ -16,7 +16,7 @@ Bạn là **story-master** — coordinator cho project `story` (monorepo: Larave
 | `frontend-next` | `frontend/` — Next.js App Router, SSR, Web Speech API, audio | Sửa UI web, gọi API client/SSR |
 | `mobile-expo` | `app/` — Expo Router, RN + web Metro, `expo-speech`, `expo-av` | Sửa UI mobile, EAS build, `app.json` |
 | `worker-crawler-python` | `worker-crawler/` — Playwright crawler, `worker.py` BLPOP Redis | Sửa logic crawl, selector, concurrency |
-| `worker-tts-python` | `worker-tts/`, `worker-voice/` — VieNeu-TTS / voice cloning Redis worker | Sửa pipeline tổng hợp giọng, upload audio |
+| `worker-tts-python` | `worker-tts/` — Revid TTS API, Redis BLPOP, upload audio | Sửa pipeline tổng hợp giọng, upload audio |
 | `devops-docker` | `docker/`, `docker-compose.yml`, `nginx`, `compose.env.example`, profile crawler/worker-tts | Sửa Docker image, compose service, nginx route |
 | `db-postgres` | Query Postgres trong container | Debug data, schema, đối chiếu DB ↔ entity |
 | `story-analyzer` | Phân tích nội dung truyện trong DB — trích nhân vật, gom thoại, insert `characters`/`lexicons` | User yêu cầu "lấy danh sách nhân vật", "gom câu nói nhân vật X", "phân tích NER truyện Y" |
@@ -63,14 +63,14 @@ Bạn là **story-master** — coordinator cho project `story` (monorepo: Larave
   - Backend: Laravel 12, PHP ≥ 8.4, Postgres 16, Redis 7
   - Frontend: Next.js 15 (App Router), Tailwind
   - Mobile: Expo (RN + web Metro)
-  - Workers: Python 3.10+, Playwright (crawler), VieNeu-TTS / vi-xtts (TTS)
+  - Workers: Python 3.10+, Playwright (crawler), Revid TTS API (TTS)
   - Infra: Docker Compose, nginx reverse proxy
 - **URL chuẩn dev**:
   - API `http://localhost:8000` (docs `/docs/api`)
   - Next `http://localhost:3000`
   - Expo web `http://localhost:8090`
   - Postgres `localhost:5432`, Redis `localhost:6379`
-- **Storage audio**: `backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/audio.mp3` (qua `php artisan storage:link`)
+- **Storage audio**: `backend/storage/app/private/stories/{story_id}/chapters/{chapter_id}/audio_single.mp3` (1 giọng) / `audio_multiple.mp3` (đa giọng) — stream qua signed URL
 - **Genre chuẩn**: `tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`
 - **Route key `{story}`**: số → tìm theo `id`, ngược lại → `slug` (xem `AppServiceProvider`).
 

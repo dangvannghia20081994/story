@@ -18,7 +18,7 @@ Hệ thống monorepo đọc truyện online.
 | Web                | `frontend/`                                            | Next.js 15 (App Router), Tailwind                             |
 | Mobile + web Metro | `app/`                                                 | Expo Router, RN, `expo-speech`, `expo-av`                     |
 | Crawler            | `worker-crawler/`                                      | Python 3.10+, Playwright (Chromium), BLPOP Redis              |
-| TTS workers        | `worker-tts/`, `worker-voice/`                         | Python — VieNeu-TTS / vi-xtts                                 |
+| TTS workers        | `worker-tts/`                                          | Python — Revid TTS API, Redis BLPOP                           |
 | Infra              | `docker/`, `docker-compose.yml`, `compose.env.example` | Docker Compose, nginx                                         |
 
 ## URL chuẩn dev

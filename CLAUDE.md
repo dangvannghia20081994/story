@@ -14,7 +14,7 @@ Monorepo đọc truyện online. Người dùng đọc trên web/app, **giọng 
 | Web                | `frontend/`                                            | Next.js 15 (App Router), Tailwind                             |
 | Mobile + web Metro | `app/`                                                 | Expo Router, RN, `expo-speech`, `expo-av`                     |
 | Crawler            | `worker-crawler/`                                      | Python 3.10+, Playwright (Chromium), BLPOP Redis              |
-| TTS workers        | `worker-tts/`, `worker-voice/`                         | Python — VieNeu-TTS / vi-xtts                                 |
+| TTS workers        | `worker-tts/`                                          | Python — Revid TTS API, Redis BLPOP                           |
 | Infra              | `docker/`, `docker-compose.yml`, `compose.env.example` | Docker Compose, nginx                                         |
 
 ## URL chuẩn dev
@@ -26,7 +26,6 @@ Monorepo đọc truyện online. Người dùng đọc trên web/app, **giọng 
 | Expo web             | http://localhost:8090                    |
 | Postgres             | localhost:5432                           |
 | Redis                | localhost:6379                           |
-| Coqui TTS (tuỳ chọn) | http://localhost:5002                    |
 
 ## Quy tắc routing cho assistant
 
@@ -48,7 +47,7 @@ Prompt cho agent: self-contained nhưng ngắn — không paste nguyên văn doc
 | `docker-compose.yml`, `docker/**`, nginx, port, profile, image                        | `devops-docker`                    |
 | Query Postgres (debug data, schema, EXPLAIN)                                          | `db-postgres` (read-only mặc định) |
 | Phân tích nội dung truyện — trích nhân vật, gom thoại, insert `characters`/`lexicons` | `story-analyzer`                   |
-| Tạo audio TTS cho N chapter (story_tts.sh / story_single_tts.sh), ghép MP3            | `audio-merger`                     |
+| Ghép nhiều file MP3 thành 1 bằng ffmpeg                                                | `audio-merger`                     |
 
 Full chi tiết: `.claude/agents/README.md`, `.claude/agents/story-master.md`.
 
@@ -60,7 +59,7 @@ Full chi tiết: `.claude/agents/README.md`, `.claude/agents/story-master.md`.
 - **Genre chuẩn**: `tu-tien`, `huyen-huyen`, `kiem-hiep`, `do-thi`, `khac`.
 - **Route key `{story}`**: số → `id`, ngược lại → `slug` (xem `AppServiceProvider`).
 - **Storage audio**:
-  - `audio_multiple_path` → `stories/{story_id}/chapters/{chapter_id}/audio.mp3` — audio ghép từ nhiều segment (mỗi segment 1 giọng riêng).
+  - `audio_multiple_path` → `stories/{story_id}/chapters/{chapter_id}/audio_multiple.mp3` — audio ghép từ nhiều segment (mỗi segment 1 giọng riêng).
   - `audio_single_path` → `stories/{story_id}/chapters/{chapter_id}/audio_single.mp3` — audio toàn chapter bằng 1 voice cố định.
   - Cần `php artisan storage:link` để serve qua public.
 - **Crawler ↔ backend**: crawler gọi API nội bộ `/api/internal/crawler/*` qua header `X-Crawler-Token`. TTS worker upload qua `WORKER_TTS_INTERNAL_TOKEN`.

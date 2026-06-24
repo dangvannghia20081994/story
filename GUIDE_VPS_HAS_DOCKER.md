@@ -15,7 +15,7 @@ Hướng dẫn cho máy chủ Linux (Ubuntu/Debian) đã cài **Docker Engine** 
 | **DB**            | —                 | `db`                                     | PostgreSQL 16                                                         |
 | **Redis**         | —                 | `redis`                                  | Queue crawler, queue TTS, cache Laravel                               |
 | **Crawler**       | `worker-crawler/` | `worker-crawler` (**profile `crawler`**) | Playwright; `worker-crawler/.env` + token trùng backend               |
-| **Worker TTS**    | `worker-tts/`     | `worker-tts` (**profile `worker-tts`**)  | VieNeu + Redis BLPOP + upload API nội bộ                              |
+| **Worker TTS**    | `worker-tts/`     | `worker-tts` (**profile `worker-tts`**)  | Revid TTS API + Redis BLPOP + upload API nội bộ                       |
 
 Chi tiết image: [docker/README.md](docker/README.md). Chi tiết API/CMS: [backend/README.md](backend/README.md).
 
@@ -120,16 +120,16 @@ CMS tạo job: **`/admin/crawler-jobs`**. Luồng: Redis list `CRAWLER_REDIS_QUE
 
 ---
 
-## 7. Worker TTS (VieNeu + Redis)
+## 7. Worker TTS (Revid + Redis)
 
 **Bật service (profile):**
 
 1. `cp worker-tts/.env.example worker-tts/.env` — **`WORKER_TTS_INTERNAL_TOKEN`** trùng **`backend/.env`**, `BACKEND_API_BASE_URL` (trong compose mặc định `http://backend:8000`), `REDIS_*`, `WORKER_TTS_REDIS_QUEUE` trùng backend.
-2. Đặt file giọng mẫu (WAV/MP3) và chỉnh mount trong `docker-compose.yml` (mặc định `./worker-tts/input.wav:/app/input.wav`) và `REFERENCE_AUDIO_PATH` nếu đường dẫn trong container khác.
+2. *(Tuỳ chọn)* Thêm `REVID_API_KEY=sk_...` nếu muốn override key mặc định.
 3. `docker compose --profile worker-tts up -d --build`
 4. `docker compose logs -f worker-tts`
 
-**Luồng:** CMS (hoặc code) **RPUSH** JSON `{"chapter_id", "text"}` lên list Redis → `worker-tts/worker_redis.py` **BLPOP** → tổng hợp giọng → **POST** `/api/internal/tts/chapters/{id}/audio` (multipart field **`audio`**, header **`X-Worker-Tts-Token`**, `Accept: application/json`). Backend lưu `storage/app/public` và cập nhật `chapters.audio_path`.
+**Luồng:** CMS **RPUSH** JSON `{"chapter_id", "mode": "single", "text", "voice_id"}` lên list Redis → `worker-tts/worker_redis.py` **BLPOP** → chunking → Revid TTS API (base64 MP3) → ffmpeg concat → **POST** `/api/internal/tts/chapters/{id}/audio` (multipart field **`audio`**, header **`X-Worker-Tts-Token`**, `type=single`). Backend lưu `storage/app` và cập nhật `chapters.audio_single_path`.
 
 **Gỡ lỗi upload:** xem log prefix `worker_tts.upload.*` trong `laravel.log`; PHP `upload_max_filesize` / `post_max_size` trong image (xem `backend/README.md` nếu chỉnh).
 

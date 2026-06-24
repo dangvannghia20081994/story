@@ -106,18 +106,6 @@ export type StoryReadNavigation = {
   next: ReadNavigationNeighbor | null;
 };
 
-export interface CreateStoryData {
-  title: string;
-  slug?: string;
-  description?: string;
-  genre?: string;
-  genres?: string[];
-  first_chapter?: {
-    title: string;
-    content: string;
-  };
-}
-
 /** Phản hồi phân trang Laravel (`StoryController@index`). */
 export type PaginatedStories = {
   data: Story[];
@@ -136,10 +124,4 @@ export function chapterAudioUrl(c: Chapter | undefined | null): string | null {
   return resolveMediaUrl(c.audio_multiple_path);
 }
 
-export async function createStory(data: CreateStoryData): Promise<Story> {
-  return apiFetch<Story>("/api/stories", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
 

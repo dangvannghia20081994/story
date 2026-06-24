@@ -56,12 +56,19 @@ class ChapterController extends Controller
             $query->where('title', 'like', $like);
         }
 
+        // Màn này chỉ xét audio_single_path (pipeline TTS 1 giọng hiện tại).
+        // audio_multiple_path để dành phase "đa vai" sau.
+        $hasAudio = function ($sub): void {
+            $sub->whereNotNull('audio_single_path')->where('audio_single_path', '!=', '');
+        };
+        $noAudio = function ($sub): void {
+            $sub->whereNull('audio_single_path')->orWhere('audio_single_path', '');
+        };
+
         if ($audio === '1') {
-            $query->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '!=', '');
+            $query->where($hasAudio);
         } elseif ($audio === '0') {
-            $query->where(function ($sub): void {
-                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
-            });
+            $query->where($noAudio);
         }
 
         if ($analyzed === '1') {
@@ -75,20 +82,14 @@ class ChapterController extends Controller
         }
 
         if ($tts === 'ready') {
-            $query->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '!=', '');
+            $query->where($hasAudio);
         } elseif ($tts === 'queued') {
-            $query->where(function ($sub): void {
-                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
-            })->whereNotNull('tts_enqueued_at');
+            $query->where($noAudio)->whereNotNull('tts_enqueued_at');
         } elseif ($tts === 'pending') {
-            $query->where(function ($sub): void {
-                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
-            })->whereNull('tts_enqueued_at')
+            $query->where($noAudio)->whereNull('tts_enqueued_at')
                 ->whereRaw('LENGTH(TRIM(COALESCE(content, ?))) > 0', ['']);
         } elseif ($tts === 'no_text') {
-            $query->where(function ($sub): void {
-                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
-            })->where(function ($sub): void {
+            $query->where($noAudio)->where(function ($sub): void {
                 $sub->whereNull('content')
                     ->orWhereRaw('LENGTH(TRIM(COALESCE(content, ?))) = 0', ['']);
             });
@@ -353,8 +354,13 @@ class ChapterController extends Controller
             return back()->withErrors(['tts' => $msg]);
         }
 
+        $voiceId = trim((string) $request->input('voice_id', 'capcut:BV074_streaming'));
+        if ($voiceId === '' || ! preg_match('/^(\d+|edge:[A-Za-z0-9_-]+|capcut:[A-Za-z0-9_]+)$/', $voiceId)) {
+            $voiceId = 'capcut:BV074_streaming';
+        }
+
         try {
-            WorkerTtsQueue::push($chapter);
+            WorkerTtsQueue::push($chapter, null, $voiceId);
         } catch (\Throwable $e) {
             report($e);
             $msg = 'Không đẩy được job lên Redis (kiểm tra REDIS_* và worker worker_redis.py / ./run-dev.sh --with-worker).';
@@ -368,16 +374,16 @@ class ChapterController extends Controller
         $chapter->refresh();
 
         if ($wantsJson) {
-            $badgeTitle = null;
-            if ($chapter->cmsTtsStatusKey() === 'queued' && $chapter->tts_enqueued_at !== null) {
-                $badgeTitle = 'Đã đẩy hàng lúc '.$chapter->tts_enqueued_at->timezone(config('app.timezone'))->format('d/m/Y H:i');
-            }
+            $badgeTitle = $chapter->tts_enqueued_at !== null
+                ? 'Đã đẩy hàng lúc '.$chapter->tts_enqueued_at->timezone(config('app.timezone'))->format('d/m/Y H:i')
+                : null;
 
+            // Vừa đẩy job → luôn báo "Đang xử lý" (kể cả khi đang ghi đè audio cũ).
             return response()->json([
                 'message' => 'Đã đưa chương «'.$chapter->title.'» vào hàng TTS (Redis).',
                 'tts' => [
-                    'label' => $chapter->cmsTtsStatusLabel(),
-                    'badge_class' => $chapter->cmsTtsBadgeClass(),
+                    'label' => 'Đang xử lý',
+                    'badge_class' => 'cms-badge--job-processing',
                     'title' => $badgeTitle,
                 ],
             ]);

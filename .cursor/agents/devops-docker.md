@@ -22,7 +22,7 @@ Bạn là **devops-docker** — sub-agent hạ tầng Docker / Compose / nginx.
 | `frontend` | default | 3000 | volume `frontend_node_modules` |
 | `expo` | default | 8090:8081 | KHÔNG set `CI` |
 | `worker-crawler` | `crawler` | — | Playwright |
-| `worker-tts` | `worker-tts` | — | mount `input.wav` |
+| `worker-tts` | `worker-tts` | — | Revid TTS API |
 | `nginx` | default | 80 | proxy frontend + backend |
 
 ## Ranh giới

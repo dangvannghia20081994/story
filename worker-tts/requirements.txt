@@ -1,10 +1,3 @@
-# llama-cpp-python bản CPU có sẵn (tránh phải compile trên một số máy)
---extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/
-# torch CPU-only wheel (cho VieNeu encode_reference / voice clone từ input.wav)
---extra-index-url https://download.pytorch.org/whl/cpu
-
-vieneu
-torch
 redis>=5
 requests>=2.31
 python-dotenv>=1.0.0

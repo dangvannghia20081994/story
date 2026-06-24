@@ -33,11 +33,6 @@ class UpdateCharacterRequest extends FormRequest
                     ->where('story_id', $story->id)
                     ->ignore($character->id),
             ],
-            'voice_preset' => ['nullable', 'string', 'max:50'],
-            'pitch_semitones' => ['nullable', 'integer', 'between:-12,12'],
-            'tempo_factor' => ['nullable', 'numeric', 'between:0.5,2.0'],
-            'voice_file' => ['nullable', 'file', 'mimetypes:audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a', 'max:5120'],
-            'delete_voice_file' => ['nullable', 'boolean'],
         ];
     }
 }

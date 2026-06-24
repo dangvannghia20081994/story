@@ -24,29 +24,19 @@ docker compose up --build
 | API Docs                               | http://localhost:8000/docs/api                                                                                                                                                                                               |
 | Next.js                                | http://localhost:3000                                                                                                                                                                                                        |
 | Expo web                               | http://localhost:8090                                                                                                                                                                                                        |
-| Coqui TTS (tuỳ chọn, `coqui/`)         | http://localhost:5002 — Docker (`coqui/run.ps1`) hoặc **không Docker**: `coqui/run-native.ps1`                                                                                                                               |
 | Postgres                               | localhost:5432                                                                                                                                                                                                               |
 | Redis                                  | localhost:6379                                                                                                                                                                                                               |
 | Crawler worker (Python, tuỳ chọn)      | **Docker:** `docker compose --profile crawler up -d` (xem [docker/README.md](docker/README.md)). **Host:** `worker-crawler/worker.py` + `worker-crawler/.env` — [GUIDE_WINDOW.md](GUIDE_WINDOW.md), [run-dev.sh](run-dev.sh) |
-| Worker-TTS (Python, tuỳ chọn)          | `docker compose --profile worker-tts up -d --build` — tổng hợp giọng VieNeu-TTS theo job Redis (xem [worker-tts/README.md](worker-tts/README.md))                                                                            |
-| Script TTS batch (shell)               | `scripts/story_tts.sh` — multi-voice per segment → `audio_multiple_path`; `scripts/story_single_tts.sh` — 1 voice cố định → `audio_single_path`                                                                              |
+| Worker-TTS (Python, tuỳ chọn)          | `docker compose --profile worker-tts up -d --build` — tổng hợp giọng Revid TTS API theo job Redis (xem [worker-tts/README.md](worker-tts/README.md))                                                                         |
 
 Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, **`worker-crawler/README.md`**, và **`docker/README.md`** cho image Docker / biến Compose.
 
-## Scripts TTS batch (shell)
+## Audio storage
 
-| Script | Mô tả |
-|--------|-------|
-| `scripts/story_tts.sh <story_id> [limit] [ch_parallel] [tts_parallel]` | Multi-voice — lookup voice per speaker từ `voice_mappings`, ghép segment → `audio_multiple_path` |
-| `scripts/story_single_tts.sh <story_id> <voice_id> [limit] [ch_parallel] [tts_parallel]` | Single-voice — 1 voice cố định cho toàn chapter → `audio_single_path` |
-| `scripts/chapter_tts.sh <chapter_id> <story_id> <segments_file> [rate] [parallel]` | TTS 1 chapter từ file TSV segments |
-| `scripts/tts_revid.sh "<text>" <voice_id> [rate] [output]` | TTS 1 đoạn text qua Revid API |
+`backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/`
+- `audio_single.mp3` → `audio_single_path` (1 voice cố định qua CMS hoặc Redis queue)
 
 **Voice ID format:** `capcut:BV074_streaming` · `edge:vi-VN-HoaiMyNeural` · `8001`–`8004` (Revid integer)
-
-**Audio storage:** `backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/`
-- `audio.mp3` → `audio_multiple_path` (multi-voice)
-- `audio_single.mp3` → `audio_single_path` (single-voice)
 
 ## Quy ước: thêm cấu hình hoặc config
 
@@ -67,7 +57,7 @@ Trong `.cursor/agents/` có **9 sub-agent** (đồng bộ `.claude/agents/`). Ch
 | `frontend/`       | Next.js web, audio client     |
 | `mobile/`         | Expo / RN + web Metro         |
 | `worker-crawler/` | Crawler Playwright + Redis    |
-| `worker-tts/`     | TTS VieNeu / vi-xtts          |
+| `worker-tts/`     | Revid TTS API (Redis BLPOP)   |
 | `devops-docker/`  | Docker Compose, nginx         |
 | `db-postgres/`    | Query Postgres debug          |
 | `story-analyzer/` | Phân tích truyện, NER, thoại  |

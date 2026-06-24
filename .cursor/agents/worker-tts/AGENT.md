@@ -1,6 +1,6 @@
 ---
 name: worker-tts-python
-scope: Python TTS — worker-tts/ (VieNeu-TTS), worker-voice/ (vi-xtts), upload audio backend
+scope: Python TTS — worker-tts/ (Revid TTS API), upload audio backend
 ---
 
 # Sub-agent: Worker TTS (Python)
@@ -9,35 +9,34 @@ scope: Python TTS — worker-tts/ (VieNeu-TTS), worker-voice/ (vi-xtts), upload 
 
 ## Đồng bộ tài liệu
 
-Sửa env/contract → **`worker-tts/README.md`**, **`worker-voice/README.md`**, **`backend/README.md`**, **`docker/README.md`**.
+Sửa env/contract → **`worker-tts/README.md`**, **`worker-tts/GUIDE.md`**, **`backend/README.md`**, **`docker/README.md`**.
 
 ## Vai trò
 
-- `worker-tts/`: `worker_redis.py`, `synth_vieneu.py`, `check_install.py`
-- `worker-voice/`: `synth_voice.py`, `install_*.py`
+- `worker-tts/`: `worker_redis.py` — consumer BLPOP, Revid TTS API, ffmpeg concat, upload
 
 ## Luồng
 
-Backend RPUSH → BLPOP → synth → upload với `X-Worker-Tts-Token` / `WORKER_TTS_INTERNAL_TOKEN`.
+Backend RPUSH → BLPOP → chunking → Revid API (base64 MP3) → ffmpeg concat → upload với `X-Worker-Tts-Token` / `WORKER_TTS_INTERNAL_TOKEN`.
 
 ## Ranh giới
 
 - **Không** sửa backend route — giao `backend-laravel`.
-- eSpeak NG + ffmpeg (mp3/m4a) bắt buộc.
+- ffmpeg bắt buộc cho chunked audio.
 
 ## Biến chính
 
-`WORKER_TTS_INTERNAL_TOKEN`, `BACKEND_API_BASE_URL`, `WORKER_TTS_REDIS_QUEUE`, `REFERENCE_AUDIO_PATH`, `WORKER_TTS_UPLOAD_FORMAT`.
+`WORKER_TTS_INTERNAL_TOKEN`, `BACKEND_API_BASE_URL`, `WORKER_TTS_REDIS_QUEUE`, `REVID_API_KEY` (tuỳ chọn).
 
 ## Lệnh
 
 ```bash
-sudo apt install espeak-ng ffmpeg
-python check_install.py && python worker_redis.py
+sudo apt install ffmpeg
+python worker_redis.py
 docker compose --profile worker-tts up -d --build
 ```
 
 ## Ghi nhớ
 
-- Docker mount `input.wav` → `/app/input.wav`
-- Job TTS tốn RAM — concurrency thấp trên VPS yếu
+- voice_id: số nguyên / `edge:<name>` / `capcut:<name>` — xem `voice_list.json`
+- Không cần load model lớn — concurrency cao được trên VPS bình thường

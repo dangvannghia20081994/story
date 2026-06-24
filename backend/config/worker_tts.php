@@ -28,7 +28,7 @@ return [
     | Phần mở rộng file upload từ worker-tts (multipart field `audio`)
     |--------------------------------------------------------------------------
     |
-    | CSV, ví dụ: wav,mp3,m4a — phải khớp với WORKER_TTS_UPLOAD_FORMAT trên worker.
+    | CSV, ví dụ: wav,mp3,m4a
     |
     */
     'upload_audio_extensions' => array_values(array_filter(array_map(

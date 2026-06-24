@@ -27,7 +27,7 @@ story-master (coordinator)
 | [frontend-next.md](./frontend-next.md) | Next.js web, audio client |
 | [mobile-expo.md](./mobile-expo.md) | Expo / React Native + web |
 | [worker-crawler-python.md](./worker-crawler-python.md) | Crawler Playwright + Redis |
-| [worker-tts-python.md](./worker-tts-python.md) | TTS VieNeu / vi-xtts |
+| [worker-tts-python.md](./worker-tts-python.md) | Revid TTS API (Redis BLPOP) |
 | [devops-docker.md](./devops-docker.md) | Docker, nginx, compose |
 | [db-postgres.md](./db-postgres.md) | Query Postgres debug |
 | [story-analyzer.md](./story-analyzer.md) | Phân tích nội dung truyện |

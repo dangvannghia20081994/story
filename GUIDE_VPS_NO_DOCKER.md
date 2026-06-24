@@ -143,12 +143,13 @@ CMS: **`/admin/crawler-jobs`**. Chi tiết: `backend/README.md`.
 
 ---
 
-## 7. Worker TTS (Python + VieNeu)
+## 7. Worker TTS (Python + Revid)
 
 - **Backend:** `WORKER_TTS_INTERNAL_TOKEN`, `WORKER_TTS_REDIS_QUEUE`, cùng Redis với Laravel.
-- **Worker:** Python 3.10+; **venv** (tránh PEP 668 “externally-managed-environment” khi `pip install` global):
+- **Worker:** Python 3.10+, yêu cầu `ffmpeg`; **venv** (tránh PEP 668):
 
 ```bash
+sudo apt install ffmpeg
 cd /var/www/story/worker-tts
 python3 -m venv .venv
 source .venv/bin/activate
@@ -156,12 +157,12 @@ pip install -U pip
 pip install -r requirements.txt
 cp .env.example .env
 # WORKER_TTS_INTERNAL_TOKEN=... (trùng backend), BACKEND_API_BASE_URL=https://api.example.com,
-# REDIS_HOST=127.0.0.1, WORKER_TTS_REDIS_QUEUE=story:tts:queue, REFERENCE_AUDIO_PATH=...
+# REDIS_HOST=127.0.0.1, WORKER_TTS_REDIS_QUEUE=story:tts:queue
+# REVID_API_KEY=sk_... (tuỳ chọn, override key mặc định)
 python worker_redis.py
 ```
 
-- **eSpeak NG** (bắt buộc cho VieNeu trên host): `sudo apt install espeak-ng` — xem `worker-tts/README.md` / `worker-tts/GUIDE.md`.
-- **Luồng:** Redis list (RPUSH từ Laravel / CMS “đẩy hàng TTS”) → worker → **POST** `/api/internal/tts/chapters/{id}/audio` (header **`X-Worker-Tts-Token`**).
+- **Luồng:** Redis list (RPUSH từ CMS “đẩy hàng TTS”) → worker BLPOP → Revid TTS API → **POST** `/api/internal/tts/chapters/{id}/audio` (header **`X-Worker-Tts-Token`**, `type=single`).
 
 ---
 

@@ -35,6 +35,22 @@
             </div>
         </details>
     </div>
+    <div class="stories-filter-bar stories-filter-bar--scroll" style="margin-bottom: 0.25rem; align-items: center; gap: 0.5rem;">
+        <label for="tts-voice-select" style="font-size: 0.85rem; white-space: nowrap; color: var(--muted);">Voice TTS:</label>
+        <select id="tts-voice-select" style="min-width: 14rem; max-width: 20rem; font-size: 0.85rem;">
+            <option value="capcut:BV074_streaming">♀ Vy — CapCut BV074</option>
+            <option value="8001">♀ Ngọc Huyền (8001)</option>
+            <option value="8002">♂ Minh Quân (8002)</option>
+            <option value="8003">♂ Anh Khôi (8003)</option>
+            <option value="8004">♂ Antoni (8004)</option>
+            <option value="edge:vi-VN-HoaiMyNeural">♀ Hương — Edge HoaiMy</option>
+            <option value="edge:vi-VN-NamMinhNeural">♂ Đức — Edge NamMinh</option>
+            <option value="5000">Revid 1 — trẻ trung</option>
+            <option value="5002">♂ Revid 3 — trầm ấm</option>
+            <option value="5003">♀ Revid 4 — tự nhiên</option>
+            <option value="5005">♀ Revid 6 — dịu dàng</option>
+        </select>
+    </div>
     <form class="stories-filter-bar stories-filter-bar--scroll" method="get" action="{{ url()->current() }}">
         <input
             type="search"
@@ -47,8 +63,8 @@
         />
         <select name="tts" class="stories-filter-bar__genre" style="min-width: 12rem; max-width: 16rem;" aria-label="Lọc trạng thái TTS">
             <option value="" @selected(($tts ?? '') === '')>Mọi trạng thái TTS</option>
-            <option value="ready" @selected(($tts ?? '') === 'ready')>Đã có audio</option>
-            <option value="queued" @selected(($tts ?? '') === 'queued')>Đã xếp hàng TTS</option>
+            <option value="ready" @selected(($tts ?? '') === 'ready')>Hoàn tất</option>
+            <option value="queued" @selected(($tts ?? '') === 'queued')>Đã xếp hàng</option>
             <option value="pending" @selected(($tts ?? '') === 'pending')>Chưa đẩy hàng (có nội dung)</option>
             <option value="no_text" @selected(($tts ?? '') === 'no_text')>Thiếu nội dung (gần đúng)</option>
         </select>
@@ -115,11 +131,9 @@
                                 >{{ $chapter->cmsTtsStatusLabel() }}</span>
                             </td>
                             <td>
-                                @if ($chapter->hasAudioFile())
-                                    <span class="cms-badge cms-badge--tts-ready">Có file</span>
-                                    @if ((int) $chapter->duration > 0)
-                                        <span class="muted" style="font-size: 0.8rem;">{{ (int) $chapter->duration }}s</span>
-                                    @endif
+                                @if ($chapter->hasSingleAudio())
+                                    @php $d = (int) $chapter->duration; @endphp
+                                    <span class="muted" style="font-size: 0.8rem;">{{ $d > 0 ? sprintf('%d:%02d', intdiv($d, 60), $d % 60) : '—' }}</span>
                                 @else
                                     <span class="muted">—</span>
                                 @endif
@@ -140,7 +154,8 @@
                                     class="icon-btn js-enqueue-tts"
                                     data-url="{{ route('cms.stories.chapters.enqueue-tts', [$story, $chapter]) }}"
                                     data-chapter-id="{{ $chapter->id }}"
-                                    title="{{ $chapter->canEnqueueWorkerTts() ? 'Đưa chương vào Redis list cho worker-tts (worker_redis.py — chạy ./run-dev.sh --with-worker hoặc run_worker_redis.cmd)' : 'Không có nội dung text để TTS' }}"
+                                    data-has-audio="{{ $chapter->hasSingleAudio() ? '1' : '0' }}"
+                                    title="{{ $chapter->canEnqueueWorkerTts() ? 'Đưa chương vào Redis list cho worker-tts (dùng Revid API với voice đã chọn ở trên)' : 'Không có nội dung text để TTS' }}"
                                     aria-label="Đưa vào hàng TTS"
                                     @disabled(! $chapter->canEnqueueWorkerTts())
                                 >
@@ -183,12 +198,18 @@
         document.querySelectorAll('.js-enqueue-tts').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 if (btn.disabled) return;
+                if (btn.getAttribute('data-has-audio') === '1' &&
+                    !window.confirm('Chương này đã có audio. Tạo lại sẽ ghi đè audio hiện tại. Tiếp tục?')) {
+                    return;
+                }
                 var url = btn.getAttribute('data-url');
                 var id = btn.getAttribute('data-chapter-id');
                 if (!url || !id) return;
                 var badge = document.getElementById('chapter-tts-badge-' + id);
+                var voiceSelect = document.getElementById('tts-voice-select');
+                var voiceId = voiceSelect ? voiceSelect.value : 'capcut:BV074_streaming';
                 btn.disabled = true;
-                axios.post(url, {}, {
+                axios.post(url, { voice_id: voiceId }, {
                     headers: {
                         'Accept': 'application/json',
                         'Content-Type': 'application/json',

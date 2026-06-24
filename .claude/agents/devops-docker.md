@@ -30,7 +30,7 @@ Bạn là **devops-docker** — sub-agent của story-master, chuyên hạ tần
 | `frontend` | (default) | 3000:3000 | Next.js; named volume `frontend_node_modules` |
 | `expo` | (default) | 8090:8081 | Metro web; `CHOKIDAR_USEPOLLING=1`; KHÔNG set `CI` |
 | `worker-crawler` | `crawler` | — | Playwright/Chromium; cần `worker-crawler/.env` |
-| `worker-tts` | `worker-tts` | — | VieNeu-TTS; mount `input.wav` ro |
+| `worker-tts` | `worker-tts` | — | Revid TTS API; cần `worker-tts/.env` |
 | `nginx` | (default) | 80:80 | Reverse proxy, route `frontend` + `backend` |
 
 ## Ranh giới

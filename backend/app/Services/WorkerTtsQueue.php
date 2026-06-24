@@ -12,8 +12,9 @@ class WorkerTtsQueue
      * Đưa job TTS vào Redis để worker-tts BLPOP xử lý.
      *
      * @param  array<string, mixed>|null  $overrides  Ghi đè payload (vd. ['text' => '...'])
+     * @param  string  $voiceId  Voice ID Revid (vd. capcut:BV074_streaming, 8001, edge:vi-VN-HoaiMyNeural)
      */
-    public static function push(Chapter $chapter, ?array $overrides = null): void
+    public static function push(Chapter $chapter, ?array $overrides = null, string $voiceId = 'capcut:BV074_streaming'): void
     {
         $text = self::plainTextFromChapter($chapter);
         if (is_array($overrides) && isset($overrides['text']) && is_string($overrides['text']) && $overrides['text'] !== '') {
@@ -22,64 +23,7 @@ class WorkerTtsQueue
         $lexicons = app(LexiconCacheService::class)->mergedOrderedForStory((int) $chapter->story_id);
         $text = app(LexiconTextService::class)->applyToPlainText($text, $lexicons);
 
-        $payload = ['chapter_id' => $chapter->id, 'mode' => 'single', 'text' => $text];
-
-        $key = config('worker_tts.redis_queue_list');
-        $json = json_encode($payload, JSON_THROW_ON_ERROR);
-
-        Redis::rpush($key, $json);
-
-        Chapter::query()->whereKey($chapter->getKey())->update([
-            'tts_enqueued_at' => now(),
-        ]);
-    }
-
-    /**
-     * Đưa job multi-speaker TTS vào Redis.
-     * Payload chứa segments[] đã được resolve voice mapping + apply lexicon từng segment.
-     */
-    public static function pushMultiSpeaker(Chapter $chapter): void
-    {
-        $segments = $chapter->content_segments ?? [];
-        if (!is_array($segments) || empty($segments)) {
-            throw new \RuntimeException("Chapter {$chapter->id} không có content_segments — chưa analyze.");
-        }
-
-        $storyId = (int) $chapter->story_id;
-        $lexicons = app(LexiconCacheService::class)->mergedOrderedForStory($storyId);
-        $lexiconService = app(LexiconTextService::class);
-
-        $resolvedSegments = [];
-        foreach ($segments as $seg) {
-            $speaker = (string) ($seg['speaker'] ?? 'narration');
-            $text = trim((string) ($seg['text'] ?? ''));
-            if ($text === '') {
-                continue;
-            }
-            // Apply lexicon per segment để TTS đọc đúng (tên alias, từ phiên âm,…)
-            $text = $lexiconService->applyToPlainText($text, $lexicons);
-
-            $mapping = Character::resolveVoiceFor($storyId, $speaker);
-
-            $resolvedSegments[] = [
-                'speaker' => $speaker,
-                'text' => $text,
-                'voice' => $mapping['voice'],
-                'voice_file' => $mapping['voice_file'],
-                'pitch' => $mapping['pitch'],
-                'tempo' => $mapping['tempo'],
-            ];
-        }
-
-        if (empty($resolvedSegments)) {
-            throw new \RuntimeException("Chapter {$chapter->id} không có segment hợp lệ sau khi filter.");
-        }
-
-        $payload = [
-            'chapter_id' => $chapter->id,
-            'mode' => 'multi-speaker',
-            'segments' => $resolvedSegments,
-        ];
+        $payload = ['chapter_id' => $chapter->id, 'mode' => 'single', 'text' => $text, 'voice_id' => $voiceId];
 
         $key = config('worker_tts.redis_queue_list');
         $json = json_encode($payload, JSON_THROW_ON_ERROR);
