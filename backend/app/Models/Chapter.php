@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 
 class Chapter extends Model
 {
+    protected $hidden = ['audio_multiple_path', 'content_segments'];
+
     protected $fillable = [
         'story_id',
         'title',
@@ -313,21 +315,24 @@ SQL;
      */
     public function resolveAudioFileAbsolutePath(): ?array
     {
-        $relative = $this->audio_multiple_path;
-        if (! is_string($relative) || $relative === '') {
-            return null;
-        }
+        // Ưu tiên audio_single_path, fallback audio_multiple_path
+        $candidates = array_filter([
+            $this->audio_single_path,
+            $this->audio_multiple_path,
+        ], static fn ($v) => is_string($v) && $v !== '');
 
         $disks = ['local', 'public'];
-        foreach ($disks as $diskName) {
-            $disk = Storage::disk($diskName);
-            if (! $disk->exists($relative)) {
-                continue;
-            }
-            $absolute = $disk->path($relative);
-            $extension = strtolower(pathinfo($relative, PATHINFO_EXTENSION));
+        foreach ($candidates as $relative) {
+            foreach ($disks as $diskName) {
+                $disk = Storage::disk($diskName);
+                if (! $disk->exists($relative)) {
+                    continue;
+                }
+                $absolute = $disk->path($relative);
+                $extension = strtolower(pathinfo($relative, PATHINFO_EXTENSION));
 
-            return ['absolute' => $absolute, 'extension' => $extension !== '' ? $extension : 'bin'];
+                return ['absolute' => $absolute, 'extension' => $extension !== '' ? $extension : 'bin'];
+            }
         }
 
         return null;
@@ -335,9 +340,8 @@ SQL;
 
     public function hasAudioFile(): bool
     {
-        $p = $this->audio_multiple_path;
-
-        return is_string($p) && $p !== '';
+        return (is_string($this->audio_single_path) && $this->audio_single_path !== '')
+            || (is_string($this->audio_multiple_path) && $this->audio_multiple_path !== '');
     }
 
     /**

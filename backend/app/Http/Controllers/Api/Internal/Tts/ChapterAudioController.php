@@ -133,7 +133,7 @@ class ChapterAudioController extends Controller
                 'data' => [
                     'chapter_id' => $fresh->id,
                     'audio_multiple_path' => $fresh->audio_multiple_path,
-                    'audio_url' => $fresh->signedAudioStreamUrl(),
+                    'audio_single_url' => $fresh->signedAudioStreamUrl(),
                     'duration' => $fresh->duration,
                 ],
             ], 201);

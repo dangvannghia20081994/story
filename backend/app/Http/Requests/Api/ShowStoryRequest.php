@@ -25,6 +25,7 @@ class ShowStoryRequest extends FormRequest
             'chapters_omit_content' => ['sometimes', 'boolean'],
             'read_chapter' => ['sometimes', 'integer', 'min:1'],
             'read_chapter_slug' => ['sometimes', 'string', 'max:191'],
+            'read_omit_content' => ['sometimes', 'boolean'],
         ];
     }
 }

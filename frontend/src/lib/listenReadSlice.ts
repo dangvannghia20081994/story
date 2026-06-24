@@ -9,8 +9,9 @@ export type ListenChapterRow = {
   title: string;
   slug?: string | null;
   content: string;
+  audio_single_path?: string | null;
   audio_multiple_path: string | null;
-  audio_url?: string | null;
+  audio_single_url?: string | null;
   duration: number;
   chapter_number?: number | null;
 };
@@ -21,8 +22,9 @@ export type ListenReadNavNeighbor = {
   title: string;
   slug?: string | null;
   content?: string | null;
+  audio_single_path?: string | null;
   audio_multiple_path?: string | null;
-  audio_url?: string | null;
+  audio_single_url?: string | null;
   duration?: number;
   chapter_number?: number | null;
 } | null;
@@ -77,8 +79,9 @@ function rowFromNavNeighbor(n: NonNullable<ListenReadNavNeighbor>): ListenChapte
     title: n.title,
     slug: n.slug ?? null,
     content: typeof n.content === "string" ? n.content : "",
+    audio_single_path: n.audio_single_path ?? null,
     audio_multiple_path: (n.audio_multiple_path ?? null) as string | null,
-    audio_url: n.audio_url ?? null,
+    audio_single_url: n.audio_single_url ?? null,
     duration: typeof n.duration === "number" ? n.duration : 0,
     chapter_number: n.chapter_number ?? null,
   };
@@ -101,9 +104,14 @@ export function applyListenReadSliceToRows(
   return { chapters: merged, index: idx >= 0 ? idx : 0 };
 }
 
-export async function fetchListenReadSlice(storySlug: string, chapterId: number): Promise<ListenStoryShowRead> {
+export async function fetchListenReadSlice(
+  storySlug: string,
+  chapterId: number,
+  omitContent = false,
+): Promise<ListenStoryShowRead> {
   const key = encodeURIComponent(storySlug);
-  const res = await apiFetch<{ data: ListenStoryShowRead }>(`/api/stories/${key}?read_chapter=${chapterId}`);
+  const qs = omitContent ? `&read_omit_content=1` : "";
+  const res = await apiFetch<{ data: ListenStoryShowRead }>(`/api/stories/${key}?read_chapter=${chapterId}${qs}`);
   return res.data;
 }
 

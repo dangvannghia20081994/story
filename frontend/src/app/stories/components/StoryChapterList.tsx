@@ -12,7 +12,7 @@ export type StoryChapterListRow = {
   title: string;
   slug?: string | null;
   audio_multiple_path?: string | null;
-  audio_url?: string | null;
+  audio_single_url?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -106,7 +106,7 @@ export function StoryChapterList({
       </div>
       <ul className="divide-y divide-zinc-200/90 overflow-hidden rounded-xl border border-zinc-200/80 dark:divide-zinc-800 dark:border-zinc-800">
         {chapters.map((chapter) => {
-          const audioHrefUrl = resolvePlayableAudioUrl(chapter.audio_url, chapter.audio_multiple_path);
+          const audioHrefUrl = resolvePlayableAudioUrl(chapter.audio_single_url, chapter.audio_multiple_path);
           return (
             <li
               key={chapter.id}

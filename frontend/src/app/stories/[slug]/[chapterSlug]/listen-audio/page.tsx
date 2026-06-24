@@ -104,7 +104,7 @@ function resolveListenTargetId(
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
   if (!c) return null;
-  return resolvePlayableAudioUrl(c.audio_url, c.audio_multiple_path);
+  return resolvePlayableAudioUrl(c.audio_single_url, c.audio_multiple_path);
 }
 
 async function fetchTocPage(storySlug: string, page: number): Promise<ChaptersPage> {
@@ -215,7 +215,7 @@ function ListenAudioStoryPageContent() {
           }
 
           const slice = await inFlightDedupe(`story-read:${storySlug}:ch${targetId}`, () =>
-            fetchListenReadSlice(storySlug, targetId),
+            fetchListenReadSlice(storySlug, targetId, true),
           );
           if (cancelled) return;
           const { chapters: merged, index } = applyListenReadSliceToRows(shellList, slice);
@@ -251,7 +251,7 @@ function ListenAudioStoryPageContent() {
         if (loadedChapterIdRef.current === pid) return;
 
         const slice = await inFlightDedupe(`story-read:${storySlug}:ch${pid}`, () =>
-          fetchListenReadSlice(storySlug, pid),
+          fetchListenReadSlice(storySlug, pid, true),
         );
         if (cancelled) return;
         const { chapters: merged, index } = applyListenReadSliceToRows(chaptersRef.current, slice);
@@ -355,7 +355,7 @@ function ListenAudioStoryPageContent() {
       chapters.map((c) => ({
         id: c.id,
         title: c.title,
-        audio_url: chapterAudioUrl(c),
+        audio_single_url: chapterAudioUrl(c),
         speech_text: c.content?.trim()
           ? chapterPlainWithLexicons(c.content, lexiconEntries, lexiconReady)
           : undefined,
@@ -398,7 +398,7 @@ function ListenAudioStoryPageContent() {
             content: "",
             audio_multiple_path: null as string | null,
             duration: navNext.duration ?? 0,
-            audio_url: navNext.audio_url ?? null,
+            audio_single_url: navNext.audio_single_url ?? null,
           }
         : undefined);
     if (!nextMeta) {
@@ -411,7 +411,7 @@ function ListenAudioStoryPageContent() {
     return {
       id: nextMeta.id,
       title: nextMeta.title,
-      audio_url: url,
+      audio_single_url: url,
       speech_text: undefined,
     };
   }, [readNav?.next, chapters, chapterSliceIndex]);

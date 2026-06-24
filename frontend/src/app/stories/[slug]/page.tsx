@@ -19,8 +19,9 @@ type ChapterRow = {
   title: string;
   slug?: string | null;
   content: string;
+  audio_single_path: string | null;
   audio_multiple_path: string | null;
-  audio_url?: string | null;
+  audio_single_url?: string | null;
   duration: number;
   created_at?: string;
   updated_at?: string;
@@ -42,7 +43,7 @@ type StoryShowData = {
 };
 
 function chapterAudioUrl(c: ChapterRow): string | null {
-  return resolvePlayableAudioUrl(c.audio_url, c.audio_multiple_path);
+  return resolvePlayableAudioUrl(c.audio_single_url, c.audio_multiple_path);
 }
 
 async function loadStory(storyKey: string): Promise<{ story: StoryShowData; chapters: ChapterRow[] } | null> {
@@ -78,7 +79,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   const genreSlugs = storyGenreSlugs(s);
   const serialLabel = serialStatusLabel(s.serial_status ?? undefined);
   const chaptersTotal = s.chapters_total ?? chapters.length;
-  const withAudioTotal = s.chapters_with_audio_total ?? chapters.filter((c) => chapterAudioUrl(c)).length;
+  const withAudioTotal = s.chapters_with_audio_total ?? chapters.filter((c) => chapterAudioUrl(c) || c.audio_single_path).length;
   const firstChapter = chapters[0];
   const chaptersForHref = chapters.map((c) => ({ id: c.id, slug: c.slug }));
   const shell =

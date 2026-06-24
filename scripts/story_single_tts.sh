@@ -3,7 +3,7 @@
 # Usage: ./story_single_tts.sh <story_id> <voice_id> [limit] [chapter_parallel] [tts_parallel]
 #
 # story_id         : ID của story cần xử lý
-# voice_id         : Voice ID (vd: capcut:BV074_streaming, 8001, edge:vi-VN-HoaiMyNeural)
+# voice_id         : Voice ID (default: capcut:BV074_streaming; hỗ trợ: 8001-8004, edge:vi-VN-HoaiMyNeural...)
 # limit            : số chapter xử lý (default: 100)
 # chapter_parallel : số chapter chạy đồng thời (default: 3)
 # tts_parallel     : số luồng TTS mỗi chapter (default: 6)
@@ -13,8 +13,8 @@
 
 set -euo pipefail
 
-STORY_ID="${1:?Thiếu story_id. Usage: $0 <story_id> <voice_id> [limit] [chapter_parallel] [tts_parallel]}"
-VOICE_ID="${2:?Thiếu voice_id. Ví dụ: capcut:BV074_streaming}"
+STORY_ID="${1:?Thiếu story_id. Usage: $0 <story_id> [voice_id] [limit] [chapter_parallel] [tts_parallel]}"
+VOICE_ID="${2:-capcut:BV074_streaming}"
 LIMIT="${3:-100}"
 CH_PARALLEL="${4:-3}"
 TTS_PARALLEL="${5:-6}"
@@ -37,8 +37,8 @@ echo ""
 mapfile -t CHAPTER_IDS < <(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -A -c "
   SELECT id FROM chapters
   WHERE story_id=${STORY_ID}
-    AND content_segments IS NOT NULL
-    AND jsonb_array_length(content_segments) > 0
+    AND content IS NOT NULL
+    AND length(trim(content)) > 0
     AND audio_single_path IS NULL
   ORDER BY id ASC
   LIMIT ${LIMIT};
@@ -77,113 +77,93 @@ process_chapter() {
   fi
 
   mkdir -p "$out_dir" "$seg_dir"
-  echo "[chapter ${chapter_id}] Export segments text..."
+  echo "[chapter ${chapter_id}] Lấy content từ DB..."
 
-  # Export toàn bộ text từ content_segments (bỏ qua speaker, chỉ lấy text)
-  local texts_file="${seg_dir}/texts.txt"
-  docker exec "$db_container" psql -U "$db_user" -d "$db_name" -t -A -c "
-    SELECT replace(seg->>'text', E'\n', ' ')
-    FROM chapters
-    CROSS JOIN LATERAL jsonb_array_elements(content_segments) WITH ORDINALITY AS t(seg, ordinality)
-    WHERE id=${chapter_id}
-      AND (seg->>'text') IS NOT NULL
-      AND length(trim(seg->>'text')) > 0
-    ORDER BY ordinality;
-  " 2>/dev/null > "$texts_file"
+  # Lấy content, strip HTML tags
+  local raw_content
+  raw_content=$(docker exec "$db_container" psql -U "$db_user" -d "$db_name" -t -A -c "
+    SELECT trim(regexp_replace(regexp_replace(content, '<[^>]+>', ' ', 'g'), '\s+', ' ', 'g'))
+    FROM chapters WHERE id=${chapter_id};
+  " 2>/dev/null)
 
-  local seg_count
-  seg_count=$(grep -c . "$texts_file" 2>/dev/null || echo 0)
-  if [[ $seg_count -eq 0 ]]; then
-    echo "[chapter ${chapter_id}] WARN: không có text nào — bỏ qua"
+  if [[ -z "${raw_content// }" ]]; then
+    echo "[chapter ${chapter_id}] WARN: content rỗng — bỏ qua"
     return 0
   fi
 
-  echo "[chapter ${chapter_id}] TTS ${seg_count} segments với voice=${voice_id} (${tts_parallel} luồng)..."
+  local content_len=${#raw_content}
+  local max_chars=9000
 
-  # Hàm TTS 1 segment — retry 3 lần
-  run_tts_single() {
-    local idx="$1"
-    local text="$2"
-    local voice="$3"
-    local seg_dir="$4"
-    local script_dir="$5"
+  # Tách thành chunks nếu vượt giới hạn 10k ký tự API
+  local chunks=()
+  if [[ $content_len -le $max_chars ]]; then
+    chunks=("$raw_content")
+  else
+    local buf="" buf_len=0
+    for word in $raw_content; do
+      local wlen=${#word}
+      if [[ $buf_len -gt 0 && $((buf_len + wlen + 1)) -gt $max_chars ]]; then
+        chunks+=("$buf")
+        buf="$word"; buf_len=$wlen
+      else
+        [[ $buf_len -gt 0 ]] && buf="${buf} ${word}" || buf="$word"
+        buf_len=$((buf_len + wlen + 1))
+      fi
+    done
+    [[ -n "${buf:-}" ]] && chunks+=("$buf")
+  fi
 
+  local num_chunks=${#chunks[@]}
+  echo "[chapter ${chapter_id}] TTS ${num_chunks} call(s) (~${content_len} ký tự) voice=${voice_id}..."
+
+  # TTS từng chunk, retry 3 lần mỗi chunk
+  local ci attempt fsize success
+  for ci in "${!chunks[@]}"; do
     local seg_file
-    seg_file=$(printf "%s/segment_%03d.mp3" "$seg_dir" "$idx")
-
-    local attempt fsize
+    seg_file=$(printf "%s/segment_%03d.mp3" "$seg_dir" "$((ci+1))")
+    success=0
     for attempt in 1 2 3; do
-      if bash "${script_dir}/tts_revid.sh" "$text" "$voice" "+0%" "$seg_file" 2>/dev/null; then
+      if bash "${script_dir}/tts_revid.sh" "${chunks[$ci]}" "$voice_id" "+0%" "$seg_file" 2>/dev/null; then
         fsize=$(stat -c%s "$seg_file" 2>/dev/null || echo 0)
-        if [[ $fsize -gt 500 ]]; then
-          echo "[${idx}] ✓ (${fsize}B)"
-          return 0
+        if [[ $fsize -gt 1000 ]]; then
+          echo "[chapter ${chapter_id}] chunk $((ci+1))/${num_chunks} ✓ (${fsize}B)"
+          success=1; break
         fi
       fi
-      echo "[${idx}] attempt ${attempt} failed, retry..." >&2
-      rm -f "$seg_file"
-      sleep 2
+      rm -f "$seg_file"; sleep 3
     done
-    echo "[${idx}] ERROR: TTS thất bại sau 3 lần — bỏ qua segment" >&2
-    return 0
-  }
-  export -f run_tts_single
-
-  # Đọc texts file → job pool
-  local idx=0
-  local running=0
-  declare -a PIDS=()
-
-  while IFS= read -r text_line || [[ -n "${text_line:-}" ]]; do
-    [[ -z "${text_line// }" ]] && continue
-    idx=$((idx + 1))
-
-    run_tts_single "$idx" "$text_line" "$voice_id" "$seg_dir" "$script_dir" &
-    PIDS+=($!)
-    running=$((running + 1))
-
-    if [[ $running -ge $tts_parallel ]]; then
-      wait "${PIDS[0]}" || true
-      PIDS=("${PIDS[@]:1}")
-      running=$((running - 1))
+    if [[ $success -eq 0 ]]; then
+      echo "[chapter ${chapter_id}] WARN: chunk $((ci+1)) TTS thất bại — bỏ qua chapter"
+      return 0
     fi
-  done < "$texts_file"
-
-  for pid in "${PIDS[@]}"; do
-    wait "$pid" || true
   done
 
-  # Đếm segments tạo được
-  local created
-  created=$(ls "${seg_dir}"/segment_*.mp3 2>/dev/null | wc -l)
-  echo "[chapter ${chapter_id}] Đã tạo: ${created}/${idx} segments"
-
-  if [[ $created -eq 0 ]]; then
-    echo "[chapter ${chapter_id}] ERROR: Không có segment nào — bỏ qua"
-    return 0
+  # Nếu chỉ 1 chunk → mv thẳng; nhiều chunk → merge
+  if [[ $num_chunks -eq 1 ]]; then
+    mv "${seg_dir}/segment_001.mp3" "$audio_out"
+  else
+    local merge_output
+    merge_output=$(docker run --rm \
+      --user "$(id -u):$(id -g)" \
+      -v "$(realpath "$seg_dir"):/data" \
+      "$MERGE_IMAGE" audio_single.mp3 2>&1)
+    echo "$merge_output"
+    local merged="${seg_dir}/audio_single.mp3"
+    if [[ ! -f "$merged" ]]; then
+      echo "[chapter ${chapter_id}] WARN: merge thất bại — sẽ retry lần sau"
+      return 0
+    fi
+    mv "$merged" "$audio_out"
   fi
-
-  # Merge bằng story-merge Docker image, output = audio_single.mp3
-  echo "[chapter ${chapter_id}] Merging ${created} segments → audio_single.mp3..."
-  local merge_output
-  merge_output=$(docker run --rm \
-    --user "$(id -u):$(id -g)" \
-    -v "$(realpath "$seg_dir"):/data" \
-    "$MERGE_IMAGE" audio_single.mp3 2>&1)
-  echo "$merge_output"
-
-  local merged_file="${seg_dir}/audio_single.mp3"
-  if [[ ! -f "$merged_file" ]]; then
-    echo "[chapter ${chapter_id}] WARN: merge thất bại — sẽ retry lần sau"
-    return 0
-  fi
-
-  # Di chuyển sang out_dir
-  mv "$merged_file" "$audio_out"
 
   local size duration_sec
   size=$(du -h "$audio_out" | cut -f1)
-  duration_sec=$(echo "$merge_output" | grep '^DURATION_SEC=' | cut -d= -f2 | tr -d '[:space:]')
+  duration_sec=$(docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -v "$(realpath "$out_dir"):/data" \
+    --entrypoint ffprobe "$MERGE_IMAGE" \
+    -v quiet -show_entries format=duration -of csv=p=0 /data/audio_single.mp3 2>/dev/null \
+    | awk '{printf "%d", int($1 + 0.5)}' || echo 0)
 
   # Update DB
   local db_path="stories/${story_id}/chapters/${chapter_id}/audio_single.mp3"

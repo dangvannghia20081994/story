@@ -22,8 +22,8 @@ function normalizeMediaDuration(raw: number): number {
 export type AudioChapterItem = {
   id: number;
   title: string;
-  audio_url: string | null;
-  /** Nội dung chương — bật đọc bằng trình duyệt khi không có `audio_url`. */
+  audio_single_url: string | null;
+  /** Nội dung chương — bật đọc bằng trình duyệt khi không có `audio_single_url`. */
   speech_text?: string | null;
 };
 
@@ -368,7 +368,7 @@ export function AudioPlayer({
         saveAudioReadPrefs({ removeChapterAudioSecKeys: [posKey] });
       }
       const adv = autoAdvanceChapterRef.current;
-      const url = adv?.audio_url?.trim();
+      const url = adv?.audio_single_url?.trim();
       if (!adv || !url) {
         return;
       }
@@ -610,14 +610,14 @@ export function AudioPlayer({
 
   const handleChapterSelect = useCallback(
     (chapter: AudioChapterItem) => {
-      const canAudio = Boolean(chapter.audio_url?.trim());
+      const canAudio = Boolean(chapter.audio_single_url?.trim());
       const canSpeech = Boolean(chapter.speech_text?.trim());
       if (!canAudio && !canSpeech) return;
       speech.stop();
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      setActiveSrc(chapter.audio_url?.trim() ? chapter.audio_url : "");
+      setActiveSrc(chapter.audio_single_url?.trim() ? chapter.audio_single_url : "");
       setCurrentChapterId(chapter.id);
       onChapterChange?.(chapter.id);
       setShowChapterList(false);
@@ -667,11 +667,11 @@ export function AudioPlayer({
       : undefined;
   const audiowebCanGoPrev = Boolean(
     audiowebPrevChapter &&
-      (audiowebPrevChapter.audio_url?.trim() || audiowebPrevChapter.speech_text?.trim()),
+      (audiowebPrevChapter.audio_single_url?.trim() || audiowebPrevChapter.speech_text?.trim()),
   );
   const audiowebCanGoNext = Boolean(
     audiowebNextChapter &&
-      (audiowebNextChapter.audio_url?.trim() || audiowebNextChapter.speech_text?.trim()),
+      (audiowebNextChapter.audio_single_url?.trim() || audiowebNextChapter.speech_text?.trim()),
   );
   const audiowebShowChapterNav = chapters.length > 1 && chapterIndex >= 0;
 
@@ -1033,7 +1033,7 @@ export function AudioPlayer({
                 {chapters.map((chapter, i) => {
                   const active = chapter.id === currentChapterId;
                   const canPlay =
-                    Boolean(chapter.audio_url?.trim()) || Boolean(chapter.speech_text?.trim());
+                    Boolean(chapter.audio_single_url?.trim()) || Boolean(chapter.speech_text?.trim());
                   const disabled = !canPlay;
                   return (
                     <button
@@ -1444,7 +1444,7 @@ export function AudioPlayer({
           {showChapterList && chapters.length > 0 && (
             <div className="mt-3 max-h-60 overflow-y-auto rounded border border-zinc-200 dark:border-zinc-700">
               {chapters.map((chapter) => {
-                const can = Boolean(chapter.audio_url?.trim()) || Boolean(chapter.speech_text?.trim());
+                const can = Boolean(chapter.audio_single_url?.trim()) || Boolean(chapter.speech_text?.trim());
                 return (
                   <button
                     key={chapter.id}
@@ -1458,7 +1458,7 @@ export function AudioPlayer({
                     } ${!can ? "opacity-50" : ""}`}
                   >
                     <span className="truncate">{chapter.title}</span>
-                    {chapter.audio_url?.trim() ? (
+                    {chapter.audio_single_url?.trim() ? (
                       <span className="text-xs text-green-600">✓</span>
                     ) : can ? (
                       <span className="text-xs text-sky-600 dark:text-sky-400">Trình duyệt</span>

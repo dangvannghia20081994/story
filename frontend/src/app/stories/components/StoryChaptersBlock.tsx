@@ -11,7 +11,7 @@ type ChapterRow = {
   slug?: string | null;
   content: string;
   audio_multiple_path: string | null;
-  audio_url?: string | null;
+  audio_single_url?: string | null;
   duration: number;
   created_at?: string;
   updated_at?: string;

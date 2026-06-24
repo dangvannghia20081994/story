@@ -118,7 +118,7 @@ final class StoryService
                 $qTrim !== '',
                 static function ($builder) use ($qTrim): void {
                     $like = '%'.addcslashes($qTrim, '%_\\').'%';
-                    $builder->where('title', 'like', $like);
+                    $builder->where('title', 'ilike', $like);
                 }
             )
             ->when(
@@ -193,8 +193,10 @@ final class StoryService
         $data = $request->validated();
 
         $chaptersWithAudioTotal = $story->chapters()
-            ->whereNotNull('audio_multiple_path')
-            ->where('audio_multiple_path', '<>', '')
+            ->where(function ($q): void {
+                $q->where(fn ($s) => $s->whereNotNull('audio_single_path')->where('audio_single_path', '<>', ''))
+                    ->orWhere(fn ($s) => $s->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '<>', ''));
+            })
             ->count();
 
         $readChapterSlug = isset($data['read_chapter_slug']) ? trim((string) $data['read_chapter_slug']) : '';
@@ -218,20 +220,26 @@ final class StoryService
             $story->unsetRelation('chapters');
             $story->loadCount('characters');
             $c = $nav['chapter'];
+            $readOmitContent = (bool) ($data['read_omit_content'] ?? false);
+
+            $readChapterArr = array_merge($c->toArray(), [
+                'audio_single_url' => $c->signedAudioStreamUrl(),
+            ]);
+            if ($readOmitContent) {
+                unset($readChapterArr['content'], $readChapterArr['content_segments']);
+            }
 
             return [
                 'data' => array_merge($story->toArray(), [
                     'chapters' => [],
                     'chapters_total' => $nav['chapters_total'],
                     'chapters_with_audio_total' => $chaptersWithAudioTotal,
-                    'read_chapter' => array_merge($c->toArray(), [
-                        'audio_url' => $c->signedAudioStreamUrl(),
-                    ]),
+                    'read_chapter' => $readChapterArr,
                     'read_navigation' => [
                         'chapter_index' => $nav['chapter_index'],
                         'chapters_total' => $nav['chapters_total'],
-                        'prev' => $this->enrichReadNeighbor($nav['prev']),
-                        'next' => $this->enrichReadNeighbor($nav['next']),
+                        'prev' => $this->enrichReadNeighbor($nav['prev'], $readOmitContent),
+                        'next' => $this->enrichReadNeighbor($nav['next'], $readOmitContent),
                     ],
                 ]),
             ];
@@ -249,7 +257,8 @@ final class StoryService
             $q->reorder()->chapterNumberSort($chaptersOrder);
             if ($chaptersOmitContent) {
                 $q->select([
-                    'id', 'story_id', 'title', 'slug', 'chapter_number', 'audio_multiple_path',
+                    'id', 'story_id', 'title', 'slug', 'chapter_number',
+                    'audio_single_path', 'audio_multiple_path',
                     'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
                 ]);
             }
@@ -261,7 +270,7 @@ final class StoryService
 
         $chapters = $story->chapters->map(function (Chapter $c) use ($chaptersOmitContent) {
             $arr = array_merge($c->toArray(), [
-                'audio_url' => $c->signedAudioStreamUrl(),
+                'audio_single_url' => $c->signedAudioStreamUrl(),
             ]);
             if ($chaptersOmitContent) {
                 $arr['content'] = '';
@@ -360,7 +369,7 @@ final class StoryService
      * @param  array<string, mixed>|null  $meta
      * @return array<string, mixed>|null
      */
-    private function enrichReadNeighbor(?array $meta): ?array
+    private function enrichReadNeighbor(?array $meta, bool $omitContent = false): ?array
     {
         if ($meta === null) {
             return null;
@@ -370,8 +379,13 @@ final class StoryService
             return null;
         }
 
-        return array_merge($row->toArray(), [
-            'audio_url' => $row->signedAudioStreamUrl(),
+        $arr = array_merge($row->toArray(), [
+            'audio_single_url' => $row->signedAudioStreamUrl(),
         ]);
+        if ($omitContent) {
+            unset($arr['content'], $arr['content_segments']);
+        }
+
+        return $arr;
     }
 }
