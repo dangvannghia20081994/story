@@ -126,10 +126,10 @@ CMS tạo job: **`/admin/crawler-jobs`**. Luồng: Redis list `CRAWLER_REDIS_QUE
 
 1. `cp worker-tts/.env.example worker-tts/.env` — **`WORKER_TTS_INTERNAL_TOKEN`** trùng **`backend/.env`**, `BACKEND_API_BASE_URL` (trong compose mặc định `http://backend:8000`), `REDIS_*`, `WORKER_TTS_REDIS_QUEUE` trùng backend.
 2. *(Tuỳ chọn)* Thêm `REVID_API_KEY=sk_...` nếu muốn override key mặc định.
-3. `docker compose --profile worker-tts up -d --build`
+3. `docker compose --profile worker-tts up -d --build` — mặc định lên **6 replicas song song** (`deploy.replicas: 6`); override `--scale worker-tts=N`. Hạ replica nếu Revid trả `429`/hết credit.
 4. `docker compose logs -f worker-tts`
 
-**Luồng:** CMS **RPUSH** JSON `{"chapter_id", "mode": "single", "text", "voice_id"}` lên list Redis → `worker-tts/worker_redis.py` **BLPOP** → chunking → Revid TTS API (base64 MP3) → ffmpeg concat → **POST** `/api/internal/tts/chapters/{id}/audio` (multipart field **`audio`**, header **`X-Worker-Tts-Token`**, `type=single`). Backend lưu `storage/app` và cập nhật `chapters.audio_single_path`.
+**Luồng:** CMS **RPUSH** JSON `{"chapter_id", "mode": "single", "text", "voice_id"}` lên list Redis → 6 replica `worker-tts/worker_redis.py` cùng **BLPOP** (Redis chia job cho worker rảnh) → chunking → Revid TTS API **async** (submit `/tts/async` → poll `/tasks/{id}` mỗi 5s, base64 MP3) → ffmpeg concat → **POST** `/api/internal/tts/chapters/{id}/audio` (multipart field **`audio`**, header **`X-Worker-Tts-Token`**, `type=single`). Backend lưu `storage/app` và cập nhật `chapters.audio_single_path`.
 
 **Gỡ lỗi upload:** xem log prefix `worker_tts.upload.*` trong `laravel.log`; PHP `upload_max_filesize` / `post_max_size` trong image (xem `backend/README.md` nếu chỉnh).
 

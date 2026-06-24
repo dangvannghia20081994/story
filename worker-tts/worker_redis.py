@@ -141,50 +141,38 @@ def _probe_duration_seconds(path: Path) -> int:
         return 0
 
 
-def _call_revid_tts(text: str, voice_id: str, rate: str = "+0%") -> bytes:
-    """Gọi Revid TTS API, trả bytes MP3."""
-    import requests as req
-
-    API_KEY = (os.environ.get("REVID_API_KEY") or "sk_JyvWEYr8akwJwrvhsKo2tN1wJcLPUZ7z").strip()
-    headers = {
+def _revid_headers() -> dict:
+    api_key = (os.environ.get("REVID_API_KEY") or "sk_JyvWEYr8akwJwrvhsKo2tN1wJcLPUZ7z").strip()
+    return {
         "accept": "*/*",
         "content-type": "application/json",
         "origin": "https://revidapi.com",
         "referer": "https://revidapi.com/",
-        "x-api-key": API_KEY,
+        "x-api-key": api_key,
         "x-revidapi-client": "tts-studio",
     }
-    if re.match(r"^\d+$", voice_id):
-        payload = {
-            "text": text,
-            "language": "vi-VN",
-            "return_base64": True,
-            "voice_id": int(voice_id),
-            "rate": rate,
-        }
-    elif voice_id.startswith("edge:"):
-        payload = {
-            "text": text,
-            "language": "vi-VN",
-            "return_base64": True,
-            "engine": "edge",
-            "voice": voice_id[len("edge:"):],
-            "rate": rate,
-            "pitch": "+0Hz",
-        }
-    elif voice_id.startswith("capcut:"):
-        payload = {
-            "text": text,
-            "language": "vi-VN",
-            "return_base64": True,
-            "engine": "capcut",
-            "voice": voice_id[len("capcut:"):],
-            "rate": rate,
-            "pitch": "+0Hz",
-        }
-    else:
-        raise ValueError(f"voice_id không hợp lệ: {voice_id!r}")
 
+def _revid_payload(text: str, voice_id: str, rate: str) -> dict:
+    """Dựng payload Revid theo định dạng voice_id (dùng chung sync + async)."""
+    base = {"text": text, "language": "vi-VN", "return_base64": True, "rate": rate}
+    if re.match(r"^\d+$", voice_id):
+        return {**base, "voice_id": int(voice_id)}
+    if voice_id.startswith("edge:"):
+        return {**base, "engine": "edge", "voice": voice_id[len("edge:"):], "pitch": "+0Hz"}
+    if voice_id.startswith("capcut:"):
+        return {**base, "engine": "capcut", "voice": voice_id[len("capcut:"):], "pitch": "+0Hz"}
+    raise ValueError(f"voice_id không hợp lệ: {voice_id!r}")
+
+
+def _call_revid_tts(text: str, voice_id: str, rate: str = "+0%") -> bytes:
+    """Gọi Revid TTS (sync) cho mọi engine: POST /tts → trả bytes MP3 ngay trong 1 call.
+
+    Hiện CHƯA dùng (worker chạy _call_revid_tts_async); giữ sẵn để dành. Muốn dùng lại thì gọi hàm này
+    thay _call_revid_tts_async trong _process_revid_single.
+    """
+    import requests as req
+
+    payload = _revid_payload(text, voice_id, rate)
     # Revid sinh giọng có thể chậm (text dài / API tải cao) → read timeout rộng, configurable.
     try:
         read_timeout = float(os.environ.get("REVID_READ_TIMEOUT") or "300")
@@ -193,7 +181,7 @@ def _call_revid_tts(text: str, voice_id: str, rate: str = "+0%") -> bytes:
     r = req.post(
         "https://tts.revidapi.com/api/v1/tts",
         json=payload,
-        headers=headers,
+        headers=_revid_headers(),
         timeout=(10, read_timeout),  # (connect, read)
     )
     r.raise_for_status()
@@ -202,6 +190,67 @@ def _call_revid_tts(text: str, voice_id: str, rate: str = "+0%") -> bytes:
     if not audio_b64:
         raise RuntimeError(f"Revid API không trả về audio: {str(data)[:500]}")
     return base64.b64decode(audio_b64)
+
+
+def _call_revid_tts_async(text: str, voice_id: str, rate: str = "+0%") -> bytes:
+    """Gọi Revid TTS bất đồng bộ: POST /tts/async → poll GET /tasks/{id}. Trả bytes MP3.
+
+    Bền với API chậm hơn sync vì mỗi HTTP call ngắn (không giữ kết nối dài chờ sinh giọng).
+    Đây là luồng MẶC ĐỊNH worker đang dùng (_process_revid_single gọi hàm này).
+    Config: REVID_ASYNC_MAX_WAIT (giây, mặc định 600), REVID_ASYNC_POLL (giây, mặc định 5).
+    """
+    import time
+
+    import requests as req
+
+    headers = _revid_headers()
+    payload = _revid_payload(text, voice_id, rate)
+
+    sub = req.post(
+        "https://tts.revidapi.com/api/v1/tts/async",
+        json=payload,
+        headers=headers,
+        timeout=(10, 60),
+    )
+    sub.raise_for_status()
+    task_id = (sub.json() or {}).get("task_id")
+    if not task_id:
+        raise RuntimeError(f"Revid async không trả task_id: {sub.text[:300]}")
+
+    try:
+        max_wait = float(os.environ.get("REVID_ASYNC_MAX_WAIT") or "600")
+    except ValueError:
+        max_wait = 600.0
+    try:
+        poll = max(1.0, float(os.environ.get("REVID_ASYNC_POLL") or "5"))
+    except ValueError:
+        poll = 3.0
+
+    waited = 0.0
+    status_url = f"https://tts.revidapi.com/api/v1/tasks/{task_id}"
+    while waited < max_wait:
+        time.sleep(poll)
+        waited += poll
+        pr = req.get(status_url, headers=headers, timeout=(10, 30))
+        pr.raise_for_status()
+        data = pr.json() or {}
+        status = data.get("status")
+        if status in ("pending", "processing"):
+            # progress từ API đứng yên ~8% suốt rồi nhảy 100% → vô dụng, chỉ log thời gian chờ + message.
+            msg = (data.get("message") or "").strip()
+            tail = f" — {msg}" if msg else ""
+            print(f"[worker-tts]   async {status} (đợi {int(waited)}s){tail}", flush=True)
+            continue
+        if status == "completed":
+            result = data.get("result") or {}
+            audio_b64 = result.get("audio_base64") or result.get("audio") or data.get("audio")
+            if not audio_b64:
+                raise RuntimeError(f"Revid async completed nhưng thiếu audio: {str(data)[:300]}")
+            return base64.b64decode(audio_b64)
+        if status == "failed":
+            raise RuntimeError(f"Revid async task failed: {data.get('message') or str(data)[:300]}")
+
+    raise RuntimeError(f"Revid async task {task_id} timeout sau {int(max_wait)}s")
 
 
 def _concat_to_mp3(parts: list[Path], out_mp3: Path) -> None:
@@ -260,7 +309,7 @@ def _process_revid_single(msg: dict, chapter_id: int) -> None:
             success = False
             for attempt in range(1, 4):
                 try:
-                    mp3_bytes = _call_revid_tts(chunk, voice_id)
+                    mp3_bytes = _call_revid_tts_async(chunk, voice_id)
                     seg_path = work_dir / f"segment_{i + 1:03d}.mp3"
                     seg_path.write_bytes(mp3_bytes)
                     if seg_path.stat().st_size > 1000:

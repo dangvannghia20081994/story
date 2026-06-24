@@ -9,7 +9,7 @@ Thư mục này chứa **Dockerfile** dùng chung với `docker-compose.yml` ở
 | `frontend.Dockerfile` | Service `frontend` — `context: ./frontend`, `dockerfile: ../docker/frontend.Dockerfile` |
 | `expo.Dockerfile` | Service `expo` — `context: ./app`, `dockerfile: ../docker/expo.Dockerfile` |
 | `crawler.Dockerfile` | Service `worker-crawler` (profile `crawler`) — `context: ./worker-crawler`, image Playwright + Python |
-| `worker-tts.Dockerfile` | Service `worker-tts` (profile `worker-tts`) — `context: ./worker-tts`, Revid TTS API + ffmpeg |
+| `worker-tts.Dockerfile` | Service `worker-tts` (profile `worker-tts`) — `context: ./worker-tts`, Revid TTS API + ffmpeg. **6 replicas** mặc định (`deploy.replicas: 6`), competing consumers cùng BLPOP `story:tts:queue` |
 
 ## Cấu hình qua Compose (gốc repo)
 
@@ -22,7 +22,7 @@ Thư mục này chứa **Dockerfile** dùng chung với `docker-compose.yml` ở
 | Frontend | `docker-compose.yml` (`NEXT_PUBLIC_API_URL`, `API_URL`) |
 | Expo | `docker-compose.yml` (`EXPO_PUBLIC_API_URL`, `8090:8081`, `command` chạy `npm install` + `expo start --web --host lan`) — xem `expo.Dockerfile` |
 | Crawler (profile **`crawler`**) | `worker-crawler/.env` + override compose (`REDIS_HOST=redis`, `CRAWLER_API_BASE_URL=http://backend:8000`) |
-| Worker-TTS (profile **`worker-tts`**) | `worker-tts/.env` (Revid TTS API) |
+| Worker-TTS (profile **`worker-tts`**) | `worker-tts/.env` (Revid TTS API) — mặc định 6 replicas song song; override `--scale worker-tts=N` |
 
 **Expo trong Docker:** Expo SDK mới chỉ chấp nhận `--host lan|tunnel|localhost` (không còn `0.0.0.0`). Metro web lắng nghe **8081**; flag `--port` của `expo start` **không** áp dụng cho web nên map host **8090:8081**. Nếu thiếu gói trên volume `expo_node_modules`, lệnh `npm install` trong `command` sẽ đồng bộ trước khi start.
 

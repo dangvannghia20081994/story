@@ -116,6 +116,10 @@ services:
       backend:
         condition: service_started
     restart: unless-stopped
+    # 6 replicas cùng BLPOP story:tts:queue (competing consumers) → tối đa 6 chương TTS song song.
+    # Hạ xuống nếu Revid API trả 429/hết credit. Override runtime: --scale worker-tts=N.
+    deploy:
+      replicas: 6
 
   nginx:
     image: nginx:1.27-alpine
