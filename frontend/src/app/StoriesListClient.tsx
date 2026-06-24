@@ -4,20 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { HomeStoryCard, type HomeStoryCardStory } from "@/components/HomeStoryCard";
-import { apiFetch } from "@/lib/api";
+import { fetchStoriesPage, type StoriesListPaginated } from "@/app/stories/actions";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { STORIES_LIST_PER_PAGE } from "@/lib/storiesListConfig";
-import { buildStoriesApiQuery, buildStoriesListHref, type StoriesListFilters } from "@/lib/storiesListQuery";
+import { buildStoriesListHref, type StoriesListFilters } from "@/lib/storiesListQuery";
 
 type StoryRow = HomeStoryCardStory;
 
-export type StoriesListPaginated = {
-  data: StoryRow[];
-  current_page: number;
-  last_page: number;
-  per_page?: number;
-  total?: number;
-};
+export type { StoriesListPaginated };
 
 type StoriesListClientProps = {
   /** Trang hiện tại (đồng bộ `?page=`). */
@@ -66,7 +60,7 @@ export function StoriesListClient({ currentPage, filters, initialList }: Stories
 
   const loadPage = useCallback(async (p: number, f: StoriesListFilters) => {
     const json = await inFlightDedupe(storiesListDedupeKey(p, f), () =>
-      apiFetch<StoriesListPaginated>(buildStoriesApiQuery(p, f)),
+      fetchStoriesPage(p, f),
     );
     setLastPage(json.last_page ?? 1);
     setPage(json.current_page ?? p);
