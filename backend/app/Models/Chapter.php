@@ -19,7 +19,8 @@ class Chapter extends Model
         'chapter_number',
         'content',
         'content_segments',
-        'audio_path',
+        'audio_multiple_path',
+        'audio_single_path',
         'duration',
         'analyzed_at',
         'coverage',
@@ -133,7 +134,7 @@ SQL;
         $r = (array) $row;
         $chapterAttrs = array_intersect_key($r, array_flip([
             'id', 'story_id', 'title', 'slug', 'chapter_number', 'content', 'content_segments',
-            'audio_path', 'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
+            'audio_multiple_path', 'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
         ]));
         $chapter = static::hydrate([$chapterAttrs])->first();
         if ($chapter === null) {
@@ -265,14 +266,14 @@ SQL;
      */
     public function publicAudioUrl(): ?string
     {
-        if ($this->audio_path === null || $this->audio_path === '') {
+        if ($this->audio_multiple_path === null || $this->audio_multiple_path === '') {
             return null;
         }
-        if (! Storage::disk('public')->exists($this->audio_path)) {
+        if (! Storage::disk('public')->exists($this->audio_multiple_path)) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->audio_path);
+        return Storage::disk('public')->url($this->audio_multiple_path);
     }
 
     /**
@@ -312,7 +313,7 @@ SQL;
      */
     public function resolveAudioFileAbsolutePath(): ?array
     {
-        $relative = $this->audio_path;
+        $relative = $this->audio_multiple_path;
         if (! is_string($relative) || $relative === '') {
             return null;
         }
@@ -334,7 +335,7 @@ SQL;
 
     public function hasAudioFile(): bool
     {
-        $p = $this->audio_path;
+        $p = $this->audio_multiple_path;
 
         return is_string($p) && $p !== '';
     }

@@ -104,7 +104,7 @@ function resolveListenTargetId(
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
   if (!c) return null;
-  return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
+  return resolvePlayableAudioUrl(c.audio_url, c.audio_multiple_path);
 }
 
 async function fetchTocPage(storySlug: string, page: number): Promise<ChaptersPage> {
@@ -396,7 +396,7 @@ function ListenAudioStoryPageContent() {
             id: navNext.id,
             title: navNext.title,
             content: "",
-            audio_path: null as string | null,
+            audio_multiple_path: null as string | null,
             duration: navNext.duration ?? 0,
             audio_url: navNext.audio_url ?? null,
           }

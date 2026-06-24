@@ -19,7 +19,7 @@ type ChapterRow = {
   title: string;
   slug?: string | null;
   content: string;
-  audio_path: string | null;
+  audio_multiple_path: string | null;
   audio_url?: string | null;
   duration: number;
   created_at?: string;
@@ -42,7 +42,7 @@ type StoryShowData = {
 };
 
 function chapterAudioUrl(c: ChapterRow): string | null {
-  return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
+  return resolvePlayableAudioUrl(c.audio_url, c.audio_multiple_path);
 }
 
 async function loadStory(storyKey: string): Promise<{ story: StoryShowData; chapters: ChapterRow[] } | null> {

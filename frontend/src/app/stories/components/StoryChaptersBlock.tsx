@@ -10,7 +10,7 @@ type ChapterRow = {
   title: string;
   slug?: string | null;
   content: string;
-  audio_path: string | null;
+  audio_multiple_path: string | null;
   audio_url?: string | null;
   duration: number;
   created_at?: string;

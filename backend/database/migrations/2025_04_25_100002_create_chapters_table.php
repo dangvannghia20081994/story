@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedInteger('chapter_number')->nullable();
             $table->longText('content');
             $table->jsonb('content_segments')->nullable();
-            $table->string('audio_path')->nullable();
+            $table->string('audio_multiple_path')->nullable();
             $table->unsignedInteger('duration')->default(0);
             $table->index(['story_id', 'chapter_number', 'updated_at']);
             $table->unique(['story_id', 'slug']);

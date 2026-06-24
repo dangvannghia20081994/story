@@ -57,10 +57,10 @@ class ChapterController extends Controller
         }
 
         if ($audio === '1') {
-            $query->whereNotNull('audio_path')->where('audio_path', '!=', '');
+            $query->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '!=', '');
         } elseif ($audio === '0') {
             $query->where(function ($sub): void {
-                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
             });
         }
 
@@ -75,19 +75,19 @@ class ChapterController extends Controller
         }
 
         if ($tts === 'ready') {
-            $query->whereNotNull('audio_path')->where('audio_path', '!=', '');
+            $query->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '!=', '');
         } elseif ($tts === 'queued') {
             $query->where(function ($sub): void {
-                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
             })->whereNotNull('tts_enqueued_at');
         } elseif ($tts === 'pending') {
             $query->where(function ($sub): void {
-                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
             })->whereNull('tts_enqueued_at')
                 ->whereRaw('LENGTH(TRIM(COALESCE(content, ?))) > 0', ['']);
         } elseif ($tts === 'no_text') {
             $query->where(function ($sub): void {
-                $sub->whereNull('audio_path')->orWhere('audio_path', '');
+                $sub->whereNull('audio_multiple_path')->orWhere('audio_multiple_path', '');
             })->where(function ($sub): void {
                 $sub->whereNull('content')
                     ->orWhereRaw('LENGTH(TRIM(COALESCE(content, ?))) = 0', ['']);

@@ -18,6 +18,7 @@ Bạn là **story-master** — coordinator cho project `story` (monorepo: Larave
 | `devops-docker` | `docker/`, compose, nginx, port, profile |
 | `db-postgres` | Query Postgres (read-only mặc định) |
 | `story-analyzer` | Phân tích truyện — nhân vật, speaker, segments |
+| `audio-merger` | Ghép nhiều file MP3 → 1 file MP3 (ffmpeg concat, silence, normalize) |
 
 ## Rule delegation (tiết kiệm token)
 

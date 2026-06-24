@@ -78,12 +78,12 @@ class ChapterAudioController extends Controller
                 'max_upload_kb' => $maxKb,
             ]));
 
-            if ($chapter->audio_path !== null && $chapter->audio_path !== '') {
+            if ($chapter->audio_multiple_path !== null && $chapter->audio_multiple_path !== '') {
                 foreach (['local', 'public'] as $diskName) {
-                    if (Storage::disk($diskName)->exists($chapter->audio_path)) {
-                        Storage::disk($diskName)->delete($chapter->audio_path);
+                    if (Storage::disk($diskName)->exists($chapter->audio_multiple_path)) {
+                        Storage::disk($diskName)->delete($chapter->audio_multiple_path);
                         Log::info('worker_tts.upload.removed_previous_file', array_merge($ctx, [
-                            'path' => $chapter->audio_path,
+                            'path' => $chapter->audio_multiple_path,
                             'disk' => $diskName,
                         ]));
                     }
@@ -117,7 +117,7 @@ class ChapterAudioController extends Controller
 
             $duration = (int) ($data['duration'] ?? 0);
             Chapter::query()->whereKey($chapter->getKey())->update([
-                'audio_path' => $path,
+                'audio_multiple_path' => $path,
                 'duration' => $duration,
                 'tts_enqueued_at' => null,
                 'updated_at' => now(),
@@ -125,14 +125,14 @@ class ChapterAudioController extends Controller
 
             $fresh = $chapter->fresh();
             Log::info('worker_tts.upload.done', array_merge($ctx, [
-                'audio_path' => $fresh->audio_path,
+                'audio_multiple_path' => $fresh->audio_multiple_path,
                 'duration' => $fresh->duration,
             ]));
 
             return response()->json([
                 'data' => [
                     'chapter_id' => $fresh->id,
-                    'audio_path' => $fresh->audio_path,
+                    'audio_multiple_path' => $fresh->audio_multiple_path,
                     'audio_url' => $fresh->signedAudioStreamUrl(),
                     'duration' => $fresh->duration,
                 ],

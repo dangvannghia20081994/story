@@ -29,8 +29,24 @@ docker compose up --build
 | Redis                                  | localhost:6379                                                                                                                                                                                                               |
 | Crawler worker (Python, tuỳ chọn)      | **Docker:** `docker compose --profile crawler up -d` (xem [docker/README.md](docker/README.md)). **Host:** `worker-crawler/worker.py` + `worker-crawler/.env` — [GUIDE_WINDOW.md](GUIDE_WINDOW.md), [run-dev.sh](run-dev.sh) |
 | Worker-TTS (Python, tuỳ chọn)          | `docker compose --profile worker-tts up -d --build` — tổng hợp giọng VieNeu-TTS theo job Redis (xem [worker-tts/README.md](worker-tts/README.md))                                                                            |
+| Script TTS batch (shell)               | `scripts/story_tts.sh` — multi-voice per segment → `audio_multiple_path`; `scripts/story_single_tts.sh` — 1 voice cố định → `audio_single_path`                                                                              |
 
 Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, **`worker-crawler/README.md`**, và **`docker/README.md`** cho image Docker / biến Compose.
+
+## Scripts TTS batch (shell)
+
+| Script | Mô tả |
+|--------|-------|
+| `scripts/story_tts.sh <story_id> [limit] [ch_parallel] [tts_parallel]` | Multi-voice — lookup voice per speaker từ `voice_mappings`, ghép segment → `audio_multiple_path` |
+| `scripts/story_single_tts.sh <story_id> <voice_id> [limit] [ch_parallel] [tts_parallel]` | Single-voice — 1 voice cố định cho toàn chapter → `audio_single_path` |
+| `scripts/chapter_tts.sh <chapter_id> <story_id> <segments_file> [rate] [parallel]` | TTS 1 chapter từ file TSV segments |
+| `scripts/tts_revid.sh "<text>" <voice_id> [rate] [output]` | TTS 1 đoạn text qua Revid API |
+
+**Voice ID format:** `capcut:BV074_streaming` · `edge:vi-VN-HoaiMyNeural` · `8001`–`8004` (Revid integer)
+
+**Audio storage:** `backend/storage/app/public/stories/{story_id}/chapters/{chapter_id}/`
+- `audio.mp3` → `audio_multiple_path` (multi-voice)
+- `audio_single.mp3` → `audio_single_path` (single-voice)
 
 ## Quy ước: thêm cấu hình hoặc config
 

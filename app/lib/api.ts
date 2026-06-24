@@ -85,7 +85,7 @@ export interface Chapter {
   title: string;
   content: string;
   content_segments?: ContentSegment[] | null;
-  audio_path: string | null;
+  audio_multiple_path: string | null;
   audio_url?: string | null;
   duration: number;
   chapter_number?: number | null;
@@ -132,8 +132,8 @@ export type PaginatedStories = {
 export function chapterAudioUrl(c: Chapter | undefined | null): string | null {
   if (!c) return null;
   if (c.audio_url) return resolveMediaUrl(c.audio_url);
-  if (c.audio_path?.startsWith("http")) return c.audio_path;
-  return resolveMediaUrl(c.audio_path);
+  if (c.audio_multiple_path?.startsWith("http")) return c.audio_multiple_path;
+  return resolveMediaUrl(c.audio_multiple_path);
 }
 
 export async function createStory(data: CreateStoryData): Promise<Story> {

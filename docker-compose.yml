@@ -120,6 +120,16 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # Image ffmpeg dùng để merge segment MP3 → audio.mp3
+  # Build: docker compose build worker-merge
+  # Dùng từ script: docker run --rm -v /path/to/chapter:/data story-merge
+  worker-merge:
+    profiles: ["worker-merge"]
+    build:
+      context: ./worker-merge
+      dockerfile: ../docker/merge.Dockerfile
+    image: story-merge
+
   nginx:
     image: nginx:1.27-alpine
     ports:

@@ -103,7 +103,7 @@ async function fetchTocPage(storySlug: string, page: number): Promise<ChaptersPa
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
   if (!c) return null;
-  return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
+  return resolvePlayableAudioUrl(c.audio_url, c.audio_multiple_path);
 }
 
 function ListenStoryPageContent() {

@@ -33,7 +33,7 @@ class UpdateChapterRequest extends FormRequest
             'chapter_number' => ['nullable', 'integer', 'min:1', 'max:999999'],
             'content' => ['sometimes', 'string'],
             'duration' => ['sometimes', 'numeric', 'min:0'],
-            'audio_path' => ['nullable', 'string', 'max:1024'],
+            'audio_multiple_path' => ['nullable', 'string', 'max:1024'],
         ];
     }
 }

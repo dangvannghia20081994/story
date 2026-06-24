@@ -40,8 +40,8 @@ class DashboardController extends Controller
             'crawlerJobCount' => CrawlerJob::query()->count(),
             'crawlerStatusCounts' => $crawlerStatusCounts,
             'storiesWithoutChaptersCount' => Story::query()->doesntHave('chapters')->count(),
-            'chapterAudioCount' => Chapter::query()->whereNotNull('audio_path')->count(),
-            'chapterTtsQueuedCount' => Chapter::query()->whereNotNull('tts_enqueued_at')->whereNull('audio_path')->count(),
+            'chapterAudioCount' => Chapter::query()->whereNotNull('audio_multiple_path')->count(),
+            'chapterTtsQueuedCount' => Chapter::query()->whereNotNull('tts_enqueued_at')->whereNull('audio_multiple_path')->count(),
             'recentStories' => $recentStories,
             'recentChapters' => $recentChapters,
         ]);

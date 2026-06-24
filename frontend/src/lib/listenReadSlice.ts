@@ -9,7 +9,7 @@ export type ListenChapterRow = {
   title: string;
   slug?: string | null;
   content: string;
-  audio_path: string | null;
+  audio_multiple_path: string | null;
   audio_url?: string | null;
   duration: number;
   chapter_number?: number | null;
@@ -21,7 +21,7 @@ export type ListenReadNavNeighbor = {
   title: string;
   slug?: string | null;
   content?: string | null;
-  audio_path?: string | null;
+  audio_multiple_path?: string | null;
   audio_url?: string | null;
   duration?: number;
   chapter_number?: number | null;
@@ -77,7 +77,7 @@ function rowFromNavNeighbor(n: NonNullable<ListenReadNavNeighbor>): ListenChapte
     title: n.title,
     slug: n.slug ?? null,
     content: typeof n.content === "string" ? n.content : "",
-    audio_path: (n.audio_path ?? null) as string | null,
+    audio_multiple_path: (n.audio_multiple_path ?? null) as string | null,
     audio_url: n.audio_url ?? null,
     duration: typeof n.duration === "number" ? n.duration : 0,
     chapter_number: n.chapter_number ?? null,

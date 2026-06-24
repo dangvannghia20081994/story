@@ -30,7 +30,7 @@ type Chapter = {
   slug?: string | null;
   content: string;
   content_segments?: ContentSegment[] | null;
-  audio_path: string | null;
+  audio_multiple_path: string | null;
   audio_url?: string | null;
   duration: number;
   chapter_number?: number | null;
@@ -130,7 +130,7 @@ async function fetchReadSlice(storySlug: string, chapterSlug: string): Promise<S
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
   if (!c) return null;
-  return resolvePlayableAudioUrl(c.audio_url, c.audio_path);
+  return resolvePlayableAudioUrl(c.audio_url, c.audio_multiple_path);
 }
 
 function readPath(storySlug: string, ch: { id: number; slug?: string | null }): string {
@@ -183,7 +183,7 @@ function ReadStoryPageContent() {
         title: nav.prev.title,
         slug: nav.prev.slug ?? null,
         content: "",
-        audio_path: null,
+        audio_multiple_path: null,
         duration: nav.prev.duration ?? 0,
         audio_url: nav.prev.audio_url ?? null,
       });
@@ -194,7 +194,7 @@ function ReadStoryPageContent() {
         title: nav.next.title,
         slug: nav.next.slug ?? null,
         content: "",
-        audio_path: null,
+        audio_multiple_path: null,
         duration: nav.next.duration ?? 0,
         audio_url: nav.next.audio_url ?? null,
       });

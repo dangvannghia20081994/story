@@ -353,8 +353,8 @@ class Story extends Model
     public function firstAudibleChapter(): HasOne
     {
         return $this->hasOne(Chapter::class)
-            ->whereNotNull('audio_path')
-            ->where('audio_path', '<>', '')
+            ->whereNotNull('audio_multiple_path')
+            ->where('audio_multiple_path', '<>', '')
             ->chapterNumberSort('asc');
     }
 
@@ -366,7 +366,7 @@ class Story extends Model
             if ($total === 0) {
                 return 'pending';
             }
-            $with = $chapters->filter(fn (Chapter $c) => $c->audio_path !== null && $c->audio_path !== '')->count();
+            $with = $chapters->filter(fn (Chapter $c) => $c->audio_multiple_path !== null && $c->audio_multiple_path !== '')->count();
             if ($with >= $total) {
                 return 'completed';
             }
@@ -398,7 +398,7 @@ class Story extends Model
             return $this->firstAudibleChapter->signedAudioStreamUrl();
         }
         if ($this->relationLoaded('chapters')) {
-            $first = $this->chapters->first(fn (Chapter $c) => $c->audio_path !== null && $c->audio_path !== '');
+            $first = $this->chapters->first(fn (Chapter $c) => $c->audio_multiple_path !== null && $c->audio_multiple_path !== '');
 
             return $first ? $first->signedAudioStreamUrl() : null;
         }

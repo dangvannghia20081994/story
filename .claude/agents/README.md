@@ -15,7 +15,8 @@ story-master (opus, coordinator)
 ├── worker-tts-python      — Python TTS workers (worker-tts + worker-voice)
 ├── devops-docker          — Docker Compose + nginx
 ├── db-postgres            — Postgres query helper (read-only mặc định)
-└── story-analyzer         — Phân tích truyện thủ công: NER nhân vật + gom thoại + insert characters/lexicons
+├── story-analyzer         — Phân tích truyện thủ công: NER nhân vật + gom thoại + insert characters/lexicons
+└── audio-merger           — Ghép nhiều file MP3 thành 1 file MP3 bằng ffmpeg
 ```
 
 ## Khi nào dùng agent nào
@@ -30,6 +31,7 @@ story-master (opus, coordinator)
 | Sửa `docker-compose.yml`, Dockerfile, nginx, port, profile | `devops-docker` |
 | Query Postgres để debug data | `db-postgres` |
 | Phân tích truyện thủ công (manual NER theo story_id, gom thoại, insert đợt lớn) | `story-analyzer` |
+| Ghép/nối nhiều file MP3 thành 1, thêm khoảng lặng, normalize volume | `audio-merger` |
 | Task chạm ≥2 layer / cần điều phối | `story-master` (coordinator) |
 
 ## Quan hệ với `.cursor/agents/`

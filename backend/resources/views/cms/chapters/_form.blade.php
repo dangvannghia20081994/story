@@ -40,8 +40,8 @@
             <input id="duration" type="number" name="duration" min="0" value="{{ old('duration', $chapter->duration) }}">
         </div>
         <div class="field">
-            <label for="audio_path">Đường dẫn audio (storage/public)</label>
-            <input id="audio_path" name="audio_path" value="{{ old('audio_path', $chapter->audio_path) }}" placeholder="vd: audio/chapters/1.mp3">
+            <label for="audio_multiple_path">Đường dẫn audio (storage/public)</label>
+            <input id="audio_multiple_path" name="audio_multiple_path" value="{{ old('audio_multiple_path', $chapter->audio_multiple_path) }}" placeholder="vd: audio/chapters/1.mp3">
         </div>
     @endif
     <button type="submit" class="btn btn-primary">{{ $isEdit ? 'Cập nhật' : 'Lưu' }}</button>

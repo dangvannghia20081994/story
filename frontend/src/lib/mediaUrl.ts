@@ -8,7 +8,7 @@
  */
 
 /**
- * Từ `audio_url` (tùy chọn) và `audio_path` (như cột DB: chapters/1.mp3) suy ra src phát được.
+ * Từ `audio_url` (tùy chọn) và `audio_multiple_path` (như cột DB: chapters/1.mp3) suy ra src phát được.
  */
 export function resolvePlayableAudioUrl(
   audioUrl: string | null | undefined,

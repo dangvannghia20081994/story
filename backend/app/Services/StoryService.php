@@ -39,10 +39,10 @@ final class StoryService
         }
 
         $query = Story::query()
-            ->with(['firstAudibleChapter' => fn ($q) => $q->select(['id', 'story_id', 'audio_path'])])
+            ->with(['firstAudibleChapter' => fn ($q) => $q->select(['id', 'story_id', 'audio_multiple_path'])])
             ->withCount([
                 'chapters',
-                'chapters as chapters_with_audio_count' => fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
+                'chapters as chapters_with_audio_count' => fn ($q) => $q->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '<>', ''),
             ]);
 
         $sort = (string) $request->input('sort', 'created_desc');
@@ -77,12 +77,12 @@ final class StoryService
         if ($request->input('has_audio') === 'yes') {
             $query->whereHas(
                 'chapters',
-                fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
+                fn ($q) => $q->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '<>', ''),
             );
         } elseif ($request->input('has_audio') === 'no') {
             $query->whereDoesntHave(
                 'chapters',
-                fn ($q) => $q->whereNotNull('audio_path')->where('audio_path', '<>', ''),
+                fn ($q) => $q->whereNotNull('audio_multiple_path')->where('audio_multiple_path', '<>', ''),
             );
         }
 
@@ -193,8 +193,8 @@ final class StoryService
         $data = $request->validated();
 
         $chaptersWithAudioTotal = $story->chapters()
-            ->whereNotNull('audio_path')
-            ->where('audio_path', '<>', '')
+            ->whereNotNull('audio_multiple_path')
+            ->where('audio_multiple_path', '<>', '')
             ->count();
 
         $readChapterSlug = isset($data['read_chapter_slug']) ? trim((string) $data['read_chapter_slug']) : '';
@@ -249,7 +249,7 @@ final class StoryService
             $q->reorder()->chapterNumberSort($chaptersOrder);
             if ($chaptersOmitContent) {
                 $q->select([
-                    'id', 'story_id', 'title', 'slug', 'chapter_number', 'audio_path',
+                    'id', 'story_id', 'title', 'slug', 'chapter_number', 'audio_multiple_path',
                     'duration', 'tts_enqueued_at', 'created_at', 'updated_at',
                 ]);
             }
