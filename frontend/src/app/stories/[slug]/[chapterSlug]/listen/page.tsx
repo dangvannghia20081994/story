@@ -128,6 +128,7 @@ function ListenStoryPageContent() {
   const chaptersRef = useRef<Chapter[]>([]);
   const loadedChapterIdRef = useRef<number | null>(null);
   const audioWebRef = useRef<AudioWebHandle | null>(null);
+  const tocListRef = useRef<HTMLUListElement>(null);
 
   useLayoutEffect(() => {
     chaptersRef.current = chapters;
@@ -301,6 +302,43 @@ function ListenStoryPageContent() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [showToc]);
+
+  useEffect(() => {
+    if (!showToc) return;
+    let cancelled = false;
+
+    async function loadAndScroll() {
+      const chapterIdx = readNav?.chapter_index;
+      if (chapterIdx) {
+        const neededPage = Math.ceil(chapterIdx / 100);
+        let loadedPage = tocLoadedPage;
+        while (loadedPage < neededPage && loadedPage < tocLastPage && !cancelled) {
+          const nextPage = loadedPage + 1;
+          try {
+            const toc = await fetchChaptersToc(storySlug, nextPage);
+            if (cancelled) return;
+            const batch = toc.data.map((c) => ({ ...c, content: "" as string }));
+            setChapters((prev) => mergeListenChapterRows(prev, batch));
+            setTocLoadedPage(nextPage);
+            setTocLastPage(toc.last_page ?? tocLastPage);
+            loadedPage = nextPage;
+          } catch {
+            break;
+          }
+        }
+      }
+      if (!cancelled) {
+        window.setTimeout(() => {
+          const active = tocListRef.current?.querySelector("[data-current='true']") as HTMLElement | null;
+          active?.scrollIntoView({ block: "center", behavior: "instant" });
+        }, 50);
+      }
+    }
+
+    void loadAndScroll();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showToc]);
 
   const chapterIdFromUrl = useMemo(() => {
@@ -545,9 +583,9 @@ function ListenStoryPageContent() {
                 Mục lục · {chapters.length}/{chaptersTotalDisplay} chương
               </h3>
             </div>
-            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+            <ul ref={tocListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
               {chapters.map((chapter, index) => (
-                <li key={chapter.id}>
+                <li key={chapter.id} data-current={chapter.id === currentChapter?.id ? "true" : undefined}>
                   <button
                     type="button"
                     onClick={() => goToChapter(index)}
