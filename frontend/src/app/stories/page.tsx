@@ -8,7 +8,8 @@ import {
   parseStoriesListSearchParams,
   type StoriesListFilters,
 } from "@/lib/storiesListQuery";
-import { StoriesListClient, type StoriesListPaginated } from "../StoriesListClient";
+import { StoriesListClient } from "../StoriesListClient";
+import { type StoriesListPaginated } from "./actions";
 import { CreateStoryButton } from "./CreateStoryButton";
 import { StoriesListSidebar } from "./StoriesListSidebar";
 

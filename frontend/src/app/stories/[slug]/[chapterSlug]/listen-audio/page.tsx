@@ -10,10 +10,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { AudioPlayer, type AudioChapterItem } from "@/components/AudioPlayer";
 import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
-import { apiFetch } from "@/lib/api";
+import { fetchChaptersToc, fetchListenSlice } from "@/app/stories/actions";
 import {
   applyListenReadSliceToRows,
-  fetchListenReadSlice,
   mergeListenChapterRows,
   readListenSessionCache,
   touchListenSessionRoute,
@@ -107,10 +106,6 @@ function chapterAudioUrl(c: Chapter | undefined): string | null {
   return resolvePlayableAudioUrl(c.audio_single_url, c.audio_multiple_path);
 }
 
-async function fetchTocPage(storySlug: string, page: number): Promise<ChaptersPage> {
-  const key = encodeURIComponent(storySlug);
-  return apiFetch<ChaptersPage>(`/api/stories/${key}/chapters?omit_content=1&per_page=100&page=${page}`);
-}
 
 function ListenAudioStoryPageContent() {
   const params = useParams();
@@ -199,7 +194,7 @@ function ListenAudioStoryPageContent() {
       }
       try {
         if (isInitialShell) {
-          const toc = await inFlightDedupe(`story-toc:${storySlug}:p1`, () => fetchTocPage(storySlug, 1));
+          const toc = await inFlightDedupe(`story-toc:${storySlug}:p1`, () => fetchChaptersToc(storySlug, 1));
           if (cancelled) return;
           const shellList = toc.data.map((c) => ({ ...c, content: "" }));
           setChapters(shellList);
@@ -215,7 +210,7 @@ function ListenAudioStoryPageContent() {
           }
 
           const slice = await inFlightDedupe(`story-read:${storySlug}:ch${targetId}`, () =>
-            fetchListenReadSlice(storySlug, targetId, true),
+            fetchListenSlice(storySlug, targetId, true),
           );
           if (cancelled) return;
           const { chapters: merged, index } = applyListenReadSliceToRows(shellList, slice);
@@ -251,7 +246,7 @@ function ListenAudioStoryPageContent() {
         if (loadedChapterIdRef.current === pid) return;
 
         const slice = await inFlightDedupe(`story-read:${storySlug}:ch${pid}`, () =>
-          fetchListenReadSlice(storySlug, pid, true),
+          fetchListenSlice(storySlug, pid, true),
         );
         if (cancelled) return;
         const { chapters: merged, index } = applyListenReadSliceToRows(chaptersRef.current, slice);
@@ -290,7 +285,7 @@ function ListenAudioStoryPageContent() {
     setLoadingTocMore(true);
     try {
       const nextPage = tocLoadedPage + 1;
-      const toc = await inFlightDedupe(`story-toc:${storySlug}:p${nextPage}`, () => fetchTocPage(storySlug, nextPage));
+      const toc = await inFlightDedupe(`story-toc:${storySlug}:p${nextPage}`, () => fetchChaptersToc(storySlug, nextPage));
       const batch = toc.data.map((c) => ({ ...c, content: "" }));
       setChapters((prev: Chapter[]) => {
         const next = mergeListenChapterRows(prev, batch);

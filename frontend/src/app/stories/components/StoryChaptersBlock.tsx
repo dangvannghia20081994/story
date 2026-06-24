@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { fetchStoryChapters } from "@/app/stories/actions";
 import { StoryChapterList } from "./StoryChapterList";
 
 type ChapterRow = {
@@ -16,27 +16,6 @@ type ChapterRow = {
   created_at?: string;
   updated_at?: string;
 };
-
-type StoryShowData = {
-  id: number;
-  title: string;
-  slug: string;
-  description: string | null;
-  genre?: string | null;
-  genres?: string[] | null;
-  serial_status?: string | null;
-  chapters?: ChapterRow[];
-  chapters_count?: number;
-  chapters_total?: number;
-  chapters_with_audio_total?: number;
-  characters_count?: number;
-};
-
-const CHAPTER_PAGE_SIZE = 25;
-
-function storyShowQuery(storyKey: string, order: "asc" | "desc", offset: number): string {
-  return `/api/stories/${encodeURIComponent(storyKey)}?chapters_order=${order}&chapters_full=0&chapters_limit=${CHAPTER_PAGE_SIZE}&chapters_offset=${offset}&chapters_omit_content=1`;
-}
 
 type Props = {
   storyKey: string;
@@ -75,7 +54,7 @@ export function StoryChaptersBlock({
     const order = nextAsc ? "asc" : "desc";
     setSortPending(true);
     try {
-      const res = await apiFetch<{ data: StoryShowData }>(storyShowQuery(storyKey, order, 0));
+      const res = await fetchStoryChapters(storyKey, order, 0);
       const raw = res.data.chapters;
       setChapters(Array.isArray(raw) ? raw : []);
       setCreatedAsc(nextAsc);
@@ -95,7 +74,7 @@ export function StoryChaptersBlock({
     }
     setExpandMoreLoading(true);
     try {
-      const res = await apiFetch<{ data: StoryShowData }>(storyShowQuery(storyKey, order, have));
+      const res = await fetchStoryChapters(storyKey, order, have);
       const batch = res.data.chapters ?? [];
       if (batch.length === 0) {
         setChaptersTotal(have);

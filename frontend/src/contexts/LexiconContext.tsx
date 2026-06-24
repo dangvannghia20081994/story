@@ -1,11 +1,10 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import type { LexiconRow } from "@/lib/applyLexicons";
 import { applyLexiconsToPlainText, sortLexiconEntries } from "@/lib/applyLexicons";
 import { chapterHtmlToTtsPlain } from "@/lib/chapterPlainText";
-import { fetchGlobalLexiconRows, fetchLexiconRowsForStory } from "@/lib/lexiconApi";
 
 type LexiconContextValue = {
   entries: LexiconRow[];
@@ -21,44 +20,14 @@ const LexiconContext = createContext<LexiconContextValue>({
 
 type LexiconProviderProps = {
   children: ReactNode;
-  /** Slug truyện từ URL: lexicon riêng + chung. Chuỗi rỗng = chỉ lexicon chung (toàn hệ). */
-  storyKey?: string;
+  initialEntries: LexiconRow[];
 };
 
-export function LexiconProvider({ children, storyKey = "" }: LexiconProviderProps) {
-  const [entries, setEntries] = useState<LexiconRow[]>([]);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const key = storyKey.trim();
-
-    (async () => {
-      setReady(false);
-      setError(null);
-      try {
-        const rows = key !== "" ? await fetchLexiconRowsForStory(key) : await fetchGlobalLexiconRows();
-        if (!cancelled) {
-          setEntries(sortLexiconEntries(rows));
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e : new Error(String(e)));
-        }
-      } finally {
-        if (!cancelled) {
-          setReady(true);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storyKey]);
-
-  const value = useMemo(() => ({ entries, ready, error }), [entries, ready, error]);
+export function LexiconProvider({ children, initialEntries }: LexiconProviderProps) {
+  const value = useMemo(
+    () => ({ entries: sortLexiconEntries(initialEntries), ready: true, error: null }),
+    [initialEntries],
+  );
 
   return <LexiconContext.Provider value={value}>{children}</LexiconContext.Provider>;
 }

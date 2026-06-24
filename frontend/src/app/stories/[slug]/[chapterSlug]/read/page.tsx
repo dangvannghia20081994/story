@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { isSpeechSynthesisSupported } from "@/lib/browserSpeech";
-import { apiFetch } from "@/lib/api";
+import { fetchChaptersToc, fetchReadSlice } from "@/app/stories/actions";
 import { resolvePlayableAudioUrl } from "@/lib/mediaUrl";
 import { inFlightDedupe } from "@/lib/inFlightDedupe";
 import { getSavedChapterId, setSavedChapterRef } from "@/lib/readingProgress";
@@ -116,17 +116,6 @@ function mergeChapterList(prev: Chapter[], incoming: Chapter[]): Chapter[] {
   return Array.from(map.values()).sort(chapterReadOrder);
 }
 
-async function fetchTocPage(storySlug: string, page: number): Promise<ChaptersPage> {
-  const key = encodeURIComponent(storySlug);
-  return apiFetch<ChaptersPage>(`/api/stories/${key}/chapters?omit_content=1&per_page=100&page=${page}`);
-}
-
-async function fetchReadSlice(storySlug: string, chapterSlug: string): Promise<StoryShowRead> {
-  const key = encodeURIComponent(storySlug);
-  const cs = encodeURIComponent(chapterSlug);
-  const res = await apiFetch<{ data: StoryShowRead }>(`/api/stories/${key}?read_chapter_slug=${cs}`);
-  return res.data;
-}
 
 function chapterAudioUrl(c: Chapter | undefined): string | null {
   if (!c) return null;
@@ -228,7 +217,7 @@ function ReadStoryPageContent() {
       setLoading(true);
       try {
         if (chaptersRef.current.length === 0) {
-          const toc = await inFlightDedupe(`story-toc:${storySlug}:p1`, () => fetchTocPage(storySlug, 1));
+          const toc = await inFlightDedupe(`story-toc:${storySlug}:p1`, () => fetchChaptersToc(storySlug, 1));
           if (cancelled) return;
           const shellList = toc.data.map((c) => ({ ...c, content: "" }));
           setChapters(shellList);
@@ -296,7 +285,7 @@ function ReadStoryPageContent() {
     setLoadingTocMore(true);
     try {
       const nextPage = tocLoadedPage + 1;
-      const toc = await inFlightDedupe(`story-toc:${storySlug}:p${nextPage}`, () => fetchTocPage(storySlug, nextPage));
+      const toc = await inFlightDedupe(`story-toc:${storySlug}:p${nextPage}`, () => fetchChaptersToc(storySlug, nextPage));
       const batch = toc.data.map((c) => ({ ...c, content: "" }));
       setChapters((prev: Chapter[]) => mergeChapterList(prev, batch));
       setTocLoadedPage(nextPage);

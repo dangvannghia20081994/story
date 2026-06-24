@@ -1,14 +1,17 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { useParams } from "next/navigation";
 
 import { LexiconProvider } from "@/contexts/LexiconContext";
+import { fetchLexiconRowsForStory } from "@/lib/lexiconApi";
 
-export default function StorySlugLayout({ children }: { children: ReactNode }) {
-  const params = useParams();
-  const raw = params?.slug;
-  const storySlug = Array.isArray(raw) ? (raw[0] ?? "") : (raw ?? "");
+export default async function StorySlugLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const initialEntries = await fetchLexiconRowsForStory(slug).catch(() => []);
 
-  return <LexiconProvider storyKey={storySlug}>{children}</LexiconProvider>;
+  return <LexiconProvider initialEntries={initialEntries}>{children}</LexiconProvider>;
 }
