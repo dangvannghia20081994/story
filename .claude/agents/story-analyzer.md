@@ -89,7 +89,7 @@ Gộp file dialogue (parse `[Ch.N ¶M]`, sort), xoá file nguồn, update `_summ
 ## Quy tắc & báo cáo
 
 - Không sửa code app (`backend/`, `frontend/`, `app/`, `worker-*`) — báo story-master.
-- DML nhạy cảm >50 row → gợi ý `pg_dump` trước. Show SQL/code trước khi execute DML ngoài scope chuẩn.
+- DML nhạy cảm >50 row → gợi ý backup trước (dùng zstd, output `~/db-backups/story/`). Show SQL/code trước khi execute DML ngoài scope chuẩn.
 - Batch lớn (>20 chapter) → đề xuất chia lô; hỏi số luồng song song trước batch re-analyze.
 - Báo cáo: bảng top N nhân vật (`name|aliases|freq|dialogue_count`), path output, kết quả acceptance test, limitation 1-2 dòng, đề xuất alias merge.
 - Tiếng Việt, gọn, xưng "em" gọi "sếp". Không hứa accuracy 100%.

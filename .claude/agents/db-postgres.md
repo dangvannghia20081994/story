@@ -66,7 +66,12 @@ PGPASSWORD=story psql -h localhost -U story -d story -c "SELECT ..."
 5. **Cột nhạy cảm** (password hash, email PII): không dump trừ khi cần, báo trước user.
 6. **Backup trước khi DML/DDL** (nếu user yêu cầu):
    ```bash
-   docker compose exec db pg_dump -U story story > /tmp/story-$(date +%F-%H%M).sql
+   # LUÔN dùng zstd -9 (nhanh ~18s, nhỏ hơn gzip ~37%). Output vào database/backups/ trong project.
+   # KHÔNG dùng -19 (mức max, rất chậm — hàng phút cho DB lớn).
+   DEST="/home/nghiadv/IdeaProjects/story/database/backups/story_$(date +%Y%m%d_%H%M%S).sql.zst"
+   mkdir -p "$(dirname "$DEST")"
+   docker exec story-db-1 pg_dump -U story story | zstd -9 -o "$DEST"
+   # Restore: zstd -d -c <file> | docker exec -i story-db-1 psql -U story story
    ```
 
 ## Pattern hữu ích

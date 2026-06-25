@@ -22,7 +22,7 @@ Monorepo đọc truyện online. Người dùng đọc trên web/app, **giọng 
 | Service              | URL                                      |
 |----------------------|------------------------------------------|
 | API                  | http://localhost:8000 (docs `/docs/api`) |
-| Next.js              | http://localhost:3000                    |
+| Next.js              | http://localhost:3100                    |
 | Expo web             | http://localhost:8090                    |
 | Postgres             | localhost:5432                           |
 | Redis                | localhost:6379                           |
