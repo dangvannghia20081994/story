@@ -71,6 +71,8 @@ PGPASSWORD=story psql -h localhost -U story -d story -c "SELECT ..."
    DEST="/home/nghiadv/IdeaProjects/story/database/backups/story_$(date +%Y%m%d_%H%M%S).sql.zst"
    mkdir -p "$(dirname "$DEST")"
    docker exec story-db-1 pg_dump -U story story | zstd -9 -o "$DEST"
+   # Upload lên Drive (--ignore-checksum tránh timeout verify với Google Drive API):
+   rclone copyto "$DEST" gdrive:story/$(basename "$DEST") --ignore-checksum
    # Restore: zstd -d -c <file> | docker exec -i story-db-1 psql -U story story
    ```
 

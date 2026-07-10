@@ -108,6 +108,7 @@ analysis/
 backup_*.sql
 data
 *.dump
+database/backups/
 
 # --- Output test TTS (audio, segments JSON local) ---
 worker-tts/output/
