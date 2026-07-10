@@ -9,7 +9,7 @@ scope: Next.js — UI web, gọi API, phát audio trên trình duyệt (Web Spee
 
 ## Đồng bộ tài liệu (bắt buộc)
 
-Khi sửa **`.env.local`**, **`next.config.ts`**, Docker service `frontend`: cập nhật **`frontend/README.md`**, file này, **`frontend-next.md`**.
+Khi sửa **`.env.example`** / **`.env.local`**, **`next.config.ts`**, Docker service `frontend`: cập nhật **`frontend/README.md`**, file này, **`frontend-next.md`**.
 
 ## Vai trò
 
@@ -31,8 +31,10 @@ Khi sửa **`.env.local`**, **`next.config.ts`**, Docker service `frontend`: c�
 
 | Biến | Khi nào |
 |--------|---------|
-| `NEXT_PUBLIC_API_URL` | Client + audio URL |
+| `NEXT_PUBLIC_API_URL` | Client + audio URL (không `/api`) |
 | `API_URL` | SSR Docker → `http://backend:8000` |
+
+File mẫu: **`frontend/.env.example`** (commit) → copy sang `.env.local`.
 
 ## Lệnh
 

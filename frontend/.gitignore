@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# nhưng vẫn commit file mẫu để đồng bộ với backend/.env.example, compose.env.example
+!.env.example
 
 # vercel
 .vercel

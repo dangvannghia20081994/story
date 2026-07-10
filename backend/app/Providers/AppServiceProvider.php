@@ -10,6 +10,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,6 +28,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // App chạy sau reverse proxy (nginx, service `frontend` SSR gọi qua host nội bộ `backend:8000`).
+        // Ép mọi URL sinh ra theo APP_URL để signed URL (vd audio stream) KHÔNG nhúng host nội bộ —
+        // nếu không, URL ký theo `backend:8000` sẽ 403 khi trình duyệt phát qua `story.test`.
+        $appUrl = trim((string) config('app.url'));
+        if ($appUrl !== '' && $appUrl !== 'http://localhost') {
+            URL::forceRootUrl($appUrl);
+            if (str_starts_with($appUrl, 'https://')) {
+                URL::forceScheme('https');
+            }
+        }
+
         RateLimiter::for('chapter-audio-stream', function (Request $request): Limit {
             $perMinute = (int) config('chapter_audio.stream_throttle_per_minute', 480);
 

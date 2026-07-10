@@ -21,7 +21,14 @@ export function resolvePlayableAudioUrl(
     if (u.startsWith("http://") || u.startsWith("https://")) {
       try {
         const parsed = new URL(u);
-        if (parsed.pathname.startsWith("/storage/") || parsed.pathname === "/storage") {
+        // `/storage/*` và `/api/*` đều được next.config rewrite → backend. Hạ về tương đối
+        // (same-origin) để trình duyệt tải được (host nội bộ `backend:8000` không phân giải)
+        // và giữ nguyên host khi validate signed URL (`/api/.../audio/stream`).
+        if (
+          parsed.pathname.startsWith("/storage/") ||
+          parsed.pathname === "/storage" ||
+          parsed.pathname.startsWith("/api/")
+        ) {
           return `${parsed.pathname}${parsed.search}`;
         }
         return u;

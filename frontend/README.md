@@ -16,13 +16,20 @@ npm install
 cp ../compose.env.example ../.env   # không bắt buộc
 ```
 
-Tạo `.env.local` (hoặc export):
+Tạo `.env.local` từ file mẫu rồi chỉnh nếu cần:
 
 ```bash
-# Chỉ gốc origin (không thêm /api) — mã gọi API luôn dùng path kiểu /api/stories/...
-NEXT_PUBLIC_API_URL=http://localhost:8000
-# SSR trong Docker cần thêm API_URL=http://backend:8000 — xem docker-compose
+cp .env.example .env.local
+# NEXT_PUBLIC_API_URL — base cho trình duyệt (không thêm /api); apiFetch luôn dùng path /api/...
+# API_URL             — base cho SSR/rewrite; Docker trỏ http://backend:8000
 ```
+
+Biến (xem `.env.example` để biết chi tiết + giá trị mẫu):
+
+| Biến | Dùng cho | Dev không Docker | Docker |
+|------|----------|------------------|--------|
+| `NEXT_PUBLIC_API_URL` | Client (trình duyệt) | `http://localhost:8000` | `http://story.test` |
+| `API_URL` | SSR / Server Components / rewrite | `http://localhost:8000` | `http://backend:8000` |
 
 ```bash
 npm run dev
@@ -34,7 +41,8 @@ Mở http://localhost:3000
 
 | Nguồn | Mô tả |
 |--------|--------|
-| `.env.local` (không commit) | `NEXT_PUBLIC_API_URL`, tùy chọn biến khác cho Next |
+| `.env.example` (commit) | File mẫu — copy sang `.env.local` |
+| `.env.local` (không commit) | `NEXT_PUBLIC_API_URL`, `API_URL` cho dev local |
 | `next.config.ts` | Tùy chọn rewrite, domain ảnh, v.v. |
 | `package.json` | Script `dev`, `build`, … |
 
