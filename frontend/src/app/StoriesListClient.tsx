@@ -32,16 +32,16 @@ function StoriesGridSkeleton() {
       {Array.from({ length: STORIES_LIST_PER_PAGE }).map((_, i) => (
         <div
           key={i}
-          className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/80 dark:border-zinc-700/60 dark:bg-zinc-800/40"
+          className="overflow-hidden rounded-2xl border border-line bg-paper-raised"
         >
-          <div className="aspect-[16/10] animate-pulse bg-gradient-to-br from-zinc-200 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900" />
+          <div className="aspect-[16/10] animate-pulse bg-line" />
           <div className="space-y-3 p-4">
-            <div className="h-4 w-3/4 max-w-[14rem] animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
-            <div className="h-3 w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
+            <div className="h-4 w-3/4 max-w-[14rem] animate-pulse rounded-md bg-line" />
+            <div className="h-3 w-full animate-pulse rounded bg-line" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-line" />
             <div className="flex justify-between pt-2">
-              <div className="h-6 w-24 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-700" />
-              <div className="h-4 w-16 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
+              <div className="h-6 w-24 animate-pulse rounded-lg bg-line" />
+              <div className="h-4 w-16 animate-pulse rounded bg-line" />
             </div>
           </div>
         </div>
@@ -112,11 +112,11 @@ export function StoriesListClient({ currentPage, filters, initialList }: Stories
   if (items.length === 0) {
     if ((total ?? 0) > 0) {
       return (
-        <div className="rounded-2xl border border-dashed border-amber-200/90 bg-amber-50/40 px-6 py-10 text-center dark:border-amber-900/50 dark:bg-amber-950/25">
-          <p className="text-sm text-amber-900 dark:text-amber-100">Không có truyện trên trang {page}.</p>
+        <div className="rounded-2xl border border-dashed border-chusa/30 bg-chusa/10 px-6 py-10 text-center">
+          <p className="font-serif text-sm text-ink-soft">Không có truyện trên trang {page}.</p>
           <Link
             href={buildStoriesListHref(1, filters)}
-            className="mt-3 inline-block text-sm font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
+            className="mt-3 inline-block text-sm font-semibold text-chusa underline-offset-2 hover:underline hover:text-chusa-deep"
           >
             Về trang 1
           </Link>
@@ -124,10 +124,10 @@ export function StoriesListClient({ currentPage, filters, initialList }: Stories
       );
     }
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-300/90 bg-zinc-50/50 px-6 py-14 text-center dark:border-zinc-600 dark:bg-zinc-900/30">
-        <p className="text-lg text-zinc-600 dark:text-zinc-300">Chưa có truyện nào</p>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
-          Dùng nút <span className="font-medium text-violet-600 dark:text-violet-400">Thêm truyện</span> phía trên để tạo
+      <div className="rounded-2xl border border-dashed border-line bg-paper-inset px-6 py-14 text-center">
+        <p className="font-serif text-lg italic text-ink-faint">Chưa có truyện nào</p>
+        <p className="mt-2 text-sm text-ink-faint">
+          Dùng nút <span className="font-medium text-chusa">Thêm truyện</span> phía trên để tạo
           bản ghi đầu tiên.
         </p>
       </div>
@@ -138,12 +138,12 @@ export function StoriesListClient({ currentPage, filters, initialList }: Stories
     <div className="space-y-8">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-600 dark:text-violet-400/90">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-chusa">
             Thư viện
           </p>
-          <h2 className="mt-1 text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Tất cả truyện</h2>
+          <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-ink">Tất cả truyện</h2>
         </div>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-ink-faint">
           {total > 0 ? (
             <>
               {total} truyện · Trang {page}/{lastPage}
@@ -166,10 +166,10 @@ export function StoriesListClient({ currentPage, filters, initialList }: Stories
 
       {lastPage > 1 ? (
         <nav
-          className="flex flex-col items-center justify-between gap-4 border-t border-zinc-200/80 pt-6 dark:border-zinc-700/60 sm:flex-row"
+          className="flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row"
           aria-label="Phân trang danh sách truyện"
         >
-          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 sm:text-left">
+          <p className="text-center text-sm text-ink-faint sm:text-left">
             {total > 0 ? (
               <>
                 Hiển thị {(page - 1) * STORIES_LIST_PER_PAGE + 1}–{Math.min(page * STORIES_LIST_PER_PAGE, total)} /{" "}
@@ -183,24 +183,24 @@ export function StoriesListClient({ currentPage, filters, initialList }: Stories
             {page > 1 ? (
               <Link
                 href={buildStoriesListHref(page - 1, filters)}
-                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50/80 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-violet-700 dark:hover:bg-zinc-800"
+                className="rounded-lg border border-line bg-paper-raised px-4 py-2 text-sm font-semibold text-ink transition hover:border-chusa/40 hover:text-chusa focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chusa"
               >
                 ← Trước
               </Link>
             ) : (
-              <span className="rounded-xl border border-transparent px-4 py-2 text-sm font-semibold text-zinc-400 opacity-60 dark:text-zinc-600">
+              <span className="rounded-lg border border-transparent px-4 py-2 text-sm font-semibold text-ink-faint opacity-60">
                 ← Trước
               </span>
             )}
             {page < lastPage ? (
               <Link
                 href={buildStoriesListHref(page + 1, filters)}
-                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50/80 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-violet-700 dark:hover:bg-zinc-800"
+                className="rounded-lg border border-line bg-paper-raised px-4 py-2 text-sm font-semibold text-ink transition hover:border-chusa/40 hover:text-chusa focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chusa"
               >
                 Sau →
               </Link>
             ) : (
-              <span className="rounded-xl border border-transparent px-4 py-2 text-sm font-semibold text-zinc-400 opacity-60 dark:text-zinc-600">
+              <span className="rounded-lg border border-transparent px-4 py-2 text-sm font-semibold text-ink-faint opacity-60">
                 Sau →
               </span>
             )}

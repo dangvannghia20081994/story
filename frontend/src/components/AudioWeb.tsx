@@ -125,8 +125,8 @@ export type AudioWebProps = {
 function chipClass(active: boolean) {
   return `rounded-full border px-2 py-0.5 text-[11px] font-medium transition cursor-pointer ${
     active
-      ? "border-transparent bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-500/25 dark:from-indigo-500 dark:to-violet-500 dark:shadow-indigo-900/40"
-      : "border-gray-300 bg-white text-gray-600 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50/90 hover:to-violet-50/80 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:border-indigo-500/50 dark:hover:from-indigo-950/40 dark:hover:to-violet-950/30"
+      ? "border-transparent bg-ngoc text-[#f6ede0] shadow-sm"
+      : "border-line bg-paper-raised text-ink-soft hover:border-ngoc/40 hover:bg-ngoc/10"
   }`;
 }
 
@@ -546,12 +546,12 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
 
   return (
     <div
-      className={`w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 ${className}`}
+      className={`paper-card w-full max-w-2xl overflow-hidden ${className}`}
     >
       <div className="px-5 py-4">
-        <div className="mb-4 h-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+        <div className="mb-4 h-20 shrink-0 overflow-hidden rounded-xl border border-line bg-paper-inset">
           <div className="h-full overflow-y-auto overscroll-contain px-3 py-2.5 [scrollbar-gutter:stable]">
-            <p className="text-left text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+            <p className="text-left text-xs font-serif leading-relaxed text-ink-soft">
               {currentIndex >= 0 && sentences[currentIndex]
                 ? sentences[currentIndex]
                 : sentences.length > 0
@@ -562,7 +562,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
         </div>
 
         <div className="mb-4">
-          <div className="mb-1.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div className="mb-1.5 flex justify-between text-xs text-ink-faint">
             <span>
               Câu {displaySentence}
               {sentences.length > 0 ? ` / ${sentences.length}` : ""}
@@ -587,14 +587,14 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             aria-valuemax={100}
             aria-valuenow={Math.round(progressPct)}
             tabIndex={0}
-            className="relative h-1.5 cursor-pointer rounded-full border border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-700"
+            className="relative h-1.5 cursor-pointer rounded-full border border-line bg-paper-inset"
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 transition-[width] duration-300 dark:from-indigo-400 dark:via-violet-500 dark:to-sky-400"
+              className="h-full rounded-full bg-ngoc transition-[width] duration-300"
               style={{ width: `${progressPct}%` }}
             />
             <div
-              className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-indigo-500 bg-white shadow-sm ring-1 ring-indigo-500/30 transition-[left] duration-300 dark:border-violet-400 dark:bg-gray-900 dark:ring-violet-400/25"
+              className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ngoc bg-paper-raised shadow-sm ring-1 ring-ngoc/30 transition-[left] duration-300"
               style={{ left: `${progressPct}%` }}
             />
           </div>
@@ -610,7 +610,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
               disabled={!canGoToPreviousChapter}
               aria-label="Chương trước"
               title="Chương trước"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ngoc/25 bg-ngoc/10 text-ngoc shadow-sm transition hover:border-ngoc/50 hover:bg-ngoc/15 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChapterNavPrevIcon />
             </button>
@@ -620,7 +620,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             onClick={() => skipSentences(-1)}
             disabled={sentences.length === 0}
             aria-label="Câu trước"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-ngoc/25 bg-ngoc/10 text-ngoc shadow-sm transition hover:border-ngoc/50 hover:bg-ngoc/15 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <SkipBackIcon />
           </button>
@@ -630,7 +630,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             onClick={togglePlay}
             disabled={sentences.length === 0}
             aria-label={isPlaying ? "Tạm dừng" : "Phát"}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-500/40 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none dark:from-indigo-500 dark:to-violet-600 dark:shadow-indigo-900/50"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ngoc text-[#f6ede0] shadow-lg shadow-ngoc/30 transition hover:bg-ngoc-deep active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             {isPlaying ? <PauseIcon /> : <PlayIcon />}
           </button>
@@ -640,7 +640,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             onClick={() => skipSentences(1)}
             disabled={sentences.length === 0}
             aria-label="Câu sau"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-ngoc/25 bg-ngoc/10 text-ngoc shadow-sm transition hover:border-ngoc/50 hover:bg-ngoc/15 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <SkipForwardIcon />
           </button>
@@ -651,7 +651,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
               disabled={!canGoToNextChapter}
               aria-label="Chương sau"
               title="Chương sau"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-200/80 bg-white text-indigo-600 shadow-sm transition hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-800/80 dark:bg-gray-800 dark:text-indigo-300 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ngoc/25 bg-ngoc/10 text-ngoc shadow-sm transition hover:border-ngoc/50 hover:bg-ngoc/15 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChapterNavNextIcon />
             </button>
@@ -659,12 +659,12 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-xl border border-line bg-paper-inset p-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
                 Âm lượng
               </span>
-              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{volumePercent}%</span>
+              <span className="text-xs font-medium text-ink">{volumePercent}%</span>
             </div>
             <input
               type="range"
@@ -674,16 +674,16 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
               value={volume}
               onChange={handleVolumeChange}
               aria-label="Âm lượng"
-              className="w-full accent-indigo-600 dark:accent-violet-400"
+              className="w-full accent-ngoc"
             />
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-xl border border-line bg-paper-inset p-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
                 Tốc độ
               </span>
-              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{rate}×</span>
+              <span className="text-xs font-medium text-ink">{rate}×</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {SPEED_OPTIONS.map((s) => (
@@ -699,12 +699,12 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-xl border border-line bg-paper-inset p-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
                 Hẹn giờ tắt
               </span>
-              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">
+              <span className="text-xs font-medium text-ink">
                 {sleepTimer > 0 ? `${sleepTimer} phút` : "Tắt"}
               </span>
             </div>
@@ -722,37 +722,37 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-xl border border-line bg-paper-inset p-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
                 Còn lại
               </span>
-              <span className="text-xs font-medium text-gray-800 dark:text-gray-100">
+              <span className="text-xs font-medium text-ink">
                 {sleepTimer > 0 && sleepTimeLeft != null && sleepTimeLeft > 0
                   ? formatSleepTime(sleepTimeLeft)
                   : "--:--"}
               </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <div className="h-1.5 overflow-hidden rounded-full bg-line">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width] duration-1000 dark:from-indigo-400 dark:to-violet-400"
+                className="h-full rounded-full bg-ngoc transition-[width] duration-1000"
                 style={{ width: `${timerPct}%` }}
               />
             </div>
-            <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+            <p className="mt-1.5 text-[10px] text-ink-faint">
               {sleepTimer > 0 ? "Tự động tắt sau khi hết giờ" : "Không hẹn giờ"}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 bg-gray-50 px-5 py-3 dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex flex-wrap items-center gap-2 border-t border-line bg-paper-inset px-5 py-3">
         <div
           className={`h-2 w-2 shrink-0 rounded-full ${
-            isPlaying ? "animate-pulse bg-green-500" : "bg-gray-400 dark:bg-gray-500"
+            isPlaying ? "animate-pulse bg-ngoc" : "bg-ink-faint"
           }`}
         />
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-xs text-ink-faint">
           {isPlaying ? "Đang đọc…" : "Sẵn sàng"}
         </span>
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
@@ -768,7 +768,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
                 /* ignore */
               }
             }}
-            className="max-w-[min(11rem,42vw)] shrink rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+            className="max-w-[min(11rem,42vw)] shrink rounded-lg border border-line bg-paper-raised px-2 py-1 text-xs text-ink-soft"
           >
             {langOptions.map((o) => (
               <option key={normalizeSpeechLang(o.value)} value={o.value}>
@@ -779,7 +779,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
           {voiceList.length > 0 ? (
             <select
               aria-label="Chọn giọng đọc"
-              className="max-w-[min(11rem,42vw)] shrink truncate rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+              className="max-w-[min(11rem,42vw)] shrink truncate rounded-lg border border-line bg-paper-raised px-2 py-1 text-xs text-ink-soft"
               value={voiceUri}
               onChange={(e) => {
                 const v = e.target.value;
@@ -801,7 +801,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
             </select>
           ) : speechFallbackVoice ? (
             <span
-              className="max-w-[min(14rem,48vw)] truncate text-xs text-amber-800 dark:text-amber-200/90"
+              className="max-w-[min(14rem,48vw)] truncate text-xs text-chusa"
               title="Máy chưa có giọng tiếng Việt; đang đọc bằng giọng hệ thống (phát âm tiếng Việt sẽ lạ). Cài gói ngôn ngữ hoặc chọn English trong «Ngôn ngữ đọc» nếu có giọng EN."
             >
               Giọng tạm:{" "}
@@ -810,7 +810,7 @@ export const AudioWeb = forwardRef<AudioWebHandle, AudioWebProps>(function Audio
                 : speechFallbackVoice.name}
             </span>
           ) : (
-            <span className="text-xs text-gray-400">Không có giọng cho ngôn ngữ này</span>
+            <span className="text-xs text-ink-faint">Không có giọng cho ngôn ngữ này</span>
           )}
         </div>
       </div>

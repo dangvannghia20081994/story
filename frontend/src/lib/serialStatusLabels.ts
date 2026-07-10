@@ -9,10 +9,10 @@ export function serialStatusLabel(status: string | null | undefined): string | n
 export function serialStatusBadgeClass(status: string | null | undefined): string {
   switch (status) {
     case "completed":
-      return "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800/80 dark:bg-emerald-950/50 dark:text-emerald-200";
+      return "border-ngoc/30 bg-ngoc/10 text-ngoc";
     case "ongoing":
-      return "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-100";
+      return "border-chusa/30 bg-chusa/10 text-chusa";
     default:
-      return "border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-400";
+      return "border-line bg-paper-inset text-ink-faint";
   }
 }

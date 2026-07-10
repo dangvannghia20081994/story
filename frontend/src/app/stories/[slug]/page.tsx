@@ -82,8 +82,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   const withAudioTotal = s.chapters_with_audio_total ?? chapters.filter((c) => chapterAudioUrl(c) || c.audio_single_path).length;
   const firstChapter = chapters[0];
   const chaptersForHref = chapters.map((c) => ({ id: c.id, slug: c.slug }));
-  const shell =
-    "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
+  const shell = "paper-card";
 
   return (
     <SidebarLayout storyId={s.id} storyGenreSlugs={genreSlugs}>
@@ -91,19 +90,19 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
         <nav className="flex flex-wrap items-center gap-2 text-sm">
           <Link
             href="/stories"
-            className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/90 bg-white/80 px-3 py-1.5 font-medium text-zinc-600 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-indigo-800 dark:hover:text-indigo-300"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper-raised px-3 py-1.5 font-medium text-ink-soft transition hover:border-chusa/40 hover:text-chusa"
           >
             ← Danh sách truyện
           </Link>
-          <span className="text-zinc-300 dark:text-zinc-600">/</span>
-          <span className="truncate text-zinc-500 dark:text-zinc-500">{s.title}</span>
+          <span className="text-ink-faint">/</span>
+          <span className="truncate text-ink-faint">{s.title}</span>
         </nav>
 
         <section className={`${shell} overflow-hidden`}>
-          <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500" aria-hidden />
+          <div className="h-1 bg-gradient-to-r from-chusa via-chusa-deep to-ngoc" aria-hidden />
           <div className="flex flex-col gap-5 p-6 md:gap-6 md:p-8">
             {/* 1 — Tên truyện */}
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-ink md:text-4xl">
               {s.title}
             </h1>
             {/* 2 — Thể loại + tình trạng */}
@@ -113,7 +112,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                 return lab ? (
                   <span
                     key={gSlug}
-                    className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-800 dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-200"
+                    className="rounded-full border border-chusa/25 bg-chusa/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-chusa"
                   >
                     {lab}
                   </span>
@@ -147,11 +146,11 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
             {/* 4 — Mô tả */}
             <div className="min-w-0">
               {s.description ? (
-                <p className="max-w-2xl text-pretty text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 md:text-base">
+                <p className="max-w-2xl text-pretty font-serif text-sm leading-relaxed text-ink-soft md:text-base">
                   {s.description}
                 </p>
               ) : (
-                <p className="text-sm text-zinc-500 dark:text-zinc-500">Chưa có mô tả ngắn cho truyện này.</p>
+                <p className="font-serif text-sm italic text-ink-faint">Chưa có mô tả ngắn cho truyện này.</p>
               )}
             </div>
           </div>
@@ -160,14 +159,14 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
         {/* 5 — Thông tin & danh sách chương */}
         {chaptersTotal > 0 ? (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-ink-soft">
               {typeof s.chapters_count === "number" ? (
                 <>
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{s.chapters_count}</span> chương
+                  <span className="font-medium text-ink">{s.chapters_count}</span> chương
                 </>
               ) : (
                 <>
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{chaptersTotal}</span> chương
+                  <span className="font-medium text-ink">{chaptersTotal}</span> chương
                 </>
               )}
               {typeof s.characters_count === "number" && s.characters_count > 0 ? (
@@ -176,7 +175,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
                   ·{" "}
                   <Link
                     href={storyCharactersHref(slug)}
-                    className="font-medium text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300"
+                    className="font-medium text-chusa underline-offset-2 hover:underline"
                   >
                     {s.characters_count} nhân vật
                   </Link>
@@ -184,7 +183,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
               ) : null}
               {" "}
               ·{" "}
-              <span className="font-medium text-zinc-800 dark:text-zinc-200">{withAudioTotal}</span> / {chaptersTotal}{" "}
+              <span className="font-medium text-ink">{withAudioTotal}</span> / {chaptersTotal}{" "}
               chương đã có file audio
             </p>
             <StoryChaptersBlock
@@ -197,9 +196,9 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
           </div>
         ) : (
           <section className={`${shell} p-6 text-center`}>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Truyện này chưa có chương.</p>
-            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
-              Dùng nút <span className="font-medium text-indigo-600 dark:text-indigo-400">Thêm chương</span> phía trên để
+            <p className="text-sm text-ink-soft">Truyện này chưa có chương.</p>
+            <p className="mt-2 text-xs text-ink-faint">
+              Dùng nút <span className="font-medium text-chusa">Thêm chương</span> phía trên để
               tạo chương đầu tiên.
             </p>
           </section>

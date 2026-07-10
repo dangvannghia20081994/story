@@ -28,7 +28,7 @@ export function StoryReadPrimaryButton({ storyKey, firstChapter, chapters }: Pro
   return (
     <Link
       href={href}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:bg-indigo-500 sm:w-auto"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-chusa px-5 py-2.5 text-sm font-semibold text-[#f6ede0] transition hover:bg-chusa-deep sm:w-auto"
     >
       <span aria-hidden>{hasProgress ? "▶" : "📖"}</span>
       {hasProgress ? "Đọc tiếp" : "Đọc truyện"}

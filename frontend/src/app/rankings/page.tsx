@@ -51,20 +51,20 @@ export default async function RankingsPage() {
   return (
     <FullWidthLayout>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6 md:p-10">
-        <header className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/70">
-          <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Bảng xếp hạng truyện</h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <header className="paper-card p-6">
+          <h1 className="font-display text-2xl font-bold text-ink">Bảng xếp hạng truyện</h1>
+          <p className="mt-2 font-serif text-sm text-ink-soft">
             Xếp hạng dựa trên tiến độ audio (trạng thái tổng hợp), có file nghe và độ đầy đủ mô tả.
           </p>
         </header>
 
-        <section className="overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75">
+        <section className="paper-card overflow-hidden">
           {rankings.length === 0 ? (
-            <p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Chưa có dữ liệu để xếp hạng.</p>
+            <p className="p-6 font-serif text-sm italic text-ink-faint">Chưa có dữ liệu để xếp hạng.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead className="border-b border-line bg-paper-inset text-xs uppercase tracking-wide text-ink-faint">
                   <tr>
                     <th className="px-4 py-3">Hạng</th>
                     <th className="px-4 py-3">Truyện</th>
@@ -75,19 +75,19 @@ export default async function RankingsPage() {
                 </thead>
                 <tbody>
                   {rankings.map((story, index) => (
-                    <tr key={story.id} className="border-b border-zinc-100 dark:border-zinc-800/70">
-                      <td className="px-4 py-3 font-semibold text-zinc-700 dark:text-zinc-200">#{index + 1}</td>
+                    <tr key={story.id} className="border-b border-line">
+                      <td className="px-4 py-3 font-display font-semibold text-ink-soft">#{index + 1}</td>
                       <td className="px-4 py-3">
                         <Link
                           href={storyDetailHref(story)}
-                          className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                          className="font-medium text-chusa hover:underline"
                         >
                           {story.title}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{storyGenresDisplay(story)}</td>
-                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{statusLabel(story.tts_status)}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-zinc-800 dark:text-zinc-100">{story.score}</td>
+                      <td className="px-4 py-3 text-ink-soft">{storyGenresDisplay(story)}</td>
+                      <td className="px-4 py-3 text-ink-soft">{statusLabel(story.tts_status)}</td>
+                      <td className="px-4 py-3 text-right font-display font-semibold text-ink">{story.score}</td>
                     </tr>
                   ))}
                 </tbody>

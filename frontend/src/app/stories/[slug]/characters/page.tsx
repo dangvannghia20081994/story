@@ -27,9 +27,6 @@ type CharactersPageJson = {
   last_page?: number;
 };
 
-const shell =
-  "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
-
 function characterInitial(name: string): string {
   const t = name.trim();
   if (t.length === 0) return "?";
@@ -90,37 +87,37 @@ export default async function StoryCharactersPage({ params }: { params: Promise<
         <nav className="flex flex-wrap items-center gap-2 text-sm">
           <Link
             href="/stories"
-            className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/90 bg-white/80 px-3 py-1.5 font-medium text-zinc-600 transition hover:border-indigo-200 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-indigo-800 dark:hover:text-indigo-300"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper-raised px-3 py-1.5 font-medium text-ink-soft transition hover:border-chusa/40 hover:text-chusa"
           >
             ← Danh sách truyện
           </Link>
-          <span className="text-zinc-300 dark:text-zinc-600">/</span>
+          <span className="text-ink-faint">/</span>
           <Link
             href={storyDetailHref(story)}
-            className="truncate font-medium text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300"
+            className="truncate font-medium text-chusa underline-offset-2 hover:underline"
           >
             {story.title}
           </Link>
-          <span className="text-zinc-300 dark:text-zinc-600">/</span>
-          <span className="truncate text-zinc-500 dark:text-zinc-500">Nhân vật</span>
+          <span className="text-ink-faint">/</span>
+          <span className="truncate text-ink-faint">Nhân vật</span>
         </nav>
 
         <header className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-3xl">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Danh sách nhân vật
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{story.title}</p>
+          <p className="text-sm text-ink-faint">{story.title}</p>
         </header>
 
         <section className="flex flex-col gap-4" aria-labelledby="character-list-heading">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <p id="character-list-heading" className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p id="character-list-heading" className="text-sm text-ink-soft">
               {characters.length > 0
                 ? `${characters.length} nhân vật trong truyện.`
                 : "Chưa có nhân vật nào cho truyện này."}
             </p>
             {characters.length > 0 ? (
-              <span className="inline-flex shrink-0 items-center rounded-full border border-indigo-200/90 bg-indigo-50 px-3 py-1 text-xs font-semibold tabular-nums text-indigo-800 dark:border-indigo-800/60 dark:bg-indigo-950/50 dark:text-indigo-200">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-chusa/25 bg-chusa/10 px-3 py-1 text-xs font-semibold tabular-nums text-chusa">
                 {characters.length}
               </span>
             ) : null}
@@ -130,28 +127,24 @@ export default async function StoryCharactersPage({ params }: { params: Promise<
             <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {characters.map((c) => (
                 <li key={c.id}>
-                  <div
-                    className={`${shell} flex gap-4 rounded-2xl border-zinc-200/90 bg-gradient-to-br from-white to-zinc-50/90 p-4 dark:border-zinc-800 dark:from-zinc-900/90 dark:to-zinc-950/90`}
-                  >
+                  <div className="paper-card flex gap-4 p-4">
                     <span
-                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-inner ring-1 ring-white/25 dark:ring-white/10"
+                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-chusa font-display text-lg font-bold text-[#f6ede0] shadow-inner"
                       aria-hidden
                     >
                       {characterInitial(c.name)}
                     </span>
                     <span className="min-w-0 flex-1 py-0.5">
-                      <span className="block font-semibold text-zinc-900 dark:text-zinc-50">{c.name}</span>
+                      <span className="block font-display font-semibold text-ink">{c.name}</span>
                     </span>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <div
-              className={`${shell} border-dashed border-zinc-300/90 bg-zinc-50/50 p-10 text-center dark:border-zinc-700 dark:bg-zinc-900/40`}
-            >
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Thêm nhân vật trong CMS tại mục <span className="font-medium text-zinc-800 dark:text-zinc-200">Nhân vật</span> của
+            <div className="paper-card border-dashed border-line bg-paper-inset p-10 text-center">
+              <p className="font-serif text-sm italic text-ink-faint">
+                Thêm nhân vật trong CMS tại mục <span className="font-medium text-ink not-italic">Nhân vật</span> của
                 truyện.
               </p>
             </div>

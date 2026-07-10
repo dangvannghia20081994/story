@@ -28,7 +28,7 @@ export function StoryListenAudioPrimaryButton({ storyKey, firstChapter, chapters
   return (
     <Link
       href={href}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:w-auto dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/55"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-ngoc/25 bg-ngoc/10 px-4 py-2 text-sm font-semibold text-ngoc transition hover:border-ngoc/50 hover:bg-ngoc/15 sm:w-auto"
     >
       <span aria-hidden>🎵</span>
       {hasProgress ? "Nghe audio tiếp" : "Nghe audio"}

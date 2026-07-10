@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Seal } from "@/components/Seal";
 
 type NavItem = {
   href: string;
@@ -63,13 +64,13 @@ export function Navbar() {
         {/* Lớp mờ phía sau drawer — nền đặc, z cao để không bị sticky header / nội dung ghi đè */}
         <button
           type="button"
-          className="fixed inset-0 top-14 z-[200] bg-zinc-950/75 dark:bg-black/80 md:hidden"
+          className="fixed inset-0 top-14 z-[200] bg-black/50 dark:bg-black/70 md:hidden"
           aria-label="Đóng menu"
           onClick={() => setMenuOpen(false)}
         />
         <aside
           id="mobile-nav-menu"
-          className="fixed left-0 top-14 z-[210] flex h-[calc(100dvh-3.5rem)] w-[min(20rem,calc(100vw-1rem))] flex-col border-r border-zinc-200 bg-white shadow-[4px_0_24px_-4px_rgba(0,0,0,0.2)] dark:border-zinc-700 dark:bg-zinc-950 dark:shadow-[4px_0_32px_-4px_rgba(0,0,0,0.5)] md:hidden"
+          className="fixed left-0 top-14 z-[210] flex h-[calc(100dvh-3.5rem)] w-[min(20rem,calc(100vw-1rem))] flex-col border-r border-line bg-paper-raised shadow-[4px_0_28px_-6px_rgba(33,30,26,0.35)] md:hidden"
           role="navigation"
           aria-label="Menu chính"
         >
@@ -81,10 +82,10 @@ export function Navbar() {
                   key={item.href}
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`rounded-xl border px-3 py-3.5 text-base font-medium transition ${
+                  className={`rounded-lg border px-3 py-3.5 text-base transition ${
                     isActive
-                      ? "border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-100"
-                      : "border-transparent bg-zinc-50 text-zinc-900 hover:border-zinc-200 hover:bg-white dark:bg-zinc-900 dark:text-zinc-50 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
+                      ? "border-chusa/30 bg-chusa/10 font-semibold text-chusa"
+                      : "border-transparent bg-paper text-ink hover:border-line hover:bg-paper-inset"
                   }`}
                   onClick={() => setMenuOpen(false)}
                 >
@@ -99,23 +100,28 @@ export function Navbar() {
 
   return (
     <nav
-      className={`sticky top-0 border-b border-white/60 bg-white/80 backdrop-blur-md dark:border-zinc-800/70 dark:bg-zinc-950/70 ${
+      className={`sticky top-0 border-b border-line bg-paper/85 backdrop-blur-md ${
         menuOpen ? "z-[220]" : "z-50"
       }`}
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-3 sm:px-4 md:px-6">
         <Link
           href="/"
-          className="flex min-w-0 shrink items-center gap-1.5 text-base font-bold text-indigo-600 dark:text-indigo-400 sm:gap-2 sm:text-lg"
+          className="group flex min-w-0 shrink items-center gap-2.5"
+          aria-label="Story Audio — trang chủ"
         >
-          <span className="shrink-0" aria-hidden>
-            📖
+          <Seal size={30} className="transition-transform duration-300 group-hover:rotate-0" />
+          <span className="flex min-w-0 flex-col leading-none">
+            <span className="truncate font-display text-[0.95rem] font-bold tracking-tight text-ink sm:text-lg">
+              Story Audio
+            </span>
+            <span className="hidden text-[0.6rem] font-medium uppercase tracking-[0.22em] text-ink-faint sm:block">
+              Tàng thư · nghe truyện
+            </span>
           </span>
-          <span className="truncate sm:whitespace-normal">Story Audio</span>
         </Link>
 
-        <div className="hidden items-center gap-1 md:flex md:gap-4">
-          <ThemeToggle />
+        <div className="hidden items-center gap-5 md:flex">
           {navItems.map((item) => {
             const isActive = isActivePath(pathname, item.href);
 
@@ -124,23 +130,28 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`whitespace-nowrap text-sm transition-colors ${
+                className={`relative whitespace-nowrap text-sm transition-colors ${
                   isActive
-                    ? "font-semibold text-indigo-600 dark:text-indigo-400"
-                    : "text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
+                    ? "font-semibold text-chusa"
+                    : "text-ink-soft hover:text-ink"
                 }`}
               >
                 {item.label}
+                {isActive ? (
+                  <span className="absolute -bottom-[7px] left-0 h-[2px] w-full rounded-full bg-chusa" aria-hidden />
+                ) : null}
               </Link>
             );
           })}
+          <span className="h-5 w-px bg-line" aria-hidden />
+          <ThemeToggle />
         </div>
 
         <div className="relative z-[230] flex shrink-0 items-center gap-2 md:hidden">
           <ThemeToggle />
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-paper-raised text-ink-soft shadow-sm transition hover:border-chusa/40 hover:text-chusa"
             aria-expanded={menuOpen}
             aria-controls="mobile-nav-menu"
             aria-label={menuOpen ? "Đóng menu" : "Mở menu"}

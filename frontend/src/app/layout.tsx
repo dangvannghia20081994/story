@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Spectral } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
 import { AppProviders } from "@/app/AppProviders";
 import "./globals.css";
@@ -7,14 +7,20 @@ import "./globals.css";
 /** Trước hydration; Next chèn vào HTML gốc (không dùng <head> tay — tránh ghi đè metadata/viewport). */
 const themeInitScript = `(function(){try{var k='story-theme',t=localStorage.getItem(k),m=window.matchMedia('(prefers-color-scheme: dark)'),d=t==='dark'||(t!=='light'&&((t===null||t==='')&&m.matches)),r=document.documentElement;if(d){r.classList.add('dark');r.style.colorScheme='dark'}else{r.classList.remove('dark');r.style.colorScheme='light'}}catch(e){}})();`;
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+/** Bricolage — tiêu đề & UI (chất hiện đại, đủ dấu tiếng Việt). */
+const fontDisplay = Bricolage_Grotesque({
+  variable: "--font-display",
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+/** Spectral — mặt chữ đọc dài (serif văn học, tối ưu màn hình). */
+const fontSerif = Spectral({
+  variable: "--font-serif",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -40,9 +46,8 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} app-bg min-h-screen antialiased`}
+        className={`${fontDisplay.variable} ${fontSerif.variable} app-paper min-h-screen font-sans text-ink antialiased`}
       >
-        <div className="app-noise fixed inset-0 -z-10 opacity-40" />
         <div className="relative">
           <AppProviders>
             <Navbar />

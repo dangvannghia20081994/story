@@ -51,8 +51,7 @@ type ChaptersPage = {
 const PAGE_FRAME =
   "fixed inset-x-0 bottom-0 top-14 z-0 flex min-h-0 flex-col overflow-hidden overscroll-none";
 
-const shell =
-  "rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-900/75";
+const shell = "paper-card";
 
 let listenTtsLastSlugForChapterReset: string | null = null;
 
@@ -469,10 +468,10 @@ function ListenStoryPageContent() {
     return (
       <div className={`${PAGE_FRAME} items-center justify-center px-4`}>
         <div className={`${shell} w-full max-w-md space-y-4 p-8`}>
-          <div className="h-2 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-          <div className="h-2 w-full animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-          <div className="h-2 w-5/6 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-          <p className="pt-2 text-center text-sm text-zinc-500 dark:text-zinc-400">Đang tải truyện…</p>
+          <div className="h-2 w-3/4 animate-pulse rounded-full bg-line" />
+          <div className="h-2 w-full animate-pulse rounded-full bg-line" />
+          <div className="h-2 w-5/6 animate-pulse rounded-full bg-line" />
+          <p className="pt-2 text-center font-serif text-sm text-ink-faint">Đang tải truyện…</p>
         </div>
       </div>
     );
@@ -482,7 +481,7 @@ function ListenStoryPageContent() {
     return (
       <div className={`${PAGE_FRAME} items-center justify-center gap-4 px-4`}>
         <div className={`${shell} max-w-md p-8 text-center`}>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Thiếu slug truyện trong đường dẫn.</p>
+          <p className="font-serif text-sm text-ink-soft">Thiếu slug truyện trong đường dẫn.</p>
         </div>
       </div>
     );
@@ -492,10 +491,10 @@ function ListenStoryPageContent() {
     return (
       <div className={`${PAGE_FRAME} items-center justify-center gap-4 px-4`}>
         <div className={`${shell} max-w-md p-8 text-center`}>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Không tìm thấy truyện hoặc chưa có chương.</p>
+          <p className="font-serif text-sm text-ink-soft">Không tìm thấy truyện hoặc chưa có chương.</p>
           <Link
             href={storyDetailHref({ id: story?.id ?? 0, slug: storySlug })}
-            className="mt-4 inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="mt-4 inline-flex rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition hover:border-chusa/40 hover:text-chusa"
           >
             ← Về trang truyện
           </Link>
@@ -506,27 +505,27 @@ function ListenStoryPageContent() {
 
   return (
     <div className={PAGE_FRAME}>
-      <header className="z-20 shrink-0 border-b border-white/60 bg-white/85 px-3 py-2.5 shadow-sm backdrop-blur-md dark:border-zinc-800/70 dark:bg-zinc-950/80 sm:px-4 sm:py-3 md:px-6">
+      <header className="z-20 shrink-0 border-b border-line bg-paper/90 px-3 py-2.5 backdrop-blur-md sm:px-4 sm:py-3 md:px-6">
         <div className="mx-auto flex max-w-4xl flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 w-full items-center gap-2 sm:flex-1 sm:gap-3">
             <Link
               href={storyDetailHref({ id: story?.id ?? 0, slug: storySlug })}
-              className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-indigo-200/60 bg-gradient-to-r from-white to-indigo-50/80 px-3 text-xs font-medium text-indigo-800 shadow-sm transition hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/50 dark:text-indigo-200 dark:hover:to-violet-950/40 sm:text-sm"
+              className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-line bg-paper-raised px-3 text-xs font-medium text-ink-soft transition hover:border-chusa/40 hover:text-chusa sm:text-sm"
             >
               ← Truyện
             </Link>
-            <div className="hidden h-6 w-px shrink-0 self-center bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
+            <div className="hidden h-6 w-px shrink-0 self-center bg-line sm:block" aria-hidden />
             <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-50 sm:truncate sm:leading-normal">
+              <p className="line-clamp-2 font-display text-sm font-bold leading-snug text-ink sm:truncate sm:leading-normal">
                 {story.title}
               </p>
-              <p className="mt-0.5 line-clamp-2 text-xs font-medium leading-snug text-zinc-500 dark:text-zinc-400 sm:truncate sm:leading-normal">
+              <p className="mt-0.5 line-clamp-2 font-serif text-xs leading-snug text-ink-faint sm:truncate sm:leading-normal">
                 Chương {chapterOrdinal}/{chaptersTotalDisplay}
                 {currentChapter ? ` · ${currentChapter.title}` : ""}
               </p>
               <div className="mt-2 hidden max-w-md sm:block">
                 <div
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-line"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -534,7 +533,7 @@ function ListenStoryPageContent() {
                   aria-label="Tiến độ nghe toàn truyện"
                 >
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 transition-[width] duration-500 dark:from-indigo-400 dark:via-violet-500 dark:to-sky-400"
+                    className="h-full rounded-full bg-ngoc transition-[width] duration-500"
                     style={{ width: `${totalProgress * 100}%` }}
                   />
                 </div>
@@ -545,7 +544,7 @@ function ListenStoryPageContent() {
             {listenChapterAudioUrl ? (
               <Link
                 href={storyListenAudioHref(storyForListenLinks, currentChapter)}
-                className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 text-xs font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/35 dark:from-emerald-600 dark:to-teal-600 dark:shadow-emerald-900/40"
+                className="inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-ngoc/25 bg-ngoc/10 px-3 text-xs font-semibold text-ngoc transition hover:border-ngoc/50 hover:bg-ngoc/15 sm:text-sm"
               >
                 Nghe audio
               </Link>
@@ -553,15 +552,15 @@ function ListenStoryPageContent() {
             <button
               type="button"
               onClick={() => setShowToc((v) => !v)}
-              className={`inline-flex h-11 min-w-0 flex-1 items-center rounded-xl border px-3 text-left text-xs font-semibold shadow-sm transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
+              className={`inline-flex h-11 min-w-0 flex-1 items-center rounded-lg border px-3 text-left text-xs font-semibold transition sm:max-w-[min(100%,18rem)] sm:flex-none sm:text-sm ${
                 showToc
-                  ? "border-transparent bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-indigo-500/25 dark:from-indigo-600 dark:to-violet-600 dark:shadow-indigo-900/40 dark:text-white"
-                  : "border-indigo-200/70 bg-gradient-to-r from-white to-indigo-50/70 text-zinc-800 hover:border-indigo-300 hover:from-indigo-50 hover:to-violet-50 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/40 dark:text-zinc-100 dark:hover:to-violet-950/35"
+                  ? "border-chusa/40 bg-chusa/10 text-chusa"
+                  : "border-line bg-paper-raised text-ink hover:border-chusa/30"
               }`}
               aria-expanded={showToc}
             >
               <span className="flex min-w-0 flex-1 items-center gap-0">
-                <span className={showToc ? "shrink-0 text-white/85" : "shrink-0 text-zinc-400 dark:text-zinc-500"}>Mục lục · </span>
+                <span className="shrink-0 text-ink-faint">Mục lục · </span>
                 <span className="min-w-0 truncate">{currentChapter?.title ?? "Chương"}</span>
               </span>
             </button>
@@ -573,13 +572,13 @@ function ListenStoryPageContent() {
         <>
           <button
             type="button"
-            className="fixed inset-x-0 bottom-0 top-14 z-40 bg-zinc-900/45 backdrop-blur-[2px]"
+            className="fixed inset-x-0 bottom-0 top-14 z-40 bg-ink/40 backdrop-blur-[2px]"
             aria-label="Đóng mục lục"
             onClick={() => setShowToc(false)}
           />
-          <div className="fixed left-4 right-4 top-28 z-50 mx-auto flex max-h-[min(70vh,28rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-xl dark:border-zinc-700 dark:bg-zinc-900/95 md:left-auto md:right-8 md:mx-0">
-            <div className="shrink-0 border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          <div className="fixed left-4 right-4 top-28 z-50 mx-auto flex max-h-[min(70vh,28rem)] max-w-md flex-col overflow-hidden rounded-xl border border-line bg-paper-raised shadow-[0_24px_60px_-24px_rgba(33,30,26,0.6)] md:left-auto md:right-8 md:mx-0">
+            <div className="shrink-0 border-b border-line px-4 py-3">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-faint">
                 Mục lục · {chapters.length}/{chaptersTotalDisplay} chương
               </h3>
             </div>
@@ -589,27 +588,27 @@ function ListenStoryPageContent() {
                   <button
                     type="button"
                     onClick={() => goToChapter(index)}
-                    className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                    className={`flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
                       chapter.id === currentChapter?.id
-                        ? "bg-gradient-to-r from-indigo-100 to-violet-100 font-medium text-indigo-950 shadow-sm dark:from-indigo-950/70 dark:to-violet-950/50 dark:text-indigo-50"
-                        : "text-zinc-700 hover:bg-gradient-to-r hover:from-zinc-50 hover:to-indigo-50/50 dark:text-zinc-300 dark:hover:from-zinc-800/60 dark:hover:to-indigo-950/20"
+                        ? "bg-chusa/10 font-semibold text-chusa"
+                        : "text-ink-soft hover:bg-paper-inset hover:text-ink"
                     }`}
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-200/80 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-paper-inset text-xs font-bold text-ink-faint">
                       {index + 1}
                     </span>
-                    <span className="min-w-0 flex-1 leading-snug">{chapter.title}</span>
+                    <span className="min-w-0 flex-1 font-serif leading-snug">{chapter.title}</span>
                   </button>
                 </li>
               ))}
             </ul>
             {tocLoadedPage < tocLastPage ? (
-              <div className="shrink-0 border-t border-zinc-100 p-2 dark:border-zinc-800">
+              <div className="shrink-0 border-t border-line p-2">
                 <button
                   type="button"
                   onClick={() => void loadMoreToc()}
                   disabled={loadingTocMore}
-                  className="w-full rounded-xl border border-indigo-200/80 bg-gradient-to-r from-white to-indigo-50/80 py-2.5 text-xs font-semibold text-indigo-900 shadow-sm transition hover:from-indigo-50 hover:to-violet-50 disabled:opacity-60 dark:border-indigo-800/60 dark:from-zinc-900 dark:to-indigo-950/40 dark:text-indigo-100 dark:hover:to-violet-950/30"
+                  className="w-full rounded-lg border border-line bg-paper py-2.5 text-xs font-semibold text-ink transition hover:border-chusa/30 hover:text-chusa disabled:opacity-60"
                 >
                   {loadingTocMore ? "Đang tải…" : "Tải thêm mục lục"}
                 </button>
@@ -622,7 +621,7 @@ function ListenStoryPageContent() {
       <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col items-stretch justify-center gap-3 overflow-y-auto overscroll-contain px-4 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom,0.75rem))] md:px-6 md:pb-[max(1.5rem,env(safe-area-inset-bottom,0.75rem))]">
         <div className="sm:hidden">
           <div
-            className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-line"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -630,7 +629,7 @@ function ListenStoryPageContent() {
             aria-label="Tiến độ nghe toàn truyện"
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 transition-[width] duration-500 dark:from-indigo-400 dark:via-violet-500 dark:to-sky-400"
+              className="h-full rounded-full bg-ngoc transition-[width] duration-500"
               style={{ width: `${totalProgress * 100}%` }}
             />
           </div>

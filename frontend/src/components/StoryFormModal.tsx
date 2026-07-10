@@ -104,19 +104,19 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
       className="fixed inset-0 z-[100000] flex min-h-[100dvh] items-center justify-center overflow-y-auto p-4 sm:p-6"
     >
       <div
-        className="fixed inset-0 bg-zinc-600/55 dark:bg-zinc-950/80"
+        className="fixed inset-0 bg-black/50 dark:bg-black/70"
         aria-hidden
         onClick={onClose}
       />
 
-      <div className="relative z-10 my-auto w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900">
+      <div className="paper-card relative z-10 my-auto w-full max-w-lg p-6 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 id="story-form-modal-title" className="text-xl font-bold text-zinc-800 dark:text-zinc-200">
+          <h2 id="story-form-modal-title" className="font-display text-xl font-bold text-ink">
             Tạo truyện mới
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="rounded-lg p-2 text-ink-faint hover:bg-paper-inset"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -132,7 +132,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
           )}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-ink-soft">
               Tên truyện <span className="text-red-500">*</span>
             </label>
             <input
@@ -141,33 +141,33 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink placeholder:text-ink-faint focus:border-chusa focus:outline-none"
               placeholder="Nhập tên truyện"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-ink-soft">
               Slug (URL)
             </label>
             <input
               type="text"
               value={formData.slug}
               onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink placeholder:text-ink-faint focus:border-chusa focus:outline-none"
               placeholder="tu-tien (tự động tạo nếu để trống)"
             />
           </div>
 
           <fieldset>
-            <legend className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <legend className="mb-2 block text-sm font-medium text-ink-soft">
               Thể loại (chọn nhiều)
             </legend>
             <div className="flex flex-col items-start gap-2">
               {GENRES.map((g) => (
                 <label
                   key={g.value}
-                  className="inline-flex max-w-full cursor-pointer select-none items-center gap-2 rounded-md py-0.5 text-sm text-zinc-800 dark:text-zinc-200"
+                  className="inline-flex max-w-full cursor-pointer select-none items-center gap-2 rounded-md py-0.5 text-sm text-ink"
                 >
                   <input
                     type="checkbox"
@@ -183,7 +183,7 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
                           : prev.genres.filter((x) => x !== g.value),
                       }));
                     }}
-                    className="shrink-0 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600"
+                    className="shrink-0 rounded border-line text-chusa focus:ring-chusa"
                   />
                   <span className="min-w-0">{g.label}</span>
                 </label>
@@ -192,13 +192,13 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
           </fieldset>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-ink-soft">
               Trạng thái ra truyện
             </label>
             <select
               value={formData.serial_status}
               onChange={(e) => setFormData({ ...formData, serial_status: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink focus:border-chusa focus:outline-none"
             >
               {SERIAL_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -209,44 +209,44 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-ink-soft">
               Mô tả
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink placeholder:text-ink-faint focus:border-chusa focus:outline-none"
               placeholder="Mô tả ngắn về truyện"
             />
           </div>
 
-          <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
-            <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+          <div className="border-t border-line pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-ink-soft">
               Chương đầu tiên (tùy chọn)
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+                <label className="mb-1 block text-sm text-ink-soft">
                   Tên chương
                 </label>
                 <input
                   type="text"
                   value={formData.firstChapterTitle}
                   onChange={(e) => setFormData({ ...formData, firstChapterTitle: e.target.value })}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink placeholder:text-ink-faint focus:border-chusa focus:outline-none"
                   placeholder="Ví dụ: Chương 1 - Khởi đầu"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+                <label className="mb-1 block text-sm text-ink-soft">
                   Nội dung chương
                 </label>
                 <textarea
                   value={formData.firstChapterContent}
                   onChange={(e) => setFormData({ ...formData, firstChapterContent: e.target.value })}
                   rows={5}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink placeholder:text-ink-faint focus:border-chusa focus:outline-none"
                   placeholder="Nội dung chương truyện..."
                 />
               </div>
@@ -257,14 +257,14 @@ export function StoryFormModal({ isOpen, onClose, onSuccess }: StoryFormModalPro
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="flex-1 rounded-lg border border-line bg-paper-raised px-4 py-2 text-sm font-medium text-ink transition hover:border-chusa/40 hover:text-chusa"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="flex-1 rounded-lg bg-chusa px-4 py-2 text-sm font-semibold text-[#f6ede0] transition hover:bg-chusa-deep disabled:opacity-50"
             >
               {loading ? "Đang tạo..." : "Tạo truyện"}
             </button>

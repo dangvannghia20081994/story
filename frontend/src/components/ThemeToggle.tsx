@@ -37,12 +37,12 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white/90 text-zinc-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-200"
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-paper-raised text-ink-soft shadow-sm transition hover:border-chusa/40 hover:text-chusa"
       aria-label={isDark ? "Chế độ sáng" : "Chế độ tối"}
       title={isDark ? "Sáng" : "Tối"}
     >
       {!ready ? (
-        <span className="h-4 w-4 rounded-full bg-zinc-200 dark:bg-zinc-700" aria-hidden />
+        <span className="h-4 w-4 rounded-full bg-line" aria-hidden />
       ) : isDark ? (
         <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
           <path

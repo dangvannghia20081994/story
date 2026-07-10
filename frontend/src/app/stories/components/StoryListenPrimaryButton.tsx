@@ -39,7 +39,7 @@ export function StoryListenPrimaryButton({ storyKey, firstChapter, chapters }: P
         role="button"
         aria-disabled
         title="Trình duyệt không hỗ trợ đọc TTS (Web Speech API)"
-        className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-5 py-3 text-sm font-semibold text-zinc-400 opacity-80 sm:w-auto dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-500"
+        className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-line bg-paper-inset px-4 py-2 text-sm font-semibold text-ink-faint opacity-80 sm:w-auto"
       >
         <span aria-hidden>🎧</span>
         {hasProgress ? "Nghe tiếp" : "Nghe truyện"}
@@ -50,7 +50,7 @@ export function StoryListenPrimaryButton({ storyKey, firstChapter, chapters }: P
   return (
     <Link
       href={href}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:w-auto dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-ngoc/25 bg-ngoc/10 px-4 py-2 text-sm font-semibold text-ngoc transition hover:border-ngoc/50 hover:bg-ngoc/15 sm:w-auto"
     >
       <span aria-hidden>🎧</span>
       {hasProgress ? "Nghe tiếp" : "Nghe truyện"}

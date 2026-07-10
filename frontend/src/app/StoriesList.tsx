@@ -28,7 +28,7 @@ export async function StoriesList() {
 
   if (payload.data.length === 0) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="font-serif text-sm italic text-ink-faint">
         Chưa có truyện. Dùng nút Thêm truyện phía trên để tạo mới.
       </p>
     );

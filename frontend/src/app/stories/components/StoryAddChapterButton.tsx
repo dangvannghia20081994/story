@@ -18,8 +18,8 @@ export function StoryAddChapterButton({ storyKey, storyTitle, variant = "seconda
 
   const btnClass =
     variant === "primary"
-      ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:bg-indigo-500 sm:w-auto"
-      : "inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-800 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-200";
+      ? "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-chusa px-5 py-2.5 text-sm font-semibold text-[#f6ede0] transition hover:bg-chusa-deep sm:w-auto"
+      : "inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-paper-raised px-4 py-2 text-sm font-medium text-ink transition hover:border-chusa/40 hover:text-chusa";
 
   return (
     <>
