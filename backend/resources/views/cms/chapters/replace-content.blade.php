@@ -34,7 +34,7 @@
         </div>
         @if ($errors->any())
             <div class="field">
-                <ul class="muted" style="margin: 0; padding-left: 1.25rem; color: var(--danger, #b42318);">
+                <ul class="muted" style="margin: 0; padding-left: 1.25rem; color: #dc2626;">
                     @foreach ($errors->all() as $err)
                         <li>{{ $err }}</li>
                     @endforeach

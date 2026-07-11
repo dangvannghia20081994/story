@@ -26,6 +26,20 @@ class ChapterController extends Controller
 
     public function index(Request $request, Story $story): View
     {
+        [$query, $q, $tts, $audio, $analyzed, $sort] = $this->buildFilteredChaptersQuery($request, $story);
+
+        $chapters = $query->paginate(30)->withQueryString();
+
+        return view('cms.chapters.index', compact('story', 'chapters', 'q', 'tts', 'audio', 'analyzed', 'sort'));
+    }
+
+    /**
+     * Xây query chapters của 1 story theo cùng bộ filter/sort dùng ở index() và bulk-enqueue-tts.
+     *
+     * @return array{0: \Illuminate\Database\Eloquent\Builder, 1: string, 2: string, 3: string, 4: string, 5: string}
+     */
+    private function buildFilteredChaptersQuery(Request $request, Story $story): array
+    {
         $q = trim((string) $request->query('q', ''));
         $tts = trim((string) $request->query('tts', ''));
         $audio = trim((string) $request->query('audio', ''));
@@ -104,9 +118,7 @@ class ChapterController extends Controller
             default => $query->chapterNumberSort('asc'),
         };
 
-        $chapters = $query->paginate(30)->withQueryString();
-
-        return view('cms.chapters.index', compact('story', 'chapters', 'q', 'tts', 'audio', 'analyzed', 'sort'));
+        return [$query, $q, $tts, $audio, $analyzed, $sort];
     }
 
     public function create(Story $story): View
@@ -390,5 +402,57 @@ class ChapterController extends Controller
         }
 
         return back()->with('status', 'Đã đưa chương «'.$chapter->title.'» vào hàng TTS (Redis).');
+    }
+
+    /**
+     * Push TTS hàng loạt cho các chapter đang hiển thị ở TRANG hiện tại của list
+     * (đúng filter q/tts/audio/analyzed/sort + đúng số trang `page` trên URL).
+     * Chỉ thực sự RPUSH những chapter đang ở trạng thái "pending" (chưa có audio,
+     * chưa từng đẩy hàng, có nội dung) — chapter ready/queued/no_text sẽ bị skip.
+     */
+    public function bulkEnqueueWorkerTts(Request $request, Story $story): JsonResponse
+    {
+        [$query] = $this->buildFilteredChaptersQuery($request, $story);
+        $chapters = $query->paginate(30);
+
+        $voiceId = trim((string) $request->input('voice_id', 'capcut:BV074_streaming'));
+        if ($voiceId === '' || ! preg_match('/^(\d+|edge:[A-Za-z0-9_-]+|capcut:[A-Za-z0-9_]+)$/', $voiceId)) {
+            $voiceId = 'capcut:BV074_streaming';
+        }
+
+        $results = [];
+        $pushed = 0;
+        $skipped = 0;
+
+        foreach ($chapters as $chapter) {
+            $status = $chapter->cmsTtsStatusKey();
+
+            if ($status !== 'pending') {
+                $skipped++;
+                $results[] = ['chapter_id' => $chapter->id, 'status' => 'skip_'.$status];
+
+                continue;
+            }
+
+            try {
+                WorkerTtsQueue::push($chapter, null, $voiceId);
+            } catch (\Throwable $e) {
+                report($e);
+                $skipped++;
+                $results[] = ['chapter_id' => $chapter->id, 'status' => 'skip_error'];
+
+                continue;
+            }
+
+            $pushed++;
+            $results[] = ['chapter_id' => $chapter->id, 'status' => 'pushed'];
+        }
+
+        return response()->json([
+            'message' => "Đã đẩy {$pushed} chương vào hàng TTS, bỏ qua {$skipped} chương.",
+            'pushed' => $pushed,
+            'skipped' => $skipped,
+            'results' => $results,
+        ]);
     }
 }

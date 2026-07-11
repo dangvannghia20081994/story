@@ -345,6 +345,19 @@
         .btn-primary:hover { background: var(--accent-hover); color: #fff; }
         .btn-danger { background: #dc2626; border-color: #b91c1c; color: #fff; }
         .btn-danger:hover { background: #b91c1c; color: #fff; }
+        /* TTS: dùng chung tông hổ phách với .cms-badge--tts-pending để nút bulk gắn liền ý nghĩa "đẩy hàng chờ TTS". */
+        .btn-tts { background: #d97706; border-color: #b45309; color: #fff; }
+        .btn-tts:hover { background: #b45309; color: #fff; }
+        .btn-tts:focus-visible { outline: 2px solid #b45309; outline-offset: 2px; }
+        .btn-tts:disabled { background: #d97706; border-color: #b45309; opacity: 0.55; cursor: not-allowed; }
+        .btn-tts__icon { flex-shrink: 0; }
+        @media (prefers-reduced-motion: no-preference) {
+            .btn-tts.is-loading .btn-tts__icon { animation: btn-tts-pulse 1.1s ease-in-out infinite; }
+        }
+        @keyframes btn-tts-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
         label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text); }
         input, select, textarea {
             width: 100%; max-width: 100%; padding: 0.5rem 0.6rem; border-radius: 0.45rem;

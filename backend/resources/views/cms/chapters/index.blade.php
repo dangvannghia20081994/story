@@ -50,6 +50,16 @@
             <option value="5003">♀ Revid 4 — tự nhiên</option>
             <option value="5005">♀ Revid 6 — dịu dàng</option>
         </select>
+        <button
+            type="button"
+            id="bulk-push-tts-btn"
+            class="btn btn-tts"
+            data-url="{{ route('cms.stories.chapters.bulk-enqueue-tts', $story) }}"
+            title="Đẩy TTS cho tất cả chương đang hiển thị ở trang này (theo filter/sắp xếp hiện tại); chương đã có audio, đã xếp hàng hoặc thiếu nội dung sẽ được bỏ qua"
+        >
+            <svg class="btn-tts__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18M8 7v10M4 10v4M16 7v10M20 10v4"/></svg>
+            <span id="bulk-push-tts-btn-label">Push TTS cả trang</span>
+        </button>
     </div>
     <form class="stories-filter-bar stories-filter-bar--scroll" method="get" action="{{ url()->current() }}">
         <input
@@ -243,6 +253,55 @@
                 });
             });
         });
+
+        var bulkBtn = document.getElementById('bulk-push-tts-btn');
+        if (bulkBtn) {
+            bulkBtn.addEventListener('click', function () {
+                if (bulkBtn.disabled) return;
+                if (!window.confirm('Đẩy TTS cho tất cả chương đang hiển thị ở TRANG này (theo filter/sắp xếp hiện tại)?\nChương đã có audio, đã xếp hàng hoặc thiếu nội dung sẽ được bỏ qua.')) {
+                    return;
+                }
+                var baseUrl = bulkBtn.getAttribute('data-url');
+                var url = baseUrl + (window.location.search || '');
+                var voiceSelect = document.getElementById('tts-voice-select');
+                var voiceId = voiceSelect ? voiceSelect.value : 'capcut:BV074_streaming';
+                var label = document.getElementById('bulk-push-tts-btn-label');
+                var originalText = label ? label.textContent : '';
+                bulkBtn.disabled = true;
+                bulkBtn.classList.add('is-loading');
+                if (label) { label.textContent = 'Đang đẩy...'; }
+                axios.post(url, { voice_id: voiceId }, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf
+                    }
+                }).then(function (res) {
+                    var d = res.data;
+                    (d.results || []).forEach(function (r) {
+                        if (r.status !== 'pushed') return;
+                        var badge = document.getElementById('chapter-tts-badge-' + r.chapter_id);
+                        if (badge) {
+                            badge.className = 'cms-badge cms-badge--job-processing';
+                            badge.textContent = 'Đang xử lý';
+                            badge.removeAttribute('title');
+                        }
+                    });
+                    notify('ok', d.message || 'Đã xử lý xong.');
+                }).catch(function (err) {
+                    var msg = 'Lỗi mạng hoặc máy chủ.';
+                    if (err.response && err.response.data && err.response.data.message) {
+                        msg = err.response.data.message;
+                    }
+                    notify('error', msg);
+                }).finally(function () {
+                    bulkBtn.disabled = false;
+                    bulkBtn.classList.remove('is-loading');
+                    if (label) { label.textContent = originalText; }
+                });
+            });
+        }
     })();
     </script>
 @endpush

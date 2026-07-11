@@ -16,8 +16,8 @@
 @push('head')
     @if ($draftRows !== null && count($draftRows) > 0)
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@14.5.0/dist/handsontable.full.min.css" crossorigin="anonymous">
-        @include('cms.partials.bulk-handsontable-skin')
     @endif
+    @include('cms.partials.bulk-handsontable-skin')
 @endpush
 
 @section('content')

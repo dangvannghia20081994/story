@@ -275,11 +275,14 @@
         .dashboard-mini-card__label {
             display: block;
             color: var(--muted);
-            font-size: 0.75rem;
+            font-size: 0.68rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.01em;
             margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .dashboard-mini-card__value {
             font-size: 1.45rem;
@@ -548,7 +551,7 @@
                     <div class="dashboard-kpi-help">Đã enqueue nhưng chưa có file audio.</div>
                 </div>
                 <div class="dashboard-mini-card">
-                    <span class="dashboard-mini-card__label">Truyện thiếu chương</span>
+                    <span class="dashboard-mini-card__label">Thiếu chương</span>
                     <div class="dashboard-mini-card__value">{{ $storiesWithoutChaptersCount }}</div>
                     <div class="dashboard-kpi-help">Nên kiểm tra nhập liệu hoặc crawl.</div>
                 </div>
@@ -583,8 +586,9 @@
                         <div class="dashboard-list__main">
                             <a class="dashboard-list__title" href="{{ route('cms.stories.chapters.index', $story) }}">{{ $story->title }}</a>
                             <span class="dashboard-list__meta">
-                                {{ $story->chapters_count }} chương · {{ $story->characters_count }} nhân vật · cập nhật {{ $story->updated_at?->format('Y-m-d H:i') }}
+                                {{ $story->chapters_count }} chương · {{ $story->characters_count }} nhân vật
                             </span>
+                            <span class="dashboard-list__meta">cập nhật {{ $story->updated_at?->format('Y-m-d H:i') }}</span>
                         </div>
                         <div class="dashboard-list__side">
                             <span class="cms-badge cms-badge--genre cms-badge--genre-{{ $story->genre ?? 'khac' }}">{{ \App\Models\Story::genreLabel($story->genre) }}</span>
@@ -614,8 +618,9 @@
                         <div class="dashboard-list__main">
                             <a class="dashboard-list__title" href="{{ route('cms.stories.chapters.edit', [$chapter->story, $chapter]) }}">{{ $chapter->title }}</a>
                             <span class="dashboard-list__meta">
-                                {{ $chapter->story?->title ?? '—' }} · {{ $chapter->chapter_number !== null ? 'Chương '.$chapter->chapter_number : 'Không số chương' }} · {{ $chapter->updated_at?->format('Y-m-d H:i') }}
+                                {{ $chapter->story?->title ?? '—' }} · {{ $chapter->chapter_number !== null ? 'Chương '.$chapter->chapter_number : 'Không số chương' }}
                             </span>
+                            <span class="dashboard-list__meta">{{ $chapter->updated_at?->format('Y-m-d H:i') }}</span>
                         </div>
                         <div class="dashboard-list__side">
                             <span class="cms-badge {{ $chapter->cmsTtsBadgeClass() }}">{{ $chapter->cmsTtsStatusLabel() }}</span>

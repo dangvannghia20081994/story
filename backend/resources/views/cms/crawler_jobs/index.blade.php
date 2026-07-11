@@ -200,22 +200,22 @@
     </div>
     <div class="crawler-jobs-grid">
         <div class="card crawler-jobs-stat">
-            <div class="crawler-jobs-stat__label"><span>Chờ đẩy</span><strong>Chờ đẩy</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Chờ đẩy</span></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PENDING] ?? 0 }}</div>
             <div class="crawler-jobs-stat__meta">Job mới tạo, chưa đưa vào Redis.</div>
         </div>
         <div class="card crawler-jobs-stat crawler-jobs-stat--accent">
-            <div class="crawler-jobs-stat__label"><span>Đã xếp hàng</span><strong>Đã xếp hàng</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Đã xếp hàng</span></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_QUEUED] ?? 0 }}</div>
             <div class="crawler-jobs-stat__meta">Có thể đang chờ worker xử lý.</div>
         </div>
         <div class="card crawler-jobs-stat crawler-jobs-stat--warn">
-            <div class="crawler-jobs-stat__label"><span>Đang xử lý</span><strong>Đang xử lý</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Đang xử lý</span></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_PROCESSING] ?? 0 }}</div>
             <div class="crawler-jobs-stat__meta">Cần tránh sửa trong lúc chạy.</div>
         </div>
         <div class="card crawler-jobs-stat crawler-jobs-stat--success">
-            <div class="crawler-jobs-stat__label"><span>Hoàn tất</span><strong>Hoàn tất</strong></div>
+            <div class="crawler-jobs-stat__label"><span>Hoàn tất</span></div>
             <div class="crawler-jobs-stat__value">{{ $crawlerStatusCounts[\App\Models\CrawlerJob::STATUS_COMPLETED] ?? 0 }}</div>
             <div class="crawler-jobs-stat__meta">Đã nhập xong nội dung.</div>
         </div>

@@ -376,7 +376,7 @@
                     @endforeach
                 </div>
 
-                <div style="margin-top: 0.85rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <div style="margin-top: 0.85rem; padding-bottom: 5rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                     <button type="submit" class="btn btn-primary" style="padding: 0.38rem 0.8rem; font-size: 0.82rem;">Lưu speaker</button>
                     <button type="button" id="reset-btn-bottom" class="btn" style="padding: 0.38rem 0.8rem; font-size: 0.82rem; display: none;">Reset</button>
                     <span id="modified-counter-bottom" class="muted" style="font-size: 0.8rem; display: none;">
