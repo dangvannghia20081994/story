@@ -27,7 +27,7 @@ docker compose up --build
 | Postgres                               | localhost:5432                                                                                                                                                                                                               |
 | Redis                                  | localhost:6379                                                                                                                                                                                                               |
 | Crawler worker (Python, tuỳ chọn)      | **Docker:** `docker compose --profile crawler up -d` (xem [docker/README.md](docker/README.md)). **Host:** `worker-crawler/worker.py` + `worker-crawler/.env` — [GUIDE_WINDOW.md](GUIDE_WINDOW.md), [run-dev.sh](run-dev.sh) |
-| Worker-TTS (Python, tuỳ chọn)          | `docker compose --profile worker-tts up -d --build` — tổng hợp giọng Revid TTS API (async poll) theo job Redis, mặc định **6 replicas song song** (xem [worker-tts/README.md](worker-tts/README.md))                          |
+| Worker-TTS (Python, tuỳ chọn)          | `docker compose --profile worker-tts up -d --build` — tổng hợp giọng Revid TTS API (async poll) theo job Redis, 3 API key × 6 replicas = **18 luồng song song** (xem [worker-tts/README.md](worker-tts/README.md))                          |
 
 Chi tiết từng phần: xem `README.md` trong `backend/`, `frontend/`, `app/`, **`worker-crawler/README.md`**, và **`docker/README.md`** cho image Docker / biến Compose.
 

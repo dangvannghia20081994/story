@@ -197,7 +197,9 @@ def _call_revid_tts_async(text: str, voice_id: str, rate: str = "+0%") -> bytes:
 
     Bền với API chậm hơn sync vì mỗi HTTP call ngắn (không giữ kết nối dài chờ sinh giọng).
     Đây là luồng MẶC ĐỊNH worker đang dùng (_process_revid_single gọi hàm này).
-    Config: REVID_ASYNC_MAX_WAIT (giây, mặc định 600), REVID_ASYNC_POLL (giây, mặc định 5).
+    Config: REVID_ASYNC_MAX_WAIT (giây, mặc định 600), REVID_ASYNC_POLL (giây, mặc định 5),
+    REVID_ASYNC_STATUS_TIMEOUT (giây, mặc định 60). Lỗi mạng khi poll GET (vd read timeout)
+    chỉ retry lại poll, không resubmit task.
     """
     import time
 
@@ -225,15 +227,24 @@ def _call_revid_tts_async(text: str, voice_id: str, rate: str = "+0%") -> bytes:
         poll = max(1.0, float(os.environ.get("REVID_ASYNC_POLL") or "5"))
     except ValueError:
         poll = 3.0
+    try:
+        status_timeout = float(os.environ.get("REVID_ASYNC_STATUS_TIMEOUT") or "60")
+    except ValueError:
+        status_timeout = 60.0
 
     waited = 0.0
     status_url = f"https://tts.revidapi.com/api/v1/tasks/{task_id}"
     while waited < max_wait:
         time.sleep(poll)
         waited += poll
-        pr = req.get(status_url, headers=headers, timeout=(10, 30))
-        pr.raise_for_status()
-        data = pr.json() or {}
+        try:
+            pr = req.get(status_url, headers=headers, timeout=(10, status_timeout))
+            pr.raise_for_status()
+            data = pr.json() or {}
+        except req.exceptions.RequestException as e:
+            # Lỗi mạng khi POLL status (task đã submit, không mất) → thử lại poll, không resubmit task.
+            print(f"[worker-tts]   poll task {task_id} lỗi ({e}), thử lại...", flush=True)
+            continue
         status = data.get("status")
         if status in ("pending", "processing"):
             # progress từ API đứng yên ~8% suốt rồi nhảy 100% → vô dụng, chỉ log thời gian chờ + message.

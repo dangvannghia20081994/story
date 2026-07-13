@@ -97,6 +97,9 @@ services:
     restart: unless-stopped
 
   # Cần `worker-tts/.env` (WORKER_TTS_INTERNAL_TOKEN trùng backend).
+  # 3 service worker-tts / worker-tts-2 / worker-tts-3 dùng 3 API key Revid khác nhau (key2/key3 override
+  # qua ./worker-tts/.env.key2 và .env.key3 — file gitignore, điền REVID_API_KEY riêng cho từng key),
+  # mỗi service 6 replicas → tổng 18 luồng cùng BLPOP 1 queue (competing consumers), chia đều tải 3 key.
   # Bật: docker compose --profile worker-tts up -d
   worker-tts:
     profiles: ["worker-tts"]
@@ -116,8 +119,55 @@ services:
       backend:
         condition: service_started
     restart: unless-stopped
-    # 6 replicas cùng BLPOP story:tts:queue (competing consumers) → tối đa 6 chương TTS song song.
+    # 6 replicas cùng BLPOP story:tts:queue (competing consumers), dùng key1
+    # (REVID_API_KEY trong .env, hoặc mặc định hardcode trong worker_redis.py nếu không set).
     # Hạ xuống nếu Revid API trả 429/hết credit. Override runtime: --scale worker-tts=N.
+    deploy:
+      replicas: 6
+
+  worker-tts-2:
+    profiles: ["worker-tts"]
+    build:
+      context: ./worker-tts
+      dockerfile: ../docker/worker-tts.Dockerfile
+    env_file:
+      - ./worker-tts/.env
+      - ./worker-tts/.env.key2
+    environment:
+      REDIS_HOST: redis
+      BACKEND_API_BASE_URL: http://backend:8000
+    volumes:
+      - ./backend/storage/app/private/voices:/app/voices:ro
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    # 6 replicas riêng, dùng key2 (REVID_API_KEY trong .env.key2 đè lên .env).
+    deploy:
+      replicas: 6
+
+  worker-tts-3:
+    profiles: ["worker-tts"]
+    build:
+      context: ./worker-tts
+      dockerfile: ../docker/worker-tts.Dockerfile
+    env_file:
+      - ./worker-tts/.env
+      - ./worker-tts/.env.key3
+    environment:
+      REDIS_HOST: redis
+      BACKEND_API_BASE_URL: http://backend:8000
+    volumes:
+      - ./backend/storage/app/private/voices:/app/voices:ro
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    # 6 replicas riêng, dùng key3 (REVID_API_KEY trong .env.key3 đè lên .env).
     deploy:
       replicas: 6
 
