@@ -4,6 +4,8 @@ Project `story` có **9 sub-agent** (1 coordinator + 8 specialist), đồng bộ
 
 Cursor tự discover sub-agent từ **file `.md` phẳng** trong folder này. Gọi bằng `/tên-agent` hoặc nhắc Agent delegate (Task tool).
 
+> **Văn phong response (bắt buộc)** — mục `## Từ ngữ trong response` đã có ở cuối cả 18 file agent (9 file phẳng + 9 `<layer>/AGENT.md`): cấm ẩn dụ/giật gân, ghép từ sượng, phóng đại, filler AI, văn nói/teencode; kèm bảng thay thế 14 cặp. Bản gốc để copy khi thêm agent mới: `.claude/agents/README.md` §"Quy ước chung — văn phong response".
+
 ## Cấu trúc
 
 ```
